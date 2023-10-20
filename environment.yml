@@ -7,6 +7,6 @@ dependencies:
 - imageio
 - matplotlib
 - pystackreg
-- skimage
+- scikit-image
 - scipy
 - jupyter-panel-proxy
