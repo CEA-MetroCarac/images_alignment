@@ -1,5 +1,5 @@
 """
-Application for images alignment
+Application for images registration
 """
 import os
 import glob
@@ -662,6 +662,5 @@ class App:
             return None
 
 
-if __name__ == "__main__":
-    my_app = App()
-    my_app.window.show()
+my_app = App()
+my_app.window.servable()
