@@ -2,4 +2,5 @@ channels:
 - pyviz
 
 packages:
+- panel
 - jupyter-panel-proxy
