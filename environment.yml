@@ -3,4 +3,5 @@ channels:
 
 packages:
 - panel
+- numpy
 - jupyter-panel-proxy
