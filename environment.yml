@@ -4,4 +4,9 @@ channels:
 dependencies:
 - panel
 - numpy
+- imageio
+- matplotlib
+- pystackreg
+- skimage
+- scipy
 - jupyter-panel-proxy
