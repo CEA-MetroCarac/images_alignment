@@ -660,3 +660,6 @@ class App:
             return app
         else:
             return None
+
+my_app = App()
+my_app.window.servable()

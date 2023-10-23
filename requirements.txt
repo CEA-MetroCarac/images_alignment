@@ -5,4 +5,3 @@ matplotlib
 pystackreg
 scikit-image
 scipy
-jupyter-panel-proxy
