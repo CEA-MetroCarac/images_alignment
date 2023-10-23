@@ -3,6 +3,8 @@ channels:
 
 dependencies:
 - nbserverproxy
+- tornado
+- bokeh
 - panel
 - numpy
 - imageio
