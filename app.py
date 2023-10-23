@@ -454,7 +454,8 @@ class App:
             return
         else:
             fnames = glob.glob(os.path.join(dirpath, "*"))
-            self.terminal.write(f"{len(fnames) + 1} files have been loaded\n\n")
+            fnames = [x for x in fnames if os.path.isfile(x)]
+            self.terminal.write(f"{len(fnames)} files have been loaded\n\n")
             self.input_dirpath = dirpath
             self.input_fnames = fnames
 
