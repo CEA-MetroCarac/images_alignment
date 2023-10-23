@@ -2,6 +2,7 @@ channels:
 - pyviz
 
 dependencies:
+- nbserverproxy
 - panel
 - numpy
 - imageio
