@@ -2,9 +2,6 @@ channels:
 - pyviz
 
 dependencies:
-- nbserverproxy
-- tornado
-- bokeh
 - panel
 - numpy
 - imageio
