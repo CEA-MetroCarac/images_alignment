@@ -1,0 +1,8 @@
+panel
+numpy
+imageio
+matplotlib
+pystackreg
+scikit-image
+scipy
+jupyter-panel-proxy
