@@ -40,4 +40,4 @@ for more informations concerning the application parameters setting, see the [do
 
 In case you use this web application to align images for a study wich leads to an article, please cite:
 
-- https://github.dev/CEA-MetroCarac/images_registration
+- Patrick Quéméré, Univ. Grenoble Alpes, CEA, Leti, F-38000 Grenoble, France, https://github.dev/CEA-MetroCarac/images_registration
