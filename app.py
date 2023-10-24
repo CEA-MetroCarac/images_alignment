@@ -86,7 +86,7 @@ def interpolation(img1, img2):
     success = True
 
     if (shape1 == shape2).all():
-        return img1, img2
+        return img1, img2, success
     elif (shape1 <= shape2).all():
         img_lr = img1
         img_hr = img2
@@ -387,20 +387,16 @@ class App:
             self.terminal.write(f"Failed to load {fname}\n\n")
             return
 
+        self.fnames[k] = fname
+
         # image normalization in range [0, 1]
         self.imgs[k] = image_normalization(gray_conversion(img))
 
-        # background uniformization
-        if edges_trend(self.imgs[k]):
-            self.imgs[k] = 1. - self.imgs[k]
-
-        if self.bin_inversions[k]:
-            self.imgs[k] = 1. - self.imgs[k]
+        self.update_plot(k, binary=False)
+        self.update_plot(2, binary=False)
 
         if self.mode_auto:
             self.resizing()
-        else:
-            self.update_plot(k, binary=False)
 
     def update_plot(self, k, binary=True, patch=None):
         """ Update the k-th ax """
@@ -412,7 +408,10 @@ class App:
             self.ax[k].add_patch(patch)
 
         if not binary:
-            img = self.imgs[k]
+            if k in [0, 1]:
+                img = self.imgs[k]
+            else:
+                img = None
 
         elif k == 2:
             if self.view_mode == "Difference":
@@ -432,7 +431,8 @@ class App:
             img = np.zeros((shape[0], shape[1], 3))
             img[..., k] = img_bin
 
-        self.ax[k].imshow(img, origin='lower', cmap='gray')
+        if img is not None:
+            self.ax[k].imshow(img, origin='lower', cmap='gray')
         self.mpl_panes[k].param.trigger('object')
         pn.io.push_notebook(self.mpl_panes[k])
 
@@ -528,11 +528,20 @@ class App:
             self.update_plot(0, binary=False)
             self.update_plot(1, binary=False)
 
+    def binarization_k(self, k):
+        """ Binarize the k-th image """
+        img_bin = self.imgs[k] > self.thresholds[k]
+        if edges_trend(self.imgs[k]):
+            img_bin = ~img_bin
+        if self.bin_inversions[k]:
+            img_bin = ~img_bin
+        return img_bin
+
     def binarization(self):
         """ Binarize the images """
-        self.imgs_bin = [self.imgs[0] > self.thresholds[0],
-                         self.imgs[1] > self.thresholds[1]]
+        self.imgs_bin = [self.binarization_k(0), self.binarization_k(1)]
 
+        self.update_plot(0)
         self.update_plot(1)
 
         if self.mode_auto:
@@ -542,7 +551,7 @@ class App:
 
     def registration_auto(self):
         """ Calculate 'tmat' from pystackreg and apply it """
-        self.imgs_bin[0] = self.imgs[0] > self.thresholds[0]  # reinit
+        self.imgs_bin[0] = self.binarization_k(0)  # reinit
         self.tmat = STREG.register(*self.imgs_bin[::-1])
         self.registration()
 
@@ -552,7 +561,7 @@ class App:
         self.result_str.object = self.tmat
         np.set_printoptions(precision=None)
 
-        self.imgs_bin[0] = self.imgs[0] > self.thresholds[0]  # reinit
+        self.imgs_bin[0] = self.binarization_k(0)  # reinit
         self.imgs_bin[0] = warp(self.imgs_bin[0], self.tmat, mode='constant',
                                 cval=1, preserve_range=True, order=None)
 
@@ -561,7 +570,6 @@ class App:
 
     def translate(self, mode):
         """ Apply translation STEP in 'tmat' """
-        print(mode)
         if mode == 'up':
             self.tmat[1, 2] -= STEP
         elif mode == 'down':
@@ -662,5 +670,7 @@ class App:
         else:
             return None
 
-my_app = App()
-my_app.window.servable()
+
+if __name__ == "__main__":
+    my_app = App()
+    my_app.window.show()
