@@ -1,9 +1,19 @@
 
 ![](https://cea-metrocarac.github.io/images_registration/images_registration.png)
 
+
 # Images_registration
 
-**images_registration** is a web application dedicated to the calculation of the `transformation matrix` related to a pair of images and to the application of this transformation matrix to a set of images.
+**images_registration** is a web application dedicated :
+
+- 1/ to the calculation of the `transformation matrix` related to a pair of images and 
+
+![](https://cea-metrocarac.github.io/images_registration/images_registration4.png)
+
+
+- 2/ to the application of the previous `transformation matrix` to a set of images.
+
+![](https://cea-metrocarac.github.io/images_registration/images_registration3.png)
 
 
 # Installation
@@ -41,3 +51,5 @@ for more informations concerning the application parameters setting, see the [do
 In case you use this web application to align images for a study wich leads to an article, please cite:
 
 - Patrick Quéméré, Univ. Grenoble Alpes, CEA, Leti, F-38000 Grenoble, France, https://github.dev/CEA-MetroCarac/images_registration
+
+- P. Thevenaz, U. E. Ruttimann and M. Unser, "A pyramid approach to subpixel registration based on intensity," in IEEE Transactions on Image Processing, vol. 7, no. 1, pp. 27-41, Jan. 1998, doi: 10.1109/83.650848.
