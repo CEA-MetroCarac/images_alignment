@@ -16,6 +16,9 @@
 ![](https://cea-metrocarac.github.io/images_registration/images_registration3.png)
 
 
+*(Figures above are extracted from the `example.py` located at the root of the repository).*
+
+
 # Installation
 
 All the application is contained in the `app.py` file located at the root of the repository.
