@@ -16,7 +16,7 @@ from skimage.transform import warp
 from skimage.color import rgba2rgb, rgb2gray
 from scipy.interpolate import RegularGridInterpolator
 
-AXES_TITLES = ['Moving image', 'Fixed image', 'Fused']
+AXES_TITLES = ['Moving image', 'Fixed image', '']
 FLOW_MODES = ['Flow Auto', 'Iterative']
 VIEW_MODES = ['Difference', 'Overlay']
 STREG = StackReg(StackReg.SCALED_ROTATION)
@@ -163,6 +163,8 @@ class App:
         self.input_fnames = None
         self.save_fname = None
         self.reload_fname = None
+
+        AXES_TITLES[2] = self.view_mode
 
         self.mpl_panes = [None, None, None]
         self.result_str = pn.pane.Str(self.tmat)
@@ -366,6 +368,7 @@ class App:
     def update_view_mode(self, event):
         """ Update the 'view_mode' attribute and replot """
         self.view_mode = event.new
+        AXES_TITLES[2] = self.view_mode
         self.update_plot(2, binary=True)
 
     def update_mode_auto(self, event):
@@ -500,7 +503,7 @@ class App:
                          fc='none', ec='w')
 
         if show_only:
-            self.update_plot(k, patch=rect)
+            self.update_plot(k, binary=False, patch=rect)
         else:
             self.imgs[k] = self.imgs[k][imin:imax, jmin:jmax]
             self.cropping_areas[k] = (imin, imax, jmin, jmax)
