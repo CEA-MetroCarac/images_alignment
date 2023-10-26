@@ -4,14 +4,14 @@
 
 # Images_registration
 
-**images_registration** is a web application dedicated :
+**images_registration** is a web application dedicated to:
 
-- 1/ to the calculation of the `transformation matrix` related to a pair of images and 
+- 1/ the calculation of the `transformation matrix` related to a pair of images 
 
 ![](https://cea-metrocarac.github.io/images_registration/images_registration4.png)
 
 
-- 2/ to the application of the previous `transformation matrix` to a set of images.
+- 2/ the application of the previous `transformation matrix` to a set of images.
 
 ![](https://cea-metrocarac.github.io/images_registration/images_registration3.png)
 
@@ -44,7 +44,7 @@ Once your python environment has been created and activated, you can launch the 
 ```python
 python app.py
 ```
-This instruction will launch the web application directly in your web browser.
+This command will launch the web application directly in your web browser.
 
 for more informations concerning the application parameters setting, see the [documentation](https://github.com/CEA-MetroCarac/images_registration/tree/main/doc) .
 
