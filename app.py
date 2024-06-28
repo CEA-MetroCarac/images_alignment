@@ -12,14 +12,17 @@ import imageio.v3 as iio
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
 from pystackreg import StackReg
-from skimage.transform import warp
 from skimage.color import rgba2rgb, rgb2gray
+from skimage.transform import warp, AffineTransform
+from skimage.feature import SIFT, match_descriptors, plot_matches
+from skimage.measure import ransac
 from scipy.interpolate import RegularGridInterpolator
 
 AXES_TITLES = ['Moving image', 'Fixed image', '']
 FLOW_MODES = ['Flow Auto', 'Iterative']
-VIEW_MODES = ['Difference', 'Overlay']
-STREG = StackReg(StackReg.SCALED_ROTATION)
+VIEW_MODES = ['Difference', 'Overlay', "Matching (SIFT)"]
+REG_MODELS = ['StackReg', 'SIFT']
+STREG = StackReg(StackReg.AFFINE)
 STEP = 1  # translation increment
 ANGLE = np.deg2rad(1)  # rotation angular increment
 COEF1, COEF2 = 0.99, 1.01  # scaling coefficient
@@ -127,6 +130,55 @@ def interpolation(img1, img2):
         return img_hr, img_lr_int, success
 
 
+def sift(img1, img2, model_class=None):
+    """
+    SIFT feature detection and descriptor extraction
+
+    Parameters
+    ----------
+    img1, img2: numpy.ndarray((m, n)), numpy.ndarray((p, q))
+        The input images
+    model_class: Objet
+        'model_class' used by `RANSAC
+        <https://scikit-image.org/docs/stable/api/skimage.measure.html>`_.
+        If None, consider ``AffineTransform`` from skimage.transform.
+
+    Returns
+    -------
+    tmat: numpy.ndarrays((3, 3))
+        The related transformation matrix
+    keypoints: list of 2 numpy.ndarray((n, 2)
+        Keypoints coordinates as (row, col) related to the 2 input images.
+    descriptors: list of 2 numpy.ndarray((n, p)
+        Descriptors associated with the keypoints.
+    matches: numpy.ndarray((q, 2))
+        Indices of corresponding matches returned by
+        skimage.feature.match_descriptors.
+
+    """
+    if model_class is None:
+        model_class = AffineTransform
+
+    sift_ = SIFT(upsampling=2)
+
+    keypoints = []
+    descriptors = []
+    for img in [img1, img2]:
+        sift_.detect_and_extract(img)
+        keypoints.append(sift_.keypoints)
+        descriptors.append(sift_.descriptors)
+
+    matches = match_descriptors(descriptors[0], descriptors[1],
+                                cross_check=True, max_ratio=0.8)
+
+    src = keypoints[0][matches[:, 0]][:, ::-1]
+    dst = keypoints[1][matches[:, 1]][:, ::-1]
+    tmat = ransac((src, dst), model_class,
+                  min_samples=4, residual_threshold=2)[0].params
+
+    return tmat, keypoints, descriptors, matches
+
+
 class App:
     """
     Application dedicated to images alignment
@@ -157,6 +209,10 @@ class App:
         self.imgs = [None, None]
         self.cropping_areas = [None, None]
         self.imgs_bin = [None, None]
+        self.registration_model = 'StackReg'
+        self.keypoints = None
+        self.descriptors = None
+        self.matches = None
         self.tmat = np.identity(3)
         self.input_dirpath = None
         self.output_dirpath = None
@@ -247,6 +303,13 @@ class App:
         self.register_button = pn.widgets.Button(name='REGISTRATION', margin=2)
         self.register_button.on_click(lambda event: self.registration_auto())
 
+        value = self.registration_model
+        self.reg_models = pn.widgets.RadioButtonGroup(options=REG_MODELS,
+                                                      button_style='outline',
+                                                      button_type='primary',
+                                                      value=value)
+        self.reg_models.param.watch(self.update_registration_model, 'value')
+
         transl_up_but = pn.widgets.Button(name='▲')
         transl_down_but = pn.widgets.Button(name='▼')
         transl_left_but = pn.widgets.Button(name='◄', margin=5)
@@ -318,7 +381,7 @@ class App:
         rot_box[4] = pn.pane.Str("yc:")
         rot_box[5] = self.yc_rel
 
-        proc_box = pn.Column(mode_auto_check,
+        proc_box = pn.Column(pn.Row(mode_auto_check, self.reg_models),
                              pn.Row(self.resizing_button,
                                     self.binarize_button,
                                     self.register_button),
@@ -404,6 +467,7 @@ class App:
     def update_plot(self, k, binary=True, patch=None):
         """ Update the k-th ax """
 
+        img = None
         self.ax[k].clear()
         self.ax[k].set_title(AXES_TITLES[k])
 
@@ -413,8 +477,6 @@ class App:
         if not binary:
             if k in [0, 1]:
                 img = self.imgs[k]
-            else:
-                img = None
 
         elif k == 2:
             if self.view_mode == "Difference":
@@ -422,11 +484,19 @@ class App:
                 img = np.zeros((img_0_bin.shape[0], img_0_bin.shape[1], 3))
                 img[img_0_bin * ~img_1_bin, 0] = 1
                 img[img_1_bin * ~img_0_bin, 1] = 1
-            else:
+            elif self.view_mode == "Overlay":
                 img_0, img_1 = self.imgs
                 img_0_reg = warp(img_0, self.tmat, mode='constant',
                                  cval=1, preserve_range=True, order=None)
                 img = 0.5 * (img_0_reg + img_1)
+            elif self.view_mode == "Matching (SIFT)":
+                if self.matches is not None:
+                    img_0, img_1 = self.imgs
+                    plot_matches(self.ax[k], img_0, img_1,
+                                 self.keypoints[0], self.keypoints[1],
+                                 self.matches)
+            else:
+                raise IOError
 
         else:
             img_bin = self.imgs_bin[k]
@@ -448,6 +518,10 @@ class App:
         """ Update the k-th 'bin_inversions' attribute """
         self.bin_inversions[k] = event.new
         self.binarization()
+
+    def update_registration_model(self, event):
+        """ Update the 'registration_model' attribute """
+        self.registration_model = event.new
 
     def update_input_dirpath(self, event):
         """ Update the 'input_dirpath' attributes and get the related files """
@@ -552,10 +626,25 @@ class App:
         else:
             self.update_plot(0)
 
-    def registration_auto(self):
-        """ Calculate 'tmat' from pystackreg and apply it """
-        self.imgs_bin[0] = self.binarization_k(0)  # reinit
-        self.tmat = STREG.register(*self.imgs_bin[::-1])
+    def registration_auto(self, registration_model=None):
+        """ Calculate the transformation matrix 'tmat' and apply it """
+        if registration_model in REG_MODELS:
+            self.reg_models.value = registration_model
+
+        self.keypoints, self.descriptors, self.matches = None, None, None
+
+        if self.registration_model == 'StackReg':
+            self.imgs_bin[0] = self.binarization_k(0)  # reinit
+            self.tmat = STREG.register(*self.imgs_bin[::-1])
+
+        elif self.registration_model == 'SIFT':
+            out = sift(*self.imgs[::-1])
+            self.tmat, self.keypoints, self.descriptors, self.matches = out
+
+        else:
+            raise IOError
+
+        print(self.tmat)
         self.registration()
 
     def registration(self):
