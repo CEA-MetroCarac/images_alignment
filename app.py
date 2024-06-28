@@ -214,6 +214,7 @@ class App:
         self.descriptors = None
         self.matches = None
         self.tmat = np.identity(3)
+        self.results = {}
         self.input_dirpath = None
         self.output_dirpath = None
         self.input_fnames = None
@@ -223,7 +224,8 @@ class App:
         AXES_TITLES[2] = self.view_mode
 
         self.mpl_panes = [None, None, None]
-        self.result_str = pn.pane.Str(self.tmat)
+        self.result_str = pn.pane.Str(None, align='center',
+                                      styles={'text-align': 'center'})
         self.terminal = pn.widgets.Terminal(align='center',
                                             options={"theme": {
                                                 'background': '#F3F3F3',
@@ -326,8 +328,6 @@ class App:
 
         self.xc_rel = pn.widgets.FloatInput(value=0.5, width=60)
         self.yc_rel = pn.widgets.FloatInput(value=0.5, width=60)
-
-        self.result_text = pn.pane.Str('')
 
         view_mode = pn.widgets.RadioButtonGroup(options=VIEW_MODES,
                                                 button_style='outline',
@@ -649,13 +649,24 @@ class App:
 
     def registration(self):
         """ Apply 'tmat' to the binarized moving image """
-        np.set_printoptions(precision=4)
-        self.result_str.object = self.tmat
-        np.set_printoptions(precision=None)
 
         self.imgs_bin[0] = self.binarization_k(0)  # reinit
         self.imgs_bin[0] = warp(self.imgs_bin[0], self.tmat, mode='constant',
                                 cval=1, preserve_range=True, order=None)
+
+        # score calculation
+        mask = warp(np.ones_like(self.imgs_bin[0]), self.tmat, mode='constant',
+                    cval=0, preserve_range=True, order=None)
+        mismatch = np.logical_xor(*self.imgs_bin)
+        mismatch[~mask] = 0
+        score = 100 * (1. - np.sum(mismatch) / np.sum(mask))
+
+        self.results[self.registration_model] = {'score': score,
+                                                 'tmat': self.tmat}
+
+        np.set_printoptions(precision=4)
+        self.result_str.object = f'SCORE: {score:.1f} % \n\n {self.tmat}'
+        np.set_printoptions(precision=None)
 
         self.update_plot(0)
         self.update_plot(2)
