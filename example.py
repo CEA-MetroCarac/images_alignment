@@ -28,12 +28,12 @@ def moving_image_generation(radius):
 with tempfile.TemporaryDirectory() as tmpdirname:
     tmpdirname = Path(tmpdirname)
 
-    # moving image (low resolution rectangular image)
-    img1 = moving_image_generation(radius=4)
+    # fixed image (high resolution squared image)
+    img1 = shepp_logan_phantom()
     imsave(tmpdirname / 'img1.tif', img1)
 
-    # fixed image (high resolution squared image)
-    img2 = shepp_logan_phantom()  #
+    # moving image (low resolution rectangular image)
+    img2 = moving_image_generation(radius=4)
     imsave(tmpdirname / 'img2.tif', img2)
 
     # App definition
@@ -46,22 +46,23 @@ with tempfile.TemporaryDirectory() as tmpdirname:
               bin_inversions=bin_inversions, mode_auto=mode_auto)
 
     # cropping
-    app.h_range_sliders[0].value = (0.40, 0.95)
-    app.v_range_sliders[0].value = (0.25, 1.00)
-    app.cropping(0)
+    app.h_range_sliders[1].value = (0.40, 0.95)
+    app.v_range_sliders[1].value = (0.25, 1.00)
+    app.cropping(1)
 
     # resizing - binarization - registration
     app.resizing()
     app.binarization()
-    app.registration_auto()
+    app.registration_calc(registration_model='StackReg')
+    # app.registration_calc(registration_model='SIFT')
 
     # application to a set of images
     input_dirname = tmpdirname / 'inputs'
     output_dirname = tmpdirname / 'results'
     os.makedirs(input_dirname)
     for k in range(3):
-        img1 = moving_image_generation(radius=2 + k)
-        imsave(input_dirname / f'img1_{k + 1}.tif', img1)
+        img2 = moving_image_generation(radius=2 + k)
+        imsave(input_dirname / f'img2_{k + 1}.tif', img2)
     app.input_dirpath_widget.value = str(input_dirname)
     app.output_dirpath_widget.value = str(output_dirname)
     app.apply()
@@ -78,7 +79,8 @@ with tempfile.TemporaryDirectory() as tmpdirname:
     plt.imshow(imread(tmpdirname / 'img2.tif'), origin='lower', cmap='gray')
     plt.subplot(1, 3, 3)
     plt.title('Overlay')
-    plt.imshow(imread(output_dirname / 'img1_2.tif'), origin='lower', cmap='gray')
+    plt.imshow(imread(output_dirname / 'img1_2.tif'), origin='lower',
+               cmap='gray')
 
     plt.figure(figsize=(10, 3))
     plt.tight_layout()
@@ -92,4 +94,3 @@ with tempfile.TemporaryDirectory() as tmpdirname:
     plt.show()
 
     app.window.show()
-

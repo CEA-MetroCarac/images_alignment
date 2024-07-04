@@ -18,9 +18,11 @@ from skimage.feature import SIFT, match_descriptors, plot_matches
 from skimage.measure import ransac
 from scipy.interpolate import RegularGridInterpolator
 
-AXES_TITLES = ['Moving image', 'Fixed image', '']
+AXES_TITLES = ['Fixed image', 'Moving image', 'Combined image', None]
 FLOW_MODES = ['Flow Auto', 'Iterative']
-VIEW_MODES = ['Difference', 'Overlay', "Matching (SIFT)"]
+VIEW_MODES = [['Gray', 'Binarized'], ['Gray', 'Binarized'],
+              ['Overlay', 'Difference', "Matching (SIFT)"],
+              AXES_TITLES[:3]]
 REG_MODELS = ['StackReg', 'SIFT']
 STREG = StackReg(StackReg.AFFINE)
 STEP = 1  # translation increment
@@ -66,6 +68,20 @@ def edges_trend(img):
     mask[1:-1, 1:-1] = 0
     sum_edges = np.sum(img[mask])
     return (sum_edges / (2 * (shape[0] + shape[1] - 2))) > 0.5
+
+
+def padding(img1, img2):
+    """ Add image padding """
+    shape1 = img1.shape
+    shape2 = img2.shape
+
+    hmax = max(img1.shape[0], img2.shape[0])
+    wmax = max(img1.shape[1], img2.shape[1])
+
+    img1_pad = np.pad(img1, ((0, hmax - shape1[0]), (0, wmax - shape1[1])))
+    img2_pad = np.pad(img2, ((0, hmax - shape2[0]), (0, wmax - shape2[1])))
+
+    return img1_pad, img2_pad
 
 
 def interpolation(img1, img2):
@@ -204,8 +220,8 @@ class App:
         self.mode_auto = mode_auto
 
         self.window = None
-        self.ax = [None, None, None]
-        self.view_mode = VIEW_MODES[0]
+        self.ax = [None, None, None, None]
+        self.view_modes = ['Gray', 'Gray', 'Overlay', 'Fixed image']
         self.imgs = [None, None]
         self.cropping_areas = [None, None]
         self.imgs_bin = [None, None]
@@ -221,9 +237,7 @@ class App:
         self.save_fname = None
         self.reload_fname = None
 
-        AXES_TITLES[2] = self.view_mode
-
-        self.mpl_panes = [None, None, None]
+        self.mpl_panes = [None, None, None, None]
         self.result_str = pn.pane.Str(None, align='center',
                                       styles={'text-align': 'center'})
         self.terminal = pn.widgets.Terminal(align='center',
@@ -233,13 +247,16 @@ class App:
 
         figs = [Figure(figsize=(4, 4)),
                 Figure(figsize=(4, 4)),
-                Figure(figsize=(8, 8))]
+                Figure(figsize=(4, 4)),
+                Figure(figsize=(16, 16))]
 
-        for k in range(3):
+        for k in range(4):
             self.ax[k] = figs[k].subplots()
             self.ax[k].set_title(AXES_TITLES[k])
             self.ax[k].autoscale(tight=True)
-            self.mpl_panes[k] = pn.pane.Matplotlib(figs[k], dpi=80, tight=True)
+            self.mpl_panes[k] = pn.pane.Matplotlib(figs[k], dpi=80, tight=True,
+                                                   align='center',
+                                                   sizing_mode='stretch_both')
 
         range_slider = pn.widgets.RangeSlider(width=150, step=0.01,
                                               show_value=False,
@@ -303,7 +320,7 @@ class App:
         self.binarize_button.on_click(lambda event: self.binarization())
 
         self.register_button = pn.widgets.Button(name='REGISTRATION', margin=2)
-        self.register_button.on_click(lambda event: self.registration_auto())
+        self.register_button.on_click(lambda event: self.registration_calc())
 
         value = self.registration_model
         self.reg_models = pn.widgets.RadioButtonGroup(options=REG_MODELS,
@@ -329,11 +346,16 @@ class App:
         self.xc_rel = pn.widgets.FloatInput(value=0.5, width=60)
         self.yc_rel = pn.widgets.FloatInput(value=0.5, width=60)
 
-        view_mode = pn.widgets.RadioButtonGroup(options=VIEW_MODES,
-                                                button_style='outline',
-                                                button_type='primary',
-                                                value=self.view_mode)
-        view_mode.param.watch(self.update_view_mode, 'value')
+        view_modes = []
+        for k in range(4):
+            view_mode = pn.widgets.RadioButtonGroup(options=VIEW_MODES[k],
+                                                    button_style='outline',
+                                                    button_type='primary',
+                                                    value=self.view_modes[k],
+                                                    align='center')
+            view_mode.param.watch(
+                lambda event, k=k: self.update_view_mode(event, k), 'value')
+            view_modes.append(view_mode)
 
         apply_button = pn.widgets.Button(name='APPLY')
         apply_button.on_click(lambda event: self.apply())
@@ -349,10 +371,11 @@ class App:
         reload_input = pn.widgets.FileInput(accept='.json')
         reload_input.param.watch(self.update_reload_fname, 'value')
 
-        text = ['MOVING IMAGE', 'FIXED IMAGE']
+        boxes = []
+
+        text = ['FIXED IMAGE', 'MOVING IMAGE']
         h_label = pn.pane.Str("H:")
         v_label = pn.pane.Str("V:")
-        img_boxes = []
         for k in range(2):
             img_box_title = pn.pane.Markdown(f"**{text[k]}**")
             img_crop = pn.Row(pn.Column(h_label, v_label),
@@ -364,7 +387,7 @@ class App:
                                    file_inputs[k], reinit_buttons[k],
                                    img_crop, img_param,
                                    margin=(5, 0), width=350)
-            img_boxes.append(img_box)
+            boxes.append(img_box)
 
         proc_box_title = pn.pane.Markdown("**IMAGES PROCESSING**")
 
@@ -389,10 +412,7 @@ class App:
                              self.result_str)
         proc_box = pn.WidgetBox(proc_box_title, proc_box, margin=(5, 0),
                                 align='center', width=350)
-
-        view_box_title = pn.pane.Markdown("**VIEW MODE**")
-        view_box = pn.WidgetBox(view_box_title, view_mode, margin=(5, 0),
-                                align='center', width=350)
+        boxes.append(proc_box)
 
         appl_box_title = pn.pane.Markdown("**APPLICATION**")
 
@@ -409,30 +429,27 @@ class App:
 
         appl_box = pn.WidgetBox(appl_box_title, row_input_dirpath,
                                 row_output_dirpath, apply_button,
-                                margin=(5, 20), sizing_mode='stretch_width')
+                                margin=(5, 20))
 
-        col1 = pn.Column(img_boxes[0],
-                         img_boxes[1],
-                         proc_box,
-                         view_box,
-                         width=380, height=850, auto_scroll_limit=100)
+        col1 = pn.Column(*[pn.Row(boxes[i],
+                                  pn.Column(self.mpl_panes[i], view_modes[i],
+                                            align='center'),
+                                  align='center') for i in range(3)])
 
-        col2 = pn.Column(pn.Row(self.mpl_panes[0], self.mpl_panes[1]),
-                         self.mpl_panes[2])
+        col2 = pn.Column(view_modes[3], self.mpl_panes[3], align='center')
 
         col3 = pn.Column(appl_box,
                          self.terminal,
                          pn.Row(save_button, self.save_input),
                          pn.Row(reload_button, reload_input))
 
-        self.window = pn.Row(col1, col2, col3)
+        self.window = pn.Row(col1, col2, col3, sizing_mode='stretch_both')
         self.update_disabled()
 
-    def update_view_mode(self, event):
+    def update_view_mode(self, event, k):
         """ Update the 'view_mode' attribute and replot """
-        self.view_mode = event.new
-        AXES_TITLES[2] = self.view_mode
-        self.update_plot(2, binary=True)
+        self.view_modes[k] = event.new
+        self.update_plot(k)
 
     def update_mode_auto(self, event):
         """ Update the 'mode_auto' attribute """
@@ -449,6 +466,9 @@ class App:
         """ Load the k-th image file """
         try:
             img = iio.imread(fname)
+            self.imgs[k] = self.imgs_bin[k] = None
+            self.tmat = self.keypoints = self.descriptors = self.matches = None
+            self.results = {}
         except Exception as _:
             self.terminal.write(f"Failed to load {fname}\n\n")
             return
@@ -458,56 +478,89 @@ class App:
         # image normalization in range [0, 1]
         self.imgs[k] = image_normalization(gray_conversion(img))
 
-        self.update_plot(k, binary=False)
-        self.update_plot(2, binary=False)
+        self.update_plot(k)
+        self.update_plot(2)
 
         if self.mode_auto:
             self.resizing()
 
-    def update_plot(self, k, binary=True, patch=None):
+    def update_plot(self, k, patch=None):
         """ Update the k-th ax """
 
-        img = None
         self.ax[k].clear()
         self.ax[k].set_title(AXES_TITLES[k])
+        self.ax[3].clear()
 
-        if patch is not None:
-            self.ax[k].add_patch(patch)
+        img = None
 
-        if not binary:
-            if k in [0, 1]:
-                img = self.imgs[k]
+        if k in [0, 1]:
+            img = self.imgs[k]
 
-        elif k == 2:
-            if self.view_mode == "Difference":
-                img_0_bin, img_1_bin = self.imgs_bin
-                img = np.zeros((img_0_bin.shape[0], img_0_bin.shape[1], 3))
-                img[img_0_bin * ~img_1_bin, 0] = 1
-                img[img_1_bin * ~img_0_bin, 1] = 1
-            elif self.view_mode == "Overlay":
-                img_0, img_1 = self.imgs
-                img_0_reg = warp(img_0, self.tmat, mode='constant',
-                                 cval=1, preserve_range=True, order=None)
-                img = 0.5 * (img_0_reg + img_1)
-            elif self.view_mode == "Matching (SIFT)":
-                if self.matches is not None:
-                    img_0, img_1 = self.imgs
-                    plot_matches(self.ax[k], img_0, img_1,
-                                 self.keypoints[0], self.keypoints[1],
-                                 self.matches)
+            if self.view_modes[k] == 'Binarized':
+                img_bin = self.imgs_bin[k]
+                if img_bin is None:
+                    img_bin = self.binarization_k(k)
+                shape = img_bin.shape
+                img = np.zeros((shape[0], shape[1], 3))
+                RGB_channel = [1, 0][k]  # k=0 -> Green, k=1 -> Red
+                img[..., RGB_channel] = img_bin
             else:
-                raise IOError
+                if k == 1 and self.tmat is not None:
+                    img = warp(img, self.tmat, mode='constant',
+                               cval=1, preserve_range=True, order=None)
 
-        else:
-            img_bin = self.imgs_bin[k]
-            shape = img_bin.shape
-            img = np.zeros((shape[0], shape[1], 3))
-            img[..., k] = img_bin
+        if k == 2:
+            img = None
+            img_0, img_1 = self.imgs
 
-        if img is not None:
-            self.ax[k].imshow(img, origin='lower', cmap='gray')
-        self.mpl_panes[k].param.trigger('object')
-        pn.io.push_notebook(self.mpl_panes[k])
+            if img_0 is not None and img_1 is not None:
+
+                if self.view_modes[k] == "Overlay":
+                    if self.tmat is not None:
+                        img_1 = warp(img_1, self.tmat, mode='constant',
+                                     cval=1, preserve_range=True, order=None)
+                    img_0, img_1 = padding(img_0, img_1)
+                    img = 0.5 * (img_0 + img_1)
+
+                elif self.view_modes[k] == "Difference":
+                    img_0, img_1 = self.imgs_bin
+                    if img_0 is None:
+                        img_0 = self.binarization_k(0)
+                    if img_1 is None:
+                        img_1 = self.binarization_k(1)
+                    img_0, img_1 = padding(img_0, img_1)
+                    img = np.zeros((img_0.shape[0], img_0.shape[1], 3))
+                    img[img_1 * ~img_0, 0] = 1
+                    img[img_0 * ~img_1, 1] = 1
+
+                elif self.view_modes[k] == "Matching (SIFT)":
+                    if self.matches is not None:
+                        img_0, img_1 = self.imgs
+                        plot_matches(self.ax[k], img_0, img_1,
+                                     self.keypoints[0], self.keypoints[1],
+                                     self.matches,
+                                     alignment='vertical')
+                        self.ax[k].invert_yaxis()
+
+        if k in [0, 1, 2]:
+            if img is not None:
+                self.ax[k].imshow(img, origin='lower', cmap='gray')
+            if patch is not None:
+                self.ax[k].add_patch(patch)
+            self.mpl_panes[k].param.trigger('object')
+
+        ax = self.ax[AXES_TITLES.index(self.view_modes[3])]
+        imgs = ax.get_images()
+        if len(imgs) > 0:
+            self.ax[3].imshow(imgs[0].get_array(), origin='lower', cmap='gray')
+        lines = ax.get_lines()
+        for line in lines:
+            self.ax[3].plot(line.get_xdata(), line.get_ydata(),
+                            c=line.get_color(), ls=line.get_linestyle())
+
+        self.mpl_panes[3].param.trigger('object')
+
+        pn.io.push_notebook(*self.mpl_panes)
 
     def update_threshold(self, k, event):
         """ Update the k-th 'thresholds' attribute """
@@ -522,6 +575,7 @@ class App:
     def update_registration_model(self, event):
         """ Update the 'registration_model' attribute """
         self.registration_model = event.new
+        self.update_plot(2)
 
     def update_input_dirpath(self, event):
         """ Update the 'input_dirpath' attributes and get the related files """
@@ -577,11 +631,11 @@ class App:
                          fc='none', ec='w')
 
         if show_only:
-            self.update_plot(k, binary=False, patch=rect)
+            self.update_plot(k, patch=rect)
         else:
             self.imgs[k] = self.imgs[k][imin:imax, jmin:jmax]
             self.cropping_areas[k] = (imin, imax, jmin, jmax)
-            self.update_plot(k, binary=False)
+            self.update_plot(k)
 
     def resizing(self):
         """ Resize the low resolution image from the high resolution image """
@@ -602,8 +656,7 @@ class App:
         if self.mode_auto:
             self.binarization()
         else:
-            self.update_plot(0, binary=False)
-            self.update_plot(1, binary=False)
+            [self.update_plot(i) for i in range(3)]
 
     def binarization_k(self, k):
         """ Binarize the k-th image """
@@ -618,44 +671,40 @@ class App:
         """ Binarize the images """
         self.imgs_bin = [self.binarization_k(0), self.binarization_k(1)]
 
-        self.update_plot(0)
-        self.update_plot(1)
-
         if self.mode_auto:
-            self.registration_auto()
+            self.registration_calc()
         else:
-            self.update_plot(0)
+            [self.update_plot(i) for i in range(3)]
 
-    def registration_auto(self, registration_model=None):
+    def registration_calc(self, registration_model=None):
         """ Calculate the transformation matrix 'tmat' and apply it """
         if registration_model in REG_MODELS:
             self.reg_models.value = registration_model
 
-        self.keypoints, self.descriptors, self.matches = None, None, None
-
         if self.registration_model == 'StackReg':
-            self.imgs_bin[0] = self.binarization_k(0)  # reinit
-            self.tmat = STREG.register(*self.imgs_bin[::-1])
+            self.imgs_bin[1] = self.binarization_k(1)  # reinit
+            self.tmat = STREG.register(*self.imgs_bin)
 
         elif self.registration_model == 'SIFT':
-            out = sift(*self.imgs[::-1])
+            out = sift(*self.imgs)
             self.tmat, self.keypoints, self.descriptors, self.matches = out
 
         else:
             raise IOError
 
         print(self.tmat)
-        self.registration()
+        self.registration_apply()
 
-    def registration(self):
-        """ Apply 'tmat' to the binarized moving image """
+    def registration_apply(self):
+        """ Apply 'tmat' to the moving image """
 
         self.imgs_bin[0] = self.binarization_k(0)  # reinit
-        self.imgs_bin[0] = warp(self.imgs_bin[0], self.tmat, mode='constant',
+        self.imgs_bin[1] = self.binarization_k(1)  # reinit
+        self.imgs_bin[1] = warp(self.imgs_bin[1], self.tmat, mode='constant',
                                 cval=1, preserve_range=True, order=None)
 
         # score calculation
-        mask = warp(np.ones_like(self.imgs_bin[0]), self.tmat, mode='constant',
+        mask = warp(np.ones_like(self.imgs_bin[1]), self.tmat, mode='constant',
                     cval=0, preserve_range=True, order=None)
         mismatch = np.logical_xor(*self.imgs_bin)
         mismatch[~mask] = 0
@@ -668,8 +717,7 @@ class App:
         self.result_str.object = f'SCORE: {score:.1f} % \n\n {self.tmat}'
         np.set_printoptions(precision=None)
 
-        self.update_plot(0)
-        self.update_plot(2)
+        [self.update_plot(i) for i in range(3)]
 
     def translate(self, mode):
         """ Apply translation STEP in 'tmat' """
@@ -681,7 +729,7 @@ class App:
             self.tmat[0, 2] += STEP
         elif mode == 'right':
             self.tmat[0, 2] -= STEP
-        self.registration()
+        self.registration_apply()
 
     def rotate(self, angle):
         """ Apply rotation coefficients in 'tmat' """
@@ -702,7 +750,7 @@ class App:
                                [0, 0, 1]])
 
         self.tmat = self.tmat @ inv_transl @ rotation_mat @ transl
-        self.registration()
+        self.registration_apply()
 
     def apply(self):
         """ Apply the transformation matrix 'tmat' to a set of images """
