@@ -2,10 +2,10 @@
 Application for images registration
 """
 import os
-import glob
 from copy import deepcopy
 from pathlib import Path
 import json
+from tkinter import filedialog
 import panel as pn
 import numpy as np
 import imageio.v3 as iio
@@ -20,17 +20,16 @@ from scipy.interpolate import RegularGridInterpolator
 
 AXES_TITLES = ['Fixed image', 'Moving image', 'Combined image', None]
 FLOW_MODES = ['Flow Auto', 'Iterative']
-VIEW_MODES = [['Gray', 'Binarized'], ['Gray', 'Binarized'],
-              ['Overlay', 'Difference', "Matching (SIFT)"],
-              AXES_TITLES[:3]]
+VIEW_MODES = [['Gray', 'Binarized', 'Matching (SIFT)'], AXES_TITLES[:3]]
 REG_MODELS = ['StackReg', 'SIFT']
+# REG_MODE = ["FIXED REG.", "VARIABLE REG."]
 STREG = StackReg(StackReg.AFFINE)
 STEP = 1  # translation increment
 ANGLE = np.deg2rad(1)  # rotation angular increment
 COEF1, COEF2 = 0.99, 1.01  # scaling coefficient
 
-KEYS = ['fnames', 'thresholds', 'bin_inversions', 'mode_auto', 'tmat',
-        'input_dirpath', 'output_dirpath']
+KEYS = ['fnames_fixed', 'fnames_moving',
+        'thresholds', 'bin_inversions', 'mode_auto', 'tmat']
 
 pn.extension('terminal', inline=True)
 pn.pane.Str.align = 'center'
@@ -211,17 +210,23 @@ class App:
         Activation keyword to realize image processing in automatic mode
     """
 
-    def __init__(self, fnames=None, thresholds=None, bin_inversions=None,
-                 mode_auto=True):
+    def __init__(self, fnames_fixed=None, fnames_moving=None,
+                 thresholds=None, bin_inversions=None, mode_auto=True):
 
-        self.fnames = fnames or [None, None]
+        self.fnames_tot = [fnames_fixed, fnames_moving]
+        self.fnames = [None, None]
+        if self.fnames_tot[0] is not None:
+            self.fnames[0] = self.fnames_tot[0][0]
+        if self.fnames_tot[1] is not None:
+            self.fnames[1] = self.fnames_tot[1][0]
+
         self.thresholds = thresholds or [0.5, 0.5]
         self.bin_inversions = bin_inversions or [False, False]
         self.mode_auto = mode_auto
 
         self.window = None
         self.ax = [None, None, None, None]
-        self.view_modes = ['Gray', 'Gray', 'Overlay', 'Fixed image']
+        self.view_modes = ['Gray', 'Fixed image']
         self.imgs = [None, None]
         self.cropping_areas = [None, None]
         self.imgs_bin = [None, None]
@@ -230,7 +235,10 @@ class App:
         self.descriptors = None
         self.matches = None
         self.tmat = np.identity(3)
+        self.img_reg = None
         self.results = {}
+        self.dir_results = None
+        self.fixed_reg = False
         self.input_dirpath = None
         self.output_dirpath = None
         self.input_fnames = None
@@ -241,6 +249,8 @@ class App:
         self.result_str = pn.pane.Str(None, align='center',
                                       styles={'text-align': 'center'})
         self.terminal = pn.widgets.Terminal(align='center',
+                                            height=100,
+                                            sizing_mode='stretch_width',
                                             options={"theme": {
                                                 'background': '#F3F3F3',
                                                 'foreground': '#000000'}})
@@ -248,7 +258,7 @@ class App:
         figs = [Figure(figsize=(4, 4)),
                 Figure(figsize=(4, 4)),
                 Figure(figsize=(4, 4)),
-                Figure(figsize=(16, 16))]
+                Figure(figsize=(12, 12))]
 
         for k in range(4):
             self.ax[k] = figs[k].subplots()
@@ -273,7 +283,7 @@ class App:
             file_input = pn.widgets.FileInput(accept='image/*')
             file_input.param.watch(
                 lambda event, k=k: self.update_file(k, event.new), 'value')
-            file_input.value = self.fnames[k]
+            file_input.value = self.fnames_tot[k]
             file_inputs.append(file_input)
 
             reinit_button = pn.widgets.Button(name='REINIT')
@@ -320,7 +330,7 @@ class App:
         self.binarize_button.on_click(lambda event: self.binarization())
 
         self.register_button = pn.widgets.Button(name='REGISTRATION', margin=2)
-        self.register_button.on_click(lambda event: self.registration_calc())
+        self.register_button.on_click(lambda event: self.registration())
 
         value = self.registration_model
         self.reg_models = pn.widgets.RadioButtonGroup(options=REG_MODELS,
@@ -346,26 +356,38 @@ class App:
         self.xc_rel = pn.widgets.FloatInput(value=0.5, width=60)
         self.yc_rel = pn.widgets.FloatInput(value=0.5, width=60)
 
-        view_modes = []
-        for k in range(4):
-            view_mode = pn.widgets.RadioButtonGroup(options=VIEW_MODES[k],
-                                                    button_style='outline',
-                                                    button_type='primary',
-                                                    value=self.view_modes[k],
-                                                    align='center')
-            view_mode.param.watch(
-                lambda event, k=k: self.update_view_mode(event, k), 'value')
-            view_modes.append(view_mode)
+        view_mode = pn.widgets.RadioButtonGroup(options=VIEW_MODES[0],
+                                                button_style='outline',
+                                                button_type='primary',
+                                                value=self.view_modes[0],
+                                                align='center')
+        view_mode.param.watch(self.update_view_mode, 'value')
 
-        apply_button = pn.widgets.Button(name='APPLY')
+        view_mode_zoom = pn.widgets.RadioButtonGroup(options=VIEW_MODES[1],
+                                                     button_style='outline',
+                                                     button_type='primary',
+                                                     value=self.view_modes[1],
+                                                     align='center')
+        view_mode_zoom.param.watch(self.update_view_mode_zoom, 'value')
+
+        select_dir_button = pn.widgets.Button(name='SELECT DIR. RESULT')
+        select_dir_button.on_click(lambda event: self.select_dir_result())
+
+        apply_button = pn.widgets.Button(name='APPLY & SAVE')
         apply_button.on_click(lambda event: self.apply())
 
-        save_button = pn.widgets.Button(name='SAVE')
+        fixed_reg_check = pn.widgets.Checkbox(name='Fixed registration',
+                                              value=self.fixed_reg)
+        # reverse_check.param.watch(
+        #     lambda event, k=k: self.update_reverse(k, event), 'value')
+        # reverse_checks.append(reverse_check)
+
+        save_button = pn.widgets.Button(name='SAVE MODEL')
         save_button.on_click(lambda event: self.save())
         self.save_input = pn.widgets.FileInput(accept='.json')
         self.save_input.param.watch(self.update_save_fname, 'value')
 
-        reload_button = pn.widgets.Button(name='RELOAD')
+        reload_button = pn.widgets.Button(name='RELOAD MODEL')
         reload_button.on_click(
             lambda _, fname=self.reload_fname: self.reload(fname=fname))
         reload_input = pn.widgets.FileInput(accept='.json')
@@ -411,45 +433,46 @@ class App:
                              pn.Row(transl_box, pn.Spacer(width=30), rot_box),
                              self.result_str)
         proc_box = pn.WidgetBox(proc_box_title, proc_box, margin=(5, 0),
-                                align='center', width=350)
+                                width=350)
         boxes.append(proc_box)
 
         appl_box_title = pn.pane.Markdown("**APPLICATION**")
 
-        self.input_dirpath_widget = pn.widgets.TextInput(width=600)
-        self.input_dirpath_widget.param.watch(self.update_input_dirpath,
-                                              'value')
-        self.output_dirpath_widget = pn.widgets.TextInput(width=600)
-        self.output_dirpath_widget.param.watch(self.update_output_dirpath,
-                                               'value')
-        row_input_dirpath = pn.Row(pn.pane.Markdown("INPUT Directory :"),
-                                   self.input_dirpath_widget)
-        row_output_dirpath = pn.Row(pn.pane.Markdown("OUTPUT Directory :"),
-                                    self.output_dirpath_widget)
+        appl_box = pn.WidgetBox(appl_box_title,
+                                # row_input_dirpath,
+                                # row_output_dirpath,
+                                # select_dir_button,
+                                pn.Row(apply_button, fixed_reg_check),
+                                pn.Row(save_button, reload_button),
+                                # self.terminal,
+                                margin=(5, 20), width=350)
 
-        appl_box = pn.WidgetBox(appl_box_title, row_input_dirpath,
-                                row_output_dirpath, apply_button,
-                                margin=(5, 20))
+        col1 = pn.Column(*boxes, appl_box, width=350)
 
-        col1 = pn.Column(*[pn.Row(boxes[i],
-                                  pn.Column(self.mpl_panes[i], view_modes[i],
-                                            align='center'),
-                                  align='center') for i in range(3)])
+        col2 = pn.Column(view_mode,
+                         self.mpl_panes[0],
+                         self.mpl_panes[1],
+                         self.mpl_panes[2], width=350, align='center')
 
-        col2 = pn.Column(view_modes[3], self.mpl_panes[3], align='center')
-
-        col3 = pn.Column(appl_box,
+        col3 = pn.Column(view_mode_zoom,
+                         self.mpl_panes[3],
                          self.terminal,
-                         pn.Row(save_button, self.save_input),
-                         pn.Row(reload_button, reload_input))
+                         align='center',
+                         sizing_mode='stretch_width')
 
         self.window = pn.Row(col1, col2, col3, sizing_mode='stretch_both')
         self.update_disabled()
 
-    def update_view_mode(self, event, k):
+    def update_view_mode(self, event):
         """ Update the 'view_mode' attribute and replot """
-        self.view_modes[k] = event.new
-        self.update_plot(k)
+        self.view_modes[0] = event.new
+        [self.update_plot(i) for i in range(3)]
+        self.update_plot_zoom()
+
+    def update_view_mode_zoom(self, event):
+        """ Update the 'view_mode' attribute and replot """
+        self.view_modes[1] = event.new
+        self.update_plot_zoom()
 
     def update_mode_auto(self, event):
         """ Update the 'mode_auto' attribute """
@@ -462,18 +485,22 @@ class App:
         self.binarize_button.disabled = self.mode_auto
         self.register_button.disabled = self.mode_auto
 
-    def update_file(self, k, fname):
+    def update_file(self, k, fnames):
         """ Load the k-th image file """
+        if not isinstance(fnames, list):
+            fnames = [fnames]
         try:
-            img = iio.imread(fname)
+            img = iio.imread(fnames[0])
             self.imgs[k] = self.imgs_bin[k] = None
             self.tmat = self.keypoints = self.descriptors = self.matches = None
+            self.img_reg = None
             self.results = {}
         except Exception as _:
-            self.terminal.write(f"Failed to load {fname}\n\n")
+            self.terminal.write(f"Failed to load {fnames[0]}\n\n")
             return
 
-        self.fnames[k] = fname
+        self.fnames_tot[k] = fnames
+        self.fnames[k] = fnames[0]
 
         # image normalization in range [0, 1]
         self.imgs[k] = image_normalization(gray_conversion(img))
@@ -488,15 +515,16 @@ class App:
         """ Update the k-th ax """
 
         self.ax[k].clear()
-        self.ax[k].set_title(AXES_TITLES[k])
-        self.ax[3].clear()
 
         img = None
+        mode = self.view_modes[0]
+        title = AXES_TITLES[k]
 
         if k in [0, 1]:
             img = self.imgs[k]
+            title += f" - {self.fnames[k].name}"
 
-            if self.view_modes[k] == 'Binarized':
+            if mode == 'Binarized':
                 img_bin = self.imgs_bin[k]
                 if img_bin is None:
                     img_bin = self.binarization_k(k)
@@ -505,9 +533,8 @@ class App:
                 RGB_channel = [1, 0][k]  # k=0 -> Green, k=1 -> Red
                 img[..., RGB_channel] = img_bin
             else:
-                if k == 1 and self.tmat is not None:
-                    img = warp(img, self.tmat, mode='constant',
-                               cval=1, preserve_range=True, order=None)
+                if k == 1 and self.img_reg is not None:
+                    img = self.img_reg
 
         if k == 2:
             img = None
@@ -515,14 +542,13 @@ class App:
 
             if img_0 is not None and img_1 is not None:
 
-                if self.view_modes[k] == "Overlay":
-                    if self.tmat is not None:
-                        img_1 = warp(img_1, self.tmat, mode='constant',
-                                     cval=1, preserve_range=True, order=None)
+                if mode == "Gray":
+                    if self.img_reg is not None:
+                        img_1 = self.img_reg
                     img_0, img_1 = padding(img_0, img_1)
                     img = 0.5 * (img_0 + img_1)
 
-                elif self.view_modes[k] == "Difference":
+                elif mode == "Binarized":
                     img_0, img_1 = self.imgs_bin
                     if img_0 is None:
                         img_0 = self.binarization_k(0)
@@ -533,7 +559,7 @@ class App:
                     img[img_1 * ~img_0, 0] = 1
                     img[img_0 * ~img_1, 1] = 1
 
-                elif self.view_modes[k] == "Matching (SIFT)":
+                elif mode == "Matching (SIFT)":
                     if self.matches is not None:
                         img_0, img_1 = self.imgs
                         plot_matches(self.ax[k], img_0, img_1,
@@ -542,14 +568,19 @@ class App:
                                      alignment='vertical')
                         self.ax[k].invert_yaxis()
 
-        if k in [0, 1, 2]:
-            if img is not None:
-                self.ax[k].imshow(img, origin='lower', cmap='gray')
-            if patch is not None:
-                self.ax[k].add_patch(patch)
-            self.mpl_panes[k].param.trigger('object')
+        if img is not None:
+            self.ax[k].imshow(img, origin='lower', cmap='gray')
+        if patch is not None:
+            self.ax[k].add_patch(patch)
+        self.ax[k].set_title(title)
+        self.mpl_panes[k].param.trigger('object')
+        pn.io.push_notebook(self.mpl_panes[k])
 
-        ax = self.ax[AXES_TITLES.index(self.view_modes[3])]
+    def update_plot_zoom(self):
+
+        self.ax[3].clear()
+
+        ax = self.ax[AXES_TITLES.index(self.view_modes[1])]
         imgs = ax.get_images()
         if len(imgs) > 0:
             self.ax[3].imshow(imgs[0].get_array(), origin='lower', cmap='gray')
@@ -559,8 +590,7 @@ class App:
                             c=line.get_color(), ls=line.get_linestyle())
 
         self.mpl_panes[3].param.trigger('object')
-
-        pn.io.push_notebook(*self.mpl_panes)
+        pn.io.push_notebook(self.mpl_panes[3])
 
     def update_threshold(self, k, event):
         """ Update the k-th 'thresholds' attribute """
@@ -576,28 +606,7 @@ class App:
         """ Update the 'registration_model' attribute """
         self.registration_model = event.new
         self.update_plot(2)
-
-    def update_input_dirpath(self, event):
-        """ Update the 'input_dirpath' attributes and get the related files """
-        dirpath = event.new
-        if not os.path.isdir(dirpath):
-            self.terminal.write(f"ERROR: {dirpath} is not a directory\n\n")
-            return
-        else:
-            fnames = glob.glob(os.path.join(dirpath, "*"))
-            fnames = [x for x in fnames if os.path.isfile(x)]
-            self.terminal.write(f"{len(fnames)} files have been loaded\n\n")
-            self.input_dirpath = dirpath
-            self.input_fnames = fnames
-
-    def update_output_dirpath(self, event):
-        """ Update the 'output_dirpath' attributes """
-        dirpath = event.new
-        try:
-            os.makedirs(dirpath, exist_ok=True)
-            self.output_dirpath = dirpath
-        except:
-            self.terminal.write(f"ERROR: Failed to create {dirpath}\n\n")
+        self.update_plot_zoom()
 
     def update_save_fname(self, event):
         """ Update the 'save_fname' attributes """
@@ -609,16 +618,16 @@ class App:
 
     def reinit(self, k):
         """ Reinitialize the k-th image"""
+        self.cropping_areas[k] = None
         self.h_range_sliders[k].value = (0, 1)
         self.v_range_sliders[k].value = (0, 1)
-        self.cropping_areas[k] = None
-        self.update_file(k, fname=self.fnames[k])
+        self.update_file(k, fnames=[self.fnames[k]])
 
     def cropping(self, k, show_only=False):
         """ Crop the k-th image"""
         if self.cropping_areas[k] is not None:
-            msg = "ERROR: 2 consecutive crops are not allowed\n"
-            msg += "please, REINIT the image\n\n"
+            msg = "ERROR: 2 consecutive crops are not allowed. "
+            msg += "Please, REINIT the image\n"
             self.terminal.write(msg)
             return
 
@@ -636,6 +645,9 @@ class App:
             self.imgs[k] = self.imgs[k][imin:imax, jmin:jmax]
             self.cropping_areas[k] = (imin, imax, jmin, jmax)
             self.update_plot(k)
+
+        self.update_plot(2)
+        self.update_plot_zoom()
 
     def resizing(self):
         """ Resize the low resolution image from the high resolution image """
@@ -657,6 +669,7 @@ class App:
             self.binarization()
         else:
             [self.update_plot(i) for i in range(3)]
+            self.update_plot_zoom()
 
     def binarization_k(self, k):
         """ Binarize the k-th image """
@@ -672,9 +685,14 @@ class App:
         self.imgs_bin = [self.binarization_k(0), self.binarization_k(1)]
 
         if self.mode_auto:
-            self.registration_calc()
+            self.registration()
         else:
             [self.update_plot(i) for i in range(3)]
+            self.update_plot_zoom()
+
+    def registration(self, registration_model=None):
+        self.registration_calc(registration_model=registration_model)
+        self.registration_apply()
 
     def registration_calc(self, registration_model=None):
         """ Calculate the transformation matrix 'tmat' and apply it """
@@ -693,13 +711,15 @@ class App:
             raise IOError
 
         print(self.tmat)
-        self.registration_apply()
 
     def registration_apply(self):
         """ Apply 'tmat' to the moving image """
 
         self.imgs_bin[0] = self.binarization_k(0)  # reinit
         self.imgs_bin[1] = self.binarization_k(1)  # reinit
+
+        self.img_reg = warp(self.imgs[1], self.tmat, mode='constant',
+                            cval=1, preserve_range=True, order=None)
         self.imgs_bin[1] = warp(self.imgs_bin[1], self.tmat, mode='constant',
                                 cval=1, preserve_range=True, order=None)
 
@@ -718,6 +738,7 @@ class App:
         np.set_printoptions(precision=None)
 
         [self.update_plot(i) for i in range(3)]
+        self.update_plot_zoom()
 
     def translate(self, mode):
         """ Apply translation STEP in 'tmat' """
@@ -752,38 +773,85 @@ class App:
         self.tmat = self.tmat @ inv_transl @ rotation_mat @ transl
         self.registration_apply()
 
-    def apply(self):
-        """ Apply the transformation matrix 'tmat' to a set of images """
-        if self.imgs[1] is None:
-            self.terminal.write("ERROR: Fixed image is not defined\n\n")
+    def select_dir_result(self):
+        dirname = filedialog.askdirectory()
+        if dirname:
+            self.dir_results = dirname
+
+    def apply(self, dirname_res=None):
+        """ Apply the transformations to a set of images """
+        if self.fnames_tot[0] is None:
+            self.terminal.write("ERROR: fixed images are not defined\n\n")
+            return
+        if self.fnames_tot[1] is None:
+            self.terminal.write("ERROR: moving images are not defined\n\n")
             return
 
-        # save fixed image (in case of cropping)
-        name = Path(self.fnames[1]).name
-        iio.imwrite(os.path.join(self.output_dirpath, name), self.imgs[1])
+        n0, n1 = len(self.fnames_tot[0]), len(self.fnames_tot[1])
+        if not (n0 == 1 or n0 != n1):
+            msg = f"ERROR: fixed images should consist in 1 or {n1} files.\n"
+            msg += f"{n0} has been given\n\n"
+            self.terminal.write(msg)
+            return
 
-        nfnames = len(self.input_fnames)
-        for i, fname in enumerate(self.input_fnames):
-            name = Path(fname).name
-            self.terminal.write(f"{i + 1}/{nfnames} {name}: ")
+        if dirname_res is None:
+            dirname_res = filedialog.askdirectory()
+            if dirname_res is None:
+                return
+        dirname_res = Path(dirname_res)
+        dirname_res0 = dirname_res / "fixed_images"
+        dirname_res1 = dirname_res / "moving_images"
+        dirname_res.mkdir(exist_ok=True)
+        dirname_res0.mkdir(exist_ok=True)
+        dirname_res1.mkdir(exist_ok=True)
+
+        fnames_fixed = self.fnames_tot[0]
+        fnames_moving = self.fnames_tot[1]
+
+        mode_auto_save = self.mode_auto
+        self.mode_auto = False
+
+        for i, fname_moving in enumerate(fnames_moving):
+
+            fname_fixed = fnames_fixed[0] if n0 == 1 else fnames_fixed[i]
+
+            self.fnames = [fname_fixed, fname_moving]
+
+            name0 = Path(fname_fixed).name
+            name1 = Path(fname_moving).name
+
+            self.terminal.write(f"{i + 1}/{n1} {name0} - {name1}: ")
 
             try:
-                img = iio.imread(fname)
-            except:
-                self.terminal.write("Failed to decode image from file\n")
-                continue
 
-            try:
+                self.imgs[0] = iio.imread(fname_fixed)
+                self.imgs[1] = iio.imread(fname_moving)
+
                 if self.cropping_areas[0] is not None:
-                    imin, imax, jmin, jmax = self.cropping_areas[0]
-                    img = img[imin: imax, jmin: jmax]
-                img_int, _, _ = interpolation(img, self.imgs[1])
-                img_reg = warp(img_int, self.tmat, mode='constant', cval=0,
-                               preserve_range=True, order=None)
-                iio.imwrite(os.path.join(self.output_dirpath, name), img_reg)
-                self.terminal.write("OK\n")
+                    (imin, imax, jmin, jmax) = self.cropping_areas[0]
+                    self.imgs[0] = self.imgs[0][imin: imax, jmin: jmax]
+
+                if self.cropping_areas[1] is not None:
+                    (imin, imax, jmin, jmax) = self.cropping_areas[1]
+                    self.imgs[1] = self.imgs[1][imin: imax, jmin: jmax]
+
+                self.resizing()
+                if i == 0 or not self.fixed_reg:
+                    self.registration_calc()
+                self.registration_apply()
+
+                if n0 != 1 or i == 0:
+                    iio.imwrite(dirname_res0 / name0, self.imgs[0])
+                iio.imwrite(dirname_res1 / name1, self.img_reg)
+
+                score = self.results[self.registration_model]['score']
+                self.terminal.write(f"OK - score : {score:.1f} %\n")
+
             except:
                 self.terminal.write("FAILED\n")
+
+        self.terminal.write("\n")
+        self.mode_auto = mode_auto_save
 
     def save(self, fname=None):
         """ Save data in a .json file """
@@ -807,7 +875,8 @@ class App:
             with open(fname, 'r', encoding='utf-8') as fid:
                 data = json.load(fid)
 
-            app = App(fnames=data['fnames'],
+            app = App(fnames_fixed=data['fnames_fixed'],
+                      fnames_moving=data['fnames_moving'],
                       thresholds=data['thresholds'],
                       bin_inversions=data['bin_inversions'],
                       mode_auto=data['mode_auto'])
