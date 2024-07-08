@@ -2,6 +2,11 @@
 Example to be used as a "servable" panel with the following command:
 >> panel serve example_servable.py --autoreload
 """
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parents[2]))
+
 import tempfile
 import panel as pn
 
