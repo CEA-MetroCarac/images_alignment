@@ -15,9 +15,8 @@ from pystackreg import StackReg
 from skimage.transform import warp, AffineTransform
 from skimage.feature import plot_matches
 
-from images_registration.utils import (gray_conversion, image_normalization,
-                                       edges_trend, padding, interpolation,
-                                       sift)
+from images_alignment.utils import (gray_conversion, image_normalization,
+                                    edges_trend, padding, interpolation, sift)
 
 REG_MODELS = ['StackReg', 'SIFT']
 STREG = StackReg(StackReg.AFFINE)
