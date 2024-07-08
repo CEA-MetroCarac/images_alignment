@@ -8,9 +8,9 @@ import imageio.v3 as iio
 from matplotlib.figure import Figure
 from skimage.feature import plot_matches
 
-from images_registration import ImagesAlign, REG_MODELS
-from images_registration.utils import (gray_conversion, image_normalization,
-                                       padding)
+from images_alignment import ImagesAlign, REG_MODELS
+from images_alignment.utils import (gray_conversion, image_normalization,
+                                    padding)
 
 AXES_TITLES = ['Fixed image', 'Moving image', 'Combined image', None]
 FLOW_MODES = ['Flow Auto', 'Iterative']

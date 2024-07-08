@@ -10,7 +10,7 @@ from skimage.data import shepp_logan_phantom
 from skimage.transform import rotate
 from skimage.io import imsave, imread
 
-from images_registration.application.app import App
+from images_alignment.application.app import App
 
 
 class UserTempDirectory:
