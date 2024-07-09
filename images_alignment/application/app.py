@@ -4,19 +4,24 @@ Application for images registration
 from copy import deepcopy
 import panel as pn
 import numpy as np
-import imageio.v3 as iio
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.figure import Figure
+from matplotlib.patches import Rectangle
 from bokeh.plotting import figure as Figure_bokeh
-from bokeh.models import DataRange1d
+from bokeh.models import DataRange1d, LinearColorMapper
 from skimage.feature import plot_matches
 
 from images_alignment import ImagesAlign, REG_MODELS
-from images_alignment.utils import (gray_conversion, image_normalization,
-                                    padding)
+from images_alignment.utils import padding
 
 AXES_TITLES = ['Fixed image', 'Moving image', 'Combined image', None]
 FLOW_MODES = ['Flow Auto', 'Iterative']
 VIEW_MODES = [['Gray', 'Binarized', 'Matching (SIFT)'], AXES_TITLES[:3]]
+
+COLORS = [(0, 1, 0), (0, 0, 0), (1, 0, 0)]  # Green -> Black -> Red
+CMAP_BINARIZED = LinearSegmentedColormap.from_list('GreenBlackRed', COLORS, N=3)
+CMAP_BINARIZED_BOKEH = LinearColorMapper(low=-1, high=1,
+                                         palette=["#00FF00", "black", "red"])
 
 pn.extension('terminal', inline=True)
 pn.pane.Str.align = 'center'
@@ -88,7 +93,7 @@ class App(ImagesAlign):
                                                    align='center',
                                                    sizing_mode='stretch_both')
         self.figs[3].match_aspect = True
-        self.mpl_panes[3] = pn.panel(self.figs[3])
+        self.mpl_panes[3] = pn.pane.Bokeh(self.figs[3])
 
         range_slider = pn.widgets.RangeSlider(width=150, step=0.01,
                                               show_value=False,
@@ -109,18 +114,18 @@ class App(ImagesAlign):
             file_inputs.append(file_input)
 
             reinit_button = pn.widgets.Button(name='REINIT')
-            reinit_button.on_click(lambda _, k=k: self.reinit(k))
+            reinit_button.on_click(lambda _, k=k: self.update_reinit(k))
             reinit_buttons.append(reinit_button)
 
             self.h_range_sliders.append(deepcopy(range_slider))
             self.v_range_sliders.append(deepcopy(range_slider))
             self.h_range_sliders[k].param.watch(
-                lambda _, k=k: self.cropping(k, show_only=True), 'value')
+                lambda _, k=k: self.update_range(k), 'value')
             self.v_range_sliders[k].param.watch(
-                lambda _, k=k: self.cropping(k, show_only=True), 'value')
+                lambda _, k=k: self.update_range(k), 'value')
 
             crop_button = pn.widgets.Button(name='CROP')
-            crop_button.on_click(lambda _, k=k: self.cropping(k))
+            crop_button.on_click(lambda _, k=k: self.update_cropping(k))
             crop_buttons.append(crop_button)
 
             thresh_slider = pn.widgets.FloatSlider(name='threshold ', step=0.01,
@@ -146,7 +151,7 @@ class App(ImagesAlign):
         mode_auto_check.param.watch(self.update_mode_auto, 'value')
 
         self.resizing_button = pn.widgets.Button(name='RESIZING', margin=2)
-        self.resizing_button.on_click(lambda _: self.resizing())
+        self.resizing_button.on_click(lambda _: self.update_resizing())
 
         self.binarize_button = pn.widgets.Button(name='BINARIZATION', margin=2)
         self.binarize_button.on_click(lambda _: self.binarization())
@@ -261,12 +266,8 @@ class App(ImagesAlign):
         appl_box_title = pn.pane.Markdown("**APPLICATION**")
 
         appl_box = pn.WidgetBox(appl_box_title,
-                                # row_input_dirpath,
-                                # row_output_dirpath,
-                                # select_dir_button,
                                 pn.Row(apply_button, fixed_reg_check),
                                 pn.Row(save_button, reload_button),
-                                # self.terminal,
                                 margin=(5, 20), width=350)
 
         col1 = pn.Column(*boxes, appl_box, width=350)
@@ -313,23 +314,7 @@ class App(ImagesAlign):
 
     def update_file(self, k, fnames):
         """ Load the k-th image file """
-        if not isinstance(fnames, list):
-            fnames = [fnames]
-        try:
-            img = iio.imread(fnames[0])
-            self.imgs[k] = self.imgs_bin[k] = None
-            self.tmat = self.keypoints = self.descriptors = self.matches = None
-            self.img_reg = None
-            self.results = {}
-        except Exception as _:
-            self.terminal.write(f"Failed to load {fnames[0]}\n\n")
-            return
-
-        self.fnames_tot[k] = fnames
-        self.fnames[k] = fnames[0]
-
-        # image normalization in range [0, 1]
-        self.imgs[k] = image_normalization(gray_conversion(img))
+        self.load_files(k, fnames=fnames)
 
         self.update_plot(k)
         self.update_plot(2)
@@ -339,12 +324,16 @@ class App(ImagesAlign):
 
     def update_plot(self, k, patch=None):
         """ Update the k-th ax """
-
         self.ax[k].clear()
 
         img = None
         mode = self.view_modes[0]
         title = AXES_TITLES[k]
+
+        if mode == 'Binarized':
+            cmap, vmin, vmax = CMAP_BINARIZED, -1, 1
+        else:
+            cmap, vmin, vmax = 'gray', None, None
 
         if k in [0, 1]:
             img = self.imgs[k]
@@ -354,10 +343,8 @@ class App(ImagesAlign):
                 img_bin = self.imgs_bin[k]
                 if img_bin is None:
                     img_bin = self.binarization_k(k)
-                shape = img_bin.shape
-                img = np.zeros((shape[0], shape[1], 3))
-                RGB_channel = [1, 0][k]  # k=0 -> Green, k=1 -> Red
-                img[..., RGB_channel] = img_bin
+                img = np.zeros_like(img_bin, dtype=int)
+                img[img_bin] = 2 * k - 1
             else:
                 if k == 1 and self.img_reg is not None:
                     img = self.img_reg
@@ -381,9 +368,9 @@ class App(ImagesAlign):
                     if img_1 is None:
                         img_1 = self.binarization_k(1)
                     img_0, img_1 = padding(img_0, img_1)
-                    img = np.zeros((img_0.shape[0], img_0.shape[1], 3))
-                    img[img_1 * ~img_0, 0] = 1
-                    img[img_0 * ~img_1, 1] = 1
+                    img = np.zeros_like(img_0, dtype=int)
+                    img[img_1 * ~img_0] = -1
+                    img[img_0 * ~img_1] = 1
 
                 elif mode == "Matching (SIFT)":
                     if self.matches is not None:
@@ -395,7 +382,8 @@ class App(ImagesAlign):
                         self.ax[k].invert_yaxis()
 
         if img is not None:
-            self.ax[k].imshow(img, origin='lower', cmap='gray')
+            self.ax[k].imshow(img, origin='lower',
+                              cmap=cmap, vmin=vmin, vmax=vmax)
         if patch is not None:
             self.ax[k].add_patch(patch)
         self.ax[k].set_title(title)
@@ -403,35 +391,88 @@ class App(ImagesAlign):
         pn.io.push_notebook(self.mpl_panes[k])
 
     def update_plot_zoom(self):
+        """ Update the bokeh image """
+        fig = self.figs[3]
 
-        self.figs[3].renderers.clear()
+        fig.renderers.clear()
 
         k = self.get_selected_figure_index()
         ax = self.ax[k]
         imgs = ax.get_images()
         if len(imgs) > 0:
             arr = imgs[0].get_array()
+            if self.view_modes[0] == "Binarized":
+                color_mapper = CMAP_BINARIZED_BOKEH
+            else:
+                color_mapper = LinearColorMapper(palette="Greys9")
             self.figs[3].image([arr], x=0, y=0,
-                               dw=arr.shape[1], dh=arr.shape[0])
+                               dw=arr.shape[1], dh=arr.shape[0],
+                               color_mapper=color_mapper)
 
         lines = ax.get_lines()
         for line in lines:
-            self.figs[3].line(x=line.get_xdata(), y=line.get_ydata(),
-                              line_color=line.get_color(),
-                              line_dash=line.get_linestyle())
+            fig.line(x=line.get_xdata(), y=line.get_ydata(),
+                     line_color=line.get_color(),
+                     line_dash=line.get_linestyle())
 
         self.mpl_panes[3].param.trigger('object')
         pn.io.push_notebook(self.mpl_panes[3])
 
+    def update_reinit(self, k):
+        """ Reinit the k-th image """
+        self.reinit(k)
+        self.h_range_sliders[k].value = (0, 1)
+        self.v_range_sliders[k].value = (0, 1)
+        self.update_file(k, fnames=[self.fnames[k]])
+
+    def update_range(self, k):
+        """ Update the cropping area associated to the k-th image """
+        xmin, xmax = self.h_range_sliders[k].value
+        ymin, ymax = self.v_range_sliders[k].value
+        shape = self.imgs[k].shape
+        imin, imax = int(ymin * shape[0]), int(ymax * shape[0])
+        jmin, jmax = int(xmin * shape[1]), int(xmax * shape[1])
+
+        self.cropping_areas[k] = [imin, imax, jmin, jmax]
+
+        rect = Rectangle((jmin, imin), jmax - jmin, imax - imin,
+                         fc='none', ec='w')
+
+        self.update_plot(k, patch=rect)
+
+    def update_cropping(self, k):
+        """ Update the cropping of the k-th image """
+        self.cropping(k)
+
+        if not self.mode_auto:
+            [self.update_plot(i) for i in range(3)]
+            self.update_plot_zoom()
+
+    def update_resizing(self):
+        """ Resize the images """
+        self.resizing()
+
+        if not self.mode_auto:
+            [self.update_plot(i) for i in range(3)]
+            self.update_plot_zoom()
+
     def update_threshold(self, k, event):
         """ Update the k-th 'thresholds' attribute """
         self.thresholds[k] = event.new
-        self.binarization()
+        self.update_binarization()
 
     def update_reverse(self, k, event):
         """ Update the k-th 'bin_inversions' attribute """
         self.bin_inversions[k] = event.new
+        self.update_binarization()
+
+    def update_binarization(self):
+        """ Binarize the images """
         self.binarization()
+
+        if not self.mode_auto:
+            [self.update_plot(i) for i in range(3)]
+            self.update_plot_zoom()
 
     def update_registration_model(self, event):
         """ Update the 'registration_model' attribute """

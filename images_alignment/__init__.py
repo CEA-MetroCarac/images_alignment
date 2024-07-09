@@ -10,7 +10,6 @@ import panel as pn
 import numpy as np
 import imageio.v3 as iio
 from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle
 from pystackreg import StackReg
 from skimage.transform import warp, AffineTransform
 from skimage.feature import plot_matches
@@ -61,10 +60,11 @@ class ImagesAlign:
 
         self.imgs = [None, None]
         self.cropping_areas = [None, None]
+        self.is_cropped = [False, False]
         self.imgs_bin = [None, None]
         self.registration_model = 'StackReg'
-        self.keypoints = None
-        self.descriptors = None
+        self.keypoints = [[], []]
+        self.descriptors = [[], []]
         self.matches = None
         self.tmat = np.identity(3)
         self.img_reg = None
@@ -77,37 +77,44 @@ class ImagesAlign:
         self.reload_fname = None
 
     def reinit(self, k):
-        """ Reinitialize the k-th image"""
+        """ Reinitialize the k-th image and beyond """
+        self.imgs[k] = self.imgs_bin[k] = None
         self.cropping_areas[k] = None
-        self.h_range_sliders[k].value = (0, 1)
-        self.v_range_sliders[k].value = (0, 1)
-        self.update_file(k, fnames=[self.fnames[k]])
+        self.is_cropped[k] = False
+        self.tmat = self.keypoints = self.descriptors = self.matches = None
+        self.img_reg = None
+        self.results = {}
 
-    def cropping(self, k, show_only=False):
+    def load_files(self, k, fnames):
+        """ Load the k-th image files """
+        if not isinstance(fnames, list):
+            fnames = [fnames]
+        try:
+            img = iio.imread(fnames[0])
+        except Exception as _:
+            self.terminal.write(f"Failed to load {fnames[0]}\n\n")
+            return
+
+        self.fnames_tot[k] = fnames
+        self.fnames[k] = fnames[0]
+
+        # image normalization in range [0, 1]
+        self.imgs[k] = image_normalization(gray_conversion(img))
+
+    def cropping(self, k):
         """ Crop the k-th image"""
-        if self.cropping_areas[k] is not None:
+        if self.is_cropped[k]:
             msg = "ERROR: 2 consecutive crops are not allowed. "
             msg += "Please, REINIT the image\n"
             self.terminal.write(msg)
             return
 
-        xmin, xmax = self.h_range_sliders[k].value
-        ymin, ymax = self.v_range_sliders[k].value
-        shape = self.imgs[k].shape
-        imin, imax = int(ymin * shape[0]), int(ymax * shape[0])
-        jmin, jmax = int(xmin * shape[1]), int(xmax * shape[1])
-        rect = Rectangle((jmin, imin), jmax - jmin, imax - imin,
-                         fc='none', ec='w')
+        imin, imax, jmin, jmax = self.cropping_areas[k]
+        self.imgs[k] = self.imgs[k][imin:imax, jmin:jmax]
+        self.is_cropped[k] = True
 
-        if show_only:
-            self.update_plot(k, patch=rect)
-        else:
-            self.imgs[k] = self.imgs[k][imin:imax, jmin:jmax]
-            self.cropping_areas[k] = (imin, imax, jmin, jmax)
-            self.update_plot(k)
-
-        self.update_plot(2)
-        self.update_plot_zoom()
+        if self.mode_auto:
+            self.resizing()
 
     def resizing(self):
         """ Resize the low resolution image from the high resolution image """
@@ -127,9 +134,6 @@ class ImagesAlign:
 
         if self.mode_auto:
             self.binarization()
-        else:
-            [self.update_plot(i) for i in range(3)]
-            self.update_plot_zoom()
 
     def binarization_k(self, k):
         """ Binarize the k-th image """
@@ -146,9 +150,6 @@ class ImagesAlign:
 
         if self.mode_auto:
             self.registration()
-        else:
-            [self.update_plot(i) for i in range(3)]
-            self.update_plot_zoom()
 
     def registration(self, registration_model=None):
         self.registration_calc(registration_model=registration_model)
