@@ -6,6 +6,8 @@ import panel as pn
 import numpy as np
 import imageio.v3 as iio
 from matplotlib.figure import Figure
+from bokeh.plotting import figure as Figure_bokeh
+from bokeh.models import DataRange1d
 from skimage.feature import plot_matches
 
 from images_alignment import ImagesAlign, REG_MODELS
@@ -66,18 +68,27 @@ class App(ImagesAlign):
                                                 'background': '#F3F3F3',
                                                 'foreground': '#000000'}})
 
-        figs = [Figure(figsize=(4, 4)),
-                Figure(figsize=(4, 4)),
-                Figure(figsize=(4, 4)),
-                Figure(figsize=(12, 12))]
+        self.figs = [Figure(figsize=(4, 4)),
+                     Figure(figsize=(4, 4)),
+                     Figure(figsize=(4, 4)),
+                     Figure_bokeh(x_range=DataRange1d(range_padding=0),
+                                  y_range=DataRange1d(range_padding=0),
+                                  width=300, height=300,
+                                  sizing_mode='stretch_both')]
 
-        for k in range(4):
-            self.ax[k] = figs[k].subplots()
+        for k in range(3):
+            self.ax[k] = self.figs[k].subplots()
             self.ax[k].set_title(AXES_TITLES[k])
             self.ax[k].autoscale(tight=True)
-            self.mpl_panes[k] = pn.pane.Matplotlib(figs[k], dpi=80, tight=True,
+            self.figs[k].canvas.mpl_connect('button_press_event',
+                                            lambda _: self.plot_selection(k))
+
+            self.mpl_panes[k] = pn.pane.Matplotlib(self.figs[k],
+                                                   dpi=80, tight=True,
                                                    align='center',
                                                    sizing_mode='stretch_both')
+        self.figs[3].match_aspect = True
+        self.mpl_panes[3] = pn.panel(self.figs[3])
 
         range_slider = pn.widgets.RangeSlider(width=150, step=0.01,
                                               show_value=False,
@@ -389,16 +400,20 @@ class App(ImagesAlign):
 
     def update_plot_zoom(self):
 
-        self.ax[3].clear()
+        self.figs[3].renderers.clear()
 
         ax = self.ax[AXES_TITLES.index(self.view_modes[1])]
         imgs = ax.get_images()
         if len(imgs) > 0:
-            self.ax[3].imshow(imgs[0].get_array(), origin='lower', cmap='gray')
+            arr = imgs[0].get_array()
+            self.figs[3].image([arr], x=0, y=0,
+                               dw=arr.shape[1], dh=arr.shape[0])
+
         lines = ax.get_lines()
         for line in lines:
-            self.ax[3].plot(line.get_xdata(), line.get_ydata(),
-                            c=line.get_color(), ls=line.get_linestyle())
+            self.figs[3].line(x=line.get_xdata(), y=line.get_ydata(),
+                              line_color=line.get_color(),
+                              line_dash=line.get_linestyle())
 
         self.mpl_panes[3].param.trigger('object')
         pn.io.push_notebook(self.mpl_panes[3])
