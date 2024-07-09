@@ -18,4 +18,4 @@ dirfunc = UserTempDirectory  # use the user temp location
 app = example(dirfunc, show_plots=False)
 
 pn.extension()
-app.window.servable()
+pn.serve(app.window, autoreload=True)
