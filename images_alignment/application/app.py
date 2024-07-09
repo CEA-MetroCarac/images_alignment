@@ -109,18 +109,18 @@ class App(ImagesAlign):
             file_inputs.append(file_input)
 
             reinit_button = pn.widgets.Button(name='REINIT')
-            reinit_button.on_click(lambda event, k=k: self.reinit(k))
+            reinit_button.on_click(lambda _, k=k: self.reinit(k))
             reinit_buttons.append(reinit_button)
 
             self.h_range_sliders.append(deepcopy(range_slider))
             self.v_range_sliders.append(deepcopy(range_slider))
             self.h_range_sliders[k].param.watch(
-                lambda event, k=k: self.cropping(k, show_only=True), 'value')
+                lambda _, k=k: self.cropping(k, show_only=True), 'value')
             self.v_range_sliders[k].param.watch(
-                lambda event, k=k: self.cropping(k, show_only=True), 'value')
+                lambda _, k=k: self.cropping(k, show_only=True), 'value')
 
             crop_button = pn.widgets.Button(name='CROP')
-            crop_button.on_click(lambda event, k=k: self.cropping(k))
+            crop_button.on_click(lambda _, k=k: self.cropping(k))
             crop_buttons.append(crop_button)
 
             thresh_slider = pn.widgets.FloatSlider(name='threshold ', step=0.01,
@@ -146,13 +146,13 @@ class App(ImagesAlign):
         mode_auto_check.param.watch(self.update_mode_auto, 'value')
 
         self.resizing_button = pn.widgets.Button(name='RESIZING', margin=2)
-        self.resizing_button.on_click(lambda event: self.resizing())
+        self.resizing_button.on_click(lambda _: self.resizing())
 
         self.binarize_button = pn.widgets.Button(name='BINARIZATION', margin=2)
-        self.binarize_button.on_click(lambda event: self.binarization())
+        self.binarize_button.on_click(lambda _: self.binarization())
 
         self.register_button = pn.widgets.Button(name='REGISTRATION', margin=2)
-        self.register_button.on_click(lambda event: self.registration())
+        self.register_button.on_click(lambda _: self.registration())
 
         value = self.registration_model
         self.reg_models = pn.widgets.RadioButtonGroup(options=REG_MODELS,
@@ -172,8 +172,8 @@ class App(ImagesAlign):
 
         rot_clock_button = pn.widgets.Button(name='↻')
         rot_anticlock_button = pn.widgets.Button(name='↺')
-        rot_clock_button.on_click(lambda event: self.rotate())
-        rot_anticlock_button.on_click(lambda event: self.rotate(reverse=True))
+        rot_clock_button.on_click(lambda _: self.rotate())
+        rot_anticlock_button.on_click(lambda _: self.rotate(reverse=True))
 
         self.xc_rel = pn.widgets.FloatInput(value=0.5, width=60)
         self.yc_rel = pn.widgets.FloatInput(value=0.5, width=60)
@@ -193,10 +193,10 @@ class App(ImagesAlign):
         view_mode_zoom.param.watch(self.update_view_mode_zoom, 'value')
 
         select_dir_button = pn.widgets.Button(name='SELECT DIR. RESULT')
-        select_dir_button.on_click(lambda event: self.select_dir_result())
+        select_dir_button.on_click(lambda _: self.select_dir_result())
 
         apply_button = pn.widgets.Button(name='APPLY & SAVE')
-        apply_button.on_click(lambda event: self.apply())
+        apply_button.on_click(lambda _: self.apply())
 
         fixed_reg_check = pn.widgets.Checkbox(name='Fixed registration',
                                               value=self.fixed_reg)
@@ -205,7 +205,7 @@ class App(ImagesAlign):
         # reverse_checks.append(reverse_check)
 
         save_button = pn.widgets.Button(name='SAVE MODEL')
-        save_button.on_click(lambda event: self.save())
+        save_button.on_click(lambda _: self.save())
         self.save_input = pn.widgets.FileInput(accept='.json')
         self.save_input.param.watch(self.update_save_fname, 'value')
 
@@ -284,6 +284,10 @@ class App(ImagesAlign):
 
         self.window = pn.Row(col1, col2, col3, sizing_mode='stretch_both')
         self.update_disabled()
+
+    def get_selected_figure_index(self):
+        """ Return the index of the selected figure """
+        return AXES_TITLES.index(self.view_modes[1])
 
     def update_view_mode(self, event):
         """ Update the 'view_mode' attribute and replot """
@@ -402,7 +406,8 @@ class App(ImagesAlign):
 
         self.figs[3].renderers.clear()
 
-        ax = self.ax[AXES_TITLES.index(self.view_modes[1])]
+        k = self.get_selected_figure_index()
+        ax = self.ax[k]
         imgs = ax.get_images()
         if len(imgs) > 0:
             arr = imgs[0].get_array()
