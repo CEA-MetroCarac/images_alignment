@@ -2,8 +2,12 @@
 Application for images registration
 """
 from copy import deepcopy
+from pathlib import Path
+import tempfile
 import panel as pn
 import numpy as np
+import param
+import imageio.v3 as iio
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
@@ -61,6 +65,7 @@ class App(ImagesAlign):
                          mode_auto=mode_auto)
 
         self.window = None
+        self.tmpdir = tempfile.TemporaryDirectory()
         self.ax = [None, None, None, None]
         self.view_modes = ['Gray', 'Fixed image']
         self.mpl_panes = [None, None, None, None]
@@ -107,10 +112,9 @@ class App(ImagesAlign):
         thresh_sliders = []
         reverse_checks = []
         for k in range(2):
-            file_input = pn.widgets.FileInput(accept='image/*')
+            file_input = pn.widgets.FileInput(accept='image/*', multiple=True)
             file_input.param.watch(
-                lambda event, k=k: self.update_file(k, event.new), 'value')
-            file_input.value = self.fnames_tot[k]
+                lambda event, k=k: self.update_files(k, event), 'filename')
             file_inputs.append(file_input)
 
             reinit_button = pn.widgets.Button(name='REINIT')
@@ -205,9 +209,6 @@ class App(ImagesAlign):
 
         fixed_reg_check = pn.widgets.Checkbox(name='Fixed registration',
                                               value=self.fixed_reg)
-        # reverse_check.param.watch(
-        #     lambda event, k=k: self.update_reverse(k, event), 'value')
-        # reverse_checks.append(reverse_check)
 
         save_button = pn.widgets.Button(name='SAVE MODEL')
         save_button.on_click(lambda _: self.save())
@@ -312,8 +313,19 @@ class App(ImagesAlign):
         self.binarize_button.disabled = self.mode_auto
         self.register_button.disabled = self.mode_auto
 
-    def update_file(self, k, fnames):
-        """ Load the k-th image file """
+    def update_files(self, k, fnames):
+        """ Load the k-th image files """
+        # make a local copy (in the host) of the images issued from pn.FileInput
+        if isinstance(fnames, param.parameterized.Event):
+            dirname = Path(self.tmpdir.name)
+            fnames_ = []
+            for fname, value in zip(fnames.new, fnames.obj.value):
+                fname_ = dirname / fname
+                arr = iio.imread(value)
+                iio.imwrite(fname_, arr)
+                fnames_.append(fname_)
+            fnames = fnames_
+
         self.load_files(k, fnames=fnames)
 
         self.update_plot(k)
@@ -421,9 +433,9 @@ class App(ImagesAlign):
     def update_reinit(self, k):
         """ Reinit the k-th image """
         self.reinit(k)
+        self.update_files(k, fnames=[self.fnames[k]])
         self.h_range_sliders[k].value = (0, 1)
         self.v_range_sliders[k].value = (0, 1)
-        self.update_file(k, fnames=[self.fnames[k]])
 
     def update_range(self, k):
         """ Update the cropping area associated to the k-th image """

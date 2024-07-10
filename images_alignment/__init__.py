@@ -45,14 +45,10 @@ class ImagesAlign:
     """
 
     def __init__(self, fnames_fixed=None, fnames_moving=None,
-                 thresholds=None, bin_inversions=None, mode_auto=True):
+                 thresholds=None, bin_inversions=None, mode_auto=False):
 
         self.fnames_tot = [fnames_fixed, fnames_moving]
         self.fnames = [None, None]
-        if self.fnames_tot[0] is not None:
-            self.fnames[0] = self.fnames_tot[0][0]
-        if self.fnames_tot[1] is not None:
-            self.fnames[1] = self.fnames_tot[1][0]
 
         self.thresholds = thresholds or [0.5, 0.5]
         self.bin_inversions = bin_inversions or [False, False]
@@ -75,6 +71,13 @@ class ImagesAlign:
         self.input_fnames = None
         self.save_fname = None
         self.reload_fname = None
+
+        if self.fnames_tot[0] is not None:
+            self.fnames[0] = self.fnames_tot[0][0]
+            self.load_files(0, self.fnames[0])
+        if self.fnames_tot[1] is not None:
+            self.fnames[1] = self.fnames_tot[1][0]
+            self.load_files(1, self.fnames[1])
 
     def reinit(self, k):
         """ Reinitialize the k-th image and beyond """
@@ -259,7 +262,8 @@ class ImagesAlign:
             return
 
         if dirname_res is None:
-            dirname_res = filedialog.askdirectory()
+            initialdir = Path(self.fnames_tot[1][-1]).parent
+            dirname_res = filedialog.askdirectory(initialdir=initialdir)
             if dirname_res is None:
                 return
         dirname_res = Path(dirname_res)
