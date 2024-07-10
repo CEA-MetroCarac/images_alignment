@@ -37,6 +37,7 @@ pn.widgets.FloatSlider.align = 'center'
 pn.widgets.Checkbox.align = 'center'
 pn.widgets.TextInput.align = 'center'
 pn.widgets.FileInput.align = 'center'
+pn.widgets.Terminal.align = 'center'
 pn.Row.align = 'center'
 pn.Column.align = 'center'
 
@@ -58,7 +59,7 @@ class App(ImagesAlign):
     """
 
     def __init__(self, fnames_fixed=None, fnames_moving=None,
-                 thresholds=None, bin_inversions=None, mode_auto=True):
+                 thresholds=None, bin_inversions=None, mode_auto=False):
 
         super().__init__(fnames_fixed=fnames_fixed, fnames_moving=fnames_moving,
                          thresholds=thresholds, bin_inversions=bin_inversions,
@@ -69,10 +70,8 @@ class App(ImagesAlign):
         self.ax = [None, None, None, None]
         self.view_modes = ['Gray', 'Fixed image']
         self.mpl_panes = [None, None, None, None]
-        self.result_str = pn.pane.Str(None, align='center',
-                                      styles={'text-align': 'center'})
-        self.terminal = pn.widgets.Terminal(align='center',
-                                            height=100,
+        self.result_str = pn.pane.Str(None, styles={'text-align': 'center'})
+        self.terminal = pn.widgets.Terminal(height=100,
                                             sizing_mode='stretch_width',
                                             options={"theme": {
                                                 'background': '#F3F3F3',
@@ -83,7 +82,7 @@ class App(ImagesAlign):
                      Figure(figsize=(4, 4)),
                      Figure_bokeh(x_range=DataRange1d(range_padding=0),
                                   y_range=DataRange1d(range_padding=0),
-                                  width=300, height=300,
+                                  width=300, height=300, match_aspect=True,
                                   sizing_mode='stretch_both')]
 
         for k in range(3):
@@ -97,7 +96,7 @@ class App(ImagesAlign):
                                                    dpi=80, tight=True,
                                                    align='center',
                                                    sizing_mode='stretch_both')
-        self.figs[3].match_aspect = True
+
         self.mpl_panes[3] = pn.pane.Bokeh(self.figs[3])
 
         range_slider = pn.widgets.RangeSlider(width=150, step=0.01,
@@ -236,7 +235,7 @@ class App(ImagesAlign):
             img_box = pn.WidgetBox(img_box_title,
                                    file_inputs[k], reinit_buttons[k],
                                    img_crop, img_param,
-                                   margin=(5, 0), width=350)
+                                   margin=(5, 5), width=350)
             boxes.append(img_box)
 
         proc_box_title = pn.pane.Markdown("**IMAGES PROCESSING**")
@@ -260,7 +259,7 @@ class App(ImagesAlign):
                                     self.register_button),
                              pn.Row(transl_box, pn.Spacer(width=30), rot_box),
                              self.result_str)
-        proc_box = pn.WidgetBox(proc_box_title, proc_box, margin=(5, 0),
+        proc_box = pn.WidgetBox(proc_box_title, proc_box, margin=(5, 5),
                                 width=350)
         boxes.append(proc_box)
 
@@ -269,19 +268,18 @@ class App(ImagesAlign):
         appl_box = pn.WidgetBox(appl_box_title,
                                 pn.Row(apply_button, fixed_reg_check),
                                 pn.Row(save_button, reload_button),
-                                margin=(5, 20), width=350)
+                                margin=(5, 5), width=350)
 
         col1 = pn.Column(*boxes, appl_box, width=350)
 
         col2 = pn.Column(view_mode,
                          self.mpl_panes[0],
                          self.mpl_panes[1],
-                         self.mpl_panes[2], width=350, align='center')
+                         self.mpl_panes[2], width=350)
 
         col3 = pn.Column(view_mode_zoom,
                          self.mpl_panes[3],
                          self.terminal,
-                         align='center',
                          sizing_mode='stretch_width')
 
         self.window = pn.Row(col1, col2, col3, sizing_mode='stretch_both')
@@ -349,7 +347,8 @@ class App(ImagesAlign):
 
         if k in [0, 1]:
             img = self.imgs[k]
-            title += f" - {self.fnames[k].name}"
+            if self.fnames[k] is not None:
+                title += f" - {self.fnames[k].name}"
 
             if mode == 'Binarized':
                 img_bin = self.imgs_bin[k]
@@ -416,10 +415,13 @@ class App(ImagesAlign):
             if self.view_modes[0] == "Binarized":
                 color_mapper = CMAP_BINARIZED_BOKEH
             else:
-                color_mapper = LinearColorMapper(palette="Greys9")
-            self.figs[3].image([arr], x=0, y=0,
-                               dw=arr.shape[1], dh=arr.shape[0],
-                               color_mapper=color_mapper)
+                color_mapper = LinearColorMapper(palette="Greys256")
+            fig.image([arr], x=0, y=0,
+                      dw=arr.shape[1], dh=arr.shape[0],
+                      color_mapper=color_mapper)
+            fig.x_range.start, fig.x_range.end = 0, arr.shape[1]
+            fig.y_range.start, fig.y_range.end = 0, arr.shape[0]
+            fig.aspect_ratio = arr.shape[1] / arr.shape[0]
 
         lines = ax.get_lines()
         for line in lines:
@@ -436,6 +438,7 @@ class App(ImagesAlign):
         self.update_files(k, fnames=[self.fnames[k]])
         self.h_range_sliders[k].value = (0, 1)
         self.v_range_sliders[k].value = (0, 1)
+        self.update_plot_zoom()
 
     def update_range(self, k):
         """ Update the cropping area associated to the k-th image """
@@ -454,6 +457,9 @@ class App(ImagesAlign):
 
     def update_cropping(self, k):
         """ Update the cropping of the k-th image """
+        x, y = self.figs[3].x_range, self.figs[3].y_range
+        self.cropping_areas[k] = [int(y.start), int(y.end),
+                                  int(x.start), int(x.end)]
         self.cropping(k)
 
         if not self.mode_auto:
