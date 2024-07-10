@@ -104,13 +104,27 @@ class ImagesAlign:
         # image normalization in range [0, 1]
         self.imgs[k] = image_normalization(gray_conversion(img))
 
-    def cropping(self, k):
+    def cropping(self, k, area=None, area_percent=None):
         """ Crop the k-th image"""
+        if area is not None and area_percent is not None:
+            msg = "ERROR: 'area' and 'area_percent' cannot be defined " \
+                  "simultaneously "
+            self.terminal.write(msg)
+
         if self.is_cropped[k]:
             msg = "ERROR: 2 consecutive crops are not allowed. "
             msg += "Please, REINIT the image\n"
             self.terminal.write(msg)
             return
+
+        if area is not None:
+            self.cropping_areas[k] = area
+        if area_percent is not None:
+            xmin, xmax, ymin, ymax = area_percent
+            shape = self.imgs[k].shape
+            imin, imax = int(ymin * shape[0]), int(ymax * shape[0])
+            jmin, jmax = int(xmin * shape[1]), int(xmax * shape[1])
+            self.cropping_areas[k] = [imin, imax, jmin, jmax]
 
         imin, imax, jmin, jmax = self.cropping_areas[k]
         self.imgs[k] = self.imgs[k][imin:imax, jmin:jmax]

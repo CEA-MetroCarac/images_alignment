@@ -59,21 +59,14 @@ def example(dirfunc, show_plots=True):
             fnames_moving.append(fname_moving)
 
         # App definition
-        thresholds = [0.15, 0.15]
-        bin_inversions = [False, False]
-        mode_auto = False
-
         app = App(fnames_fixed=fnames_fixed,
                   fnames_moving=fnames_moving,
-                  thresholds=thresholds,
-                  bin_inversions=bin_inversions, mode_auto=mode_auto)
+                  thresholds=[0.15, 0.15],
+                  bin_inversions=[False, False],
+                  mode_auto=False)
 
-        # cropping
-        app.h_range_sliders[1].value = (0.40, 0.95)
-        app.v_range_sliders[1].value = (0.25, 1.00)
-        app.cropping(1)
-
-        # resizing - binarization - registration
+        # cropping - resizing - binarization - registration
+        app.cropping(1, area_percent=[0.40, 0.95, 0.25, 1.00])
         app.resizing()
         app.binarization()
         app.registration(registration_model='StackReg')

@@ -1,7 +1,6 @@
 """
 Application for images registration
 """
-from copy import deepcopy
 from pathlib import Path
 import tempfile
 import panel as pn
@@ -10,7 +9,6 @@ import param
 import imageio.v3 as iio
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle
 from bokeh.plotting import figure as Figure_bokeh
 from bokeh.models import DataRange1d, LinearColorMapper
 from skimage.feature import plot_matches
@@ -99,14 +97,8 @@ class App(ImagesAlign):
 
         self.mpl_panes[3] = pn.pane.Bokeh(self.figs[3])
 
-        range_slider = pn.widgets.RangeSlider(width=150, step=0.01,
-                                              show_value=False,
-                                              bar_color='#0072b5')
-
         file_inputs = []
         reinit_buttons = []
-        self.h_range_sliders = []
-        self.v_range_sliders = []
         crop_buttons = []
         thresh_sliders = []
         reverse_checks = []
@@ -120,14 +112,7 @@ class App(ImagesAlign):
             reinit_button.on_click(lambda _, k=k: self.update_reinit(k))
             reinit_buttons.append(reinit_button)
 
-            self.h_range_sliders.append(deepcopy(range_slider))
-            self.v_range_sliders.append(deepcopy(range_slider))
-            self.h_range_sliders[k].param.watch(
-                lambda _, k=k: self.update_range(k), 'value')
-            self.v_range_sliders[k].param.watch(
-                lambda _, k=k: self.update_range(k), 'value')
-
-            crop_button = pn.widgets.Button(name='CROP')
+            crop_button = pn.widgets.Button(name='CROP FROM ZOOM')
             crop_button.on_click(lambda _, k=k: self.update_cropping(k))
             crop_buttons.append(crop_button)
 
@@ -223,18 +208,11 @@ class App(ImagesAlign):
         boxes = []
 
         text = ['FIXED IMAGE', 'MOVING IMAGE']
-        h_label = pn.pane.Str("H:")
-        v_label = pn.pane.Str("V:")
         for k in range(2):
-            img_box_title = pn.pane.Markdown(f"**{text[k]}**")
-            img_crop = pn.Row(pn.Column(h_label, v_label),
-                              pn.Column(self.h_range_sliders[k],
-                                        self.v_range_sliders[k]),
-                              crop_buttons[k])
-            img_param = pn.Row(thresh_sliders[k], reverse_checks[k])
-            img_box = pn.WidgetBox(img_box_title,
-                                   file_inputs[k], reinit_buttons[k],
-                                   img_crop, img_param,
+            img_box = pn.WidgetBox(pn.pane.Markdown(f"**{text[k]}**"),
+                                   file_inputs[k],
+                                   pn.Row(reinit_buttons[k], crop_buttons[k]),
+                                   pn.Row(thresh_sliders[k], reverse_checks[k]),
                                    margin=(5, 5), width=350)
             boxes.append(img_box)
 
@@ -419,9 +397,9 @@ class App(ImagesAlign):
             fig.image([arr], x=0, y=0,
                       dw=arr.shape[1], dh=arr.shape[0],
                       color_mapper=color_mapper)
-            fig.x_range.start, fig.x_range.end = 0, arr.shape[1]
-            fig.y_range.start, fig.y_range.end = 0, arr.shape[0]
-            fig.aspect_ratio = arr.shape[1] / arr.shape[0]
+            # fig.x_range.start, fig.x_range.end = 0, arr.shape[1]
+            # fig.y_range.start, fig.y_range.end = 0, arr.shape[0]
+            # fig.aspect_ratio = arr.shape[1] / arr.shape[0]
 
         lines = ax.get_lines()
         for line in lines:
@@ -436,24 +414,7 @@ class App(ImagesAlign):
         """ Reinit the k-th image """
         self.reinit(k)
         self.update_files(k, fnames=[self.fnames[k]])
-        self.h_range_sliders[k].value = (0, 1)
-        self.v_range_sliders[k].value = (0, 1)
         self.update_plot_zoom()
-
-    def update_range(self, k):
-        """ Update the cropping area associated to the k-th image """
-        xmin, xmax = self.h_range_sliders[k].value
-        ymin, ymax = self.v_range_sliders[k].value
-        shape = self.imgs[k].shape
-        imin, imax = int(ymin * shape[0]), int(ymax * shape[0])
-        jmin, jmax = int(xmin * shape[1]), int(xmax * shape[1])
-
-        self.cropping_areas[k] = [imin, imax, jmin, jmax]
-
-        rect = Rectangle((jmin, imin), jmax - jmin, imax - imin,
-                         fc='none', ec='w')
-
-        self.update_plot(k, patch=rect)
 
     def update_cropping(self, k):
         """ Update the cropping of the k-th image """
