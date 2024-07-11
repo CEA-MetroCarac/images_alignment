@@ -9,6 +9,15 @@ from skimage.measure import ransac
 from scipy.interpolate import RegularGridInterpolator
 
 
+class Terminal:
+    """ Class to 'write' in the console """
+
+    def write(self, message):
+        """ Write message in the console """
+        sys.stdout.write(message)
+        sys.stdout.flush()
+
+
 def gray_conversion(img):
     """ Convert RGBA or RGB image to gray image """
     if img.ndim == 4:

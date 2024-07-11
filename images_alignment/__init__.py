@@ -14,7 +14,8 @@ from pystackreg import StackReg
 from skimage.transform import warp, AffineTransform
 from skimage.feature import plot_matches
 
-from images_alignment.utils import (gray_conversion, image_normalization,
+from images_alignment.utils import (Terminal,
+                                    gray_conversion, image_normalization,
                                     edges_trend, padding, interpolation, sift)
 
 REG_MODELS = ['StackReg', 'SIFT']
@@ -24,8 +25,7 @@ STEP = 1  # translation increment
 ANGLE = np.deg2rad(1)  # rotation angular increment
 COEF1, COEF2 = 0.99, 1.01  # scaling coefficient
 
-KEYS = ['fnames_fixed', 'fnames_moving',
-        'thresholds', 'bin_inversions', 'mode_auto', 'tmat']
+KEYS = ['cropping_areas', 'thresholds', 'bin_inversions', 'tmat']
 
 
 class ImagesAlign:
@@ -45,7 +45,8 @@ class ImagesAlign:
     """
 
     def __init__(self, fnames_fixed=None, fnames_moving=None,
-                 thresholds=None, bin_inversions=None, mode_auto=False):
+                 thresholds=None, bin_inversions=None, mode_auto=False,
+                 terminal=None):
 
         self.fnames_tot = [fnames_fixed, fnames_moving]
         self.fnames = [None, None]
@@ -53,6 +54,7 @@ class ImagesAlign:
         self.thresholds = thresholds or [0.5, 0.5]
         self.bin_inversions = bin_inversions or [False, False]
         self.mode_auto = mode_auto
+        self.terminal = terminal or Terminal()
 
         self.imgs = [None, None]
         self.cropping_areas = [None, None]
@@ -68,15 +70,11 @@ class ImagesAlign:
         self.dir_results = None
         self.fixed_reg = False
 
-        self.input_fnames = None
-        self.save_fname = None
-        self.reload_fname = None
-
         if self.fnames_tot[0] is not None:
-            self.fnames[0] = self.fnames_tot[0][0]
+            self.fnames[0] = self.fnames_tot[0]
             self.load_files(0, self.fnames[0])
         if self.fnames_tot[1] is not None:
-            self.fnames[1] = self.fnames_tot[1][0]
+            self.fnames[1] = self.fnames_tot[1]
             self.load_files(1, self.fnames[1])
 
     def reinit(self, k):
@@ -154,6 +152,9 @@ class ImagesAlign:
 
     def binarization_k(self, k):
         """ Binarize the k-th image """
+        if self.imgs[k] is None:
+            return
+
         img_bin = self.imgs[k] > self.thresholds[k]
         if edges_trend(self.imgs[k]):
             img_bin = ~img_bin
@@ -175,7 +176,7 @@ class ImagesAlign:
     def registration_calc(self, registration_model=None):
         """ Calculate the transformation matrix 'tmat' and apply it """
         if registration_model in REG_MODELS:
-            self.reg_models.value = registration_model
+            self.registration_model = registration_model
 
         if self.registration_model == 'StackReg':
             self.imgs_bin[1] = self.binarization_k(1)  # reinit
@@ -211,12 +212,13 @@ class ImagesAlign:
         self.results[self.registration_model] = {'score': score,
                                                  'tmat': self.tmat}
 
-        np.set_printoptions(precision=4)
-        self.result_str.object = f'SCORE: {score:.1f} % \n\n {self.tmat}'
-        np.set_printoptions(precision=None)
-
-        [self.update_plot(i) for i in range(3)]
-        self.update_plot_zoom()
+        # TODO
+        # np.set_printoptions(precision=4)
+        # self.result_str.object = f'SCORE: {score:.1f} % \n\n {self.tmat}'
+        # np.set_printoptions(precision=None)
+        #
+        # [self.update_plot(i) for i in range(3)]
+        # self.update_plot_zoom()
 
     def translate(self, mode, step=STEP):
         """ Apply translation step in 'tmat' """
@@ -335,39 +337,38 @@ class ImagesAlign:
         self.terminal.write("\n")
         self.mode_auto = mode_auto_save
 
-    def save(self, fname=None):
-        """ Save data in a .json file """
-        if fname is not None:
-            self.save_fname = fname
-            self.save_input.value = fname
+    def save_model(self, fname_json=None):
+        """ Save model in a .json file """
+        if fname_json is None:
+            fname_json = filedialog.asksaveasfilename(defaultextension='.json')
+            if fname_json is None:
+                return
 
-        if self.save_fname is not None:
-            data = {}
-            for key in KEYS:
-                data.update({key: eval(f"self.{key}")})
-            data.update({'tmat': self.tmat.tolist()})
+        data = {}
+        for key in KEYS:
+            data.update({key: eval(f"self.{key}")})
+        data.update({'tmat': self.tmat.tolist()})
 
-            with open(self.save_fname, 'w', encoding='utf-8') as fid:
-                json.dump(data, fid, ensure_ascii=False, indent=4)
+        with open(fname_json, 'w', encoding='utf-8') as fid:
+            json.dump(data, fid, ensure_ascii=False, indent=4)
 
     @staticmethod
-    def reload(fname):
-        """ Reload data from .json file and Return an App() object """
-        if os.path.isfile(fname):
-            with open(fname, 'r', encoding='utf-8') as fid:
+    def reload_model(fname_json=None):
+        """ Reload model from a .json file and Return an ImagesAlign() object"""
+
+        if fname_json is None:
+            fname_json = filedialog.askopenfile(defaultextension='.json')
+            if fname_json is None:
+                return
+
+        if os.path.isfile(fname_json):
+            with open(fname_json, 'r', encoding='utf-8') as fid:
                 data = json.load(fid)
 
-            app = ImagesAlign(fnames_fixed=data['fnames_fixed'],
-                              fnames_moving=data['fnames_moving'],
-                              thresholds=data['thresholds'],
-                              bin_inversions=data['bin_inversions'],
-                              mode_auto=data['mode_auto'])
+            imgalign = ImagesAlign()
             for key, value in data.items():
-                setattr(app, key, value)
-
-            app.tmat = np.asarray(app.tmat)
-            app.reload_fname = fname
-
-            return app
+                setattr(imgalign, key, value)
+            imgalign.tmat = np.asarray(imgalign.tmat)
+            return imgalign
         else:
             return None

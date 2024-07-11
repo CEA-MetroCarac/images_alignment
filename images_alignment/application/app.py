@@ -12,8 +12,10 @@ from matplotlib.figure import Figure
 from bokeh.plotting import figure as Figure_bokeh
 from bokeh.models import DataRange1d, LinearColorMapper
 from skimage.feature import plot_matches
+from panel.widgets import (FileInput, Button, RadioButtonGroup, FloatSlider,
+                           FloatInput, Checkbox, TextInput, Terminal)
 
-from images_alignment import ImagesAlign, REG_MODELS
+from images_alignment import ImagesAlign, REG_MODELS, KEYS
 from images_alignment.utils import padding
 
 AXES_TITLES = ['Fixed image', 'Moving image', 'Combined image', None]
@@ -29,18 +31,18 @@ pn.extension('terminal', inline=True)
 pn.pane.Str.align = 'center'
 pn.pane.Markdown.align = 'center'
 pn.pane.Matplotlib.align = 'center'
-pn.widgets.Button.align = 'center'
-pn.widgets.RadioButtonGroup.align = 'center'
-pn.widgets.FloatSlider.align = 'center'
-pn.widgets.Checkbox.align = 'center'
-pn.widgets.TextInput.align = 'center'
-pn.widgets.FileInput.align = 'center'
-pn.widgets.Terminal.align = 'center'
 pn.Row.align = 'center'
 pn.Column.align = 'center'
+Button.align = 'center'
+RadioButtonGroup.align = 'center'
+FloatSlider.align = 'center'
+Checkbox.align = 'center'
+TextInput.align = 'center'
+FileInput.align = 'center'
+Terminal.align = 'center'
 
 
-class App(ImagesAlign):
+class App:
     """
     Application dedicated to images alignment
 
@@ -59,21 +61,23 @@ class App(ImagesAlign):
     def __init__(self, fnames_fixed=None, fnames_moving=None,
                  thresholds=None, bin_inversions=None, mode_auto=False):
 
-        super().__init__(fnames_fixed=fnames_fixed, fnames_moving=fnames_moving,
-                         thresholds=thresholds, bin_inversions=bin_inversions,
-                         mode_auto=mode_auto)
-
         self.window = None
         self.tmpdir = tempfile.TemporaryDirectory()
         self.ax = [None, None, None, None]
         self.view_modes = ['Gray', 'Fixed image']
         self.mpl_panes = [None, None, None, None]
         self.result_str = pn.pane.Str(None, styles={'text-align': 'center'})
-        self.terminal = pn.widgets.Terminal(height=100,
-                                            sizing_mode='stretch_width',
-                                            options={"theme": {
-                                                'background': '#F3F3F3',
-                                                'foreground': '#000000'}})
+        self.terminal = Terminal(height=100,
+                                 sizing_mode='stretch_width',
+                                 options={"theme": {'background': '#F3F3F3',
+                                                    'foreground': '#000000'}})
+
+        self.model = ImagesAlign(fnames_fixed=fnames_fixed,
+                                 fnames_moving=fnames_moving,
+                                 thresholds=thresholds,
+                                 bin_inversions=bin_inversions,
+                                 mode_auto=mode_auto,
+                                 terminal=self.terminal)
 
         self.figs = [Figure(figsize=(4, 4)),
                      Figure(figsize=(4, 4)),
@@ -87,9 +91,6 @@ class App(ImagesAlign):
             self.ax[k] = self.figs[k].subplots()
             self.ax[k].set_title(AXES_TITLES[k])
             self.ax[k].autoscale(tight=True)
-            self.figs[k].canvas.mpl_connect('button_press_event',
-                                            lambda _: self.plot_selection(k))
-
             self.mpl_panes[k] = pn.pane.Matplotlib(self.figs[k],
                                                    dpi=80, tight=True,
                                                    align='center',
@@ -100,110 +101,109 @@ class App(ImagesAlign):
         file_inputs = []
         reinit_buttons = []
         crop_buttons = []
-        thresh_sliders = []
-        reverse_checks = []
+        self.thresh_sliders = []
+        self.reverse_checks = []
         for k in range(2):
-            file_input = pn.widgets.FileInput(accept='image/*', multiple=True)
+            file_input = FileInput(accept='image/*', multiple=True)
             file_input.param.watch(
                 lambda event, k=k: self.update_files(k, event), 'filename')
             file_inputs.append(file_input)
 
-            reinit_button = pn.widgets.Button(name='REINIT')
+            reinit_button = Button(name='REINIT')
             reinit_button.on_click(lambda _, k=k: self.update_reinit(k))
             reinit_buttons.append(reinit_button)
 
-            crop_button = pn.widgets.Button(name='CROP FROM ZOOM')
+            crop_button = Button(name='CROP FROM ZOOM')
             crop_button.on_click(lambda _, k=k: self.update_cropping(k))
             crop_buttons.append(crop_button)
 
-            thresh_slider = pn.widgets.FloatSlider(name='threshold ', step=0.01,
-                                                   value=self.thresholds[k],
-                                                   bar_color='#0072b5',
-                                                   width=150)
+            thresh_slider = FloatSlider(name='threshold ', step=0.01,
+                                        value=self.model.thresholds[k],
+                                        bar_color='#0072b5',
+                                        width=150)
             thresh_slider.param.watch(
                 lambda event, k=k: self.update_threshold(k, event), 'value')
-            thresh_sliders.append(thresh_slider)
+            self.thresh_sliders.append(thresh_slider)
 
-            reverse_check = pn.widgets.Checkbox(name='Reversed',
-                                                value=self.bin_inversions[k],
-                                                height=0)
+            reverse_check = Checkbox(name='Reversed',
+                                     value=self.model.bin_inversions[k],
+                                     height=0)
             reverse_check.param.watch(
                 lambda event, k=k: self.update_reverse(k, event), 'value')
-            reverse_checks.append(reverse_check)
+            self.reverse_checks.append(reverse_check)
 
-        value = FLOW_MODES[not self.mode_auto]
-        mode_auto_check = pn.widgets.RadioButtonGroup(options=FLOW_MODES,
-                                                      button_style='outline',
-                                                      button_type='primary',
-                                                      value=value)
+        value = FLOW_MODES[not self.model.mode_auto]
+        mode_auto_check = RadioButtonGroup(options=FLOW_MODES,
+                                           button_style='outline',
+                                           button_type='primary',
+                                           value=value)
         mode_auto_check.param.watch(self.update_mode_auto, 'value')
 
-        self.resizing_button = pn.widgets.Button(name='RESIZING', margin=2)
+        self.resizing_button = Button(name='RESIZING', margin=2)
         self.resizing_button.on_click(lambda _: self.update_resizing())
 
-        self.binarize_button = pn.widgets.Button(name='BINARIZATION', margin=2)
-        self.binarize_button.on_click(lambda _: self.binarization())
+        self.binarize_button = Button(name='BINARIZATION', margin=2)
+        self.binarize_button.on_click(lambda _: self.update_binarization())
 
-        self.register_button = pn.widgets.Button(name='REGISTRATION', margin=2)
-        self.register_button.on_click(lambda _: self.registration())
+        self.register_button = Button(name='REGISTRATION', margin=2)
+        self.register_button.on_click(lambda _: self.update_registration())
 
-        value = self.registration_model
-        self.reg_models = pn.widgets.RadioButtonGroup(options=REG_MODELS,
-                                                      button_style='outline',
-                                                      button_type='primary',
-                                                      value=value)
+        value = self.model.registration_model
+        self.reg_models = RadioButtonGroup(options=REG_MODELS,
+                                           button_style='outline',
+                                           button_type='primary',
+                                           value=value)
         self.reg_models.param.watch(self.update_registration_model, 'value')
 
-        transl_up_but = pn.widgets.Button(name='▲')
-        transl_down_but = pn.widgets.Button(name='▼')
-        transl_left_but = pn.widgets.Button(name='◄', margin=5)
-        transl_right_but = pn.widgets.Button(name='►', margin=5)
-        transl_up_but.on_click(lambda _, mode='up': self.translate(mode))
-        transl_down_but.on_click(lambda _, mode='down': self.translate(mode))
-        transl_left_but.on_click(lambda _, mode='left': self.translate(mode))
-        transl_right_but.on_click(lambda _, mode='right': self.translate(mode))
+        transl_up_but = Button(name='▲')
+        transl_down_but = Button(name='▼')
+        transl_left_but = Button(name='◄', margin=5)
+        transl_right_but = Button(name='►', margin=5)
+        transl_up_but.on_click(lambda _, mode='up':
+                               self.model.translate(mode))
+        transl_down_but.on_click(lambda _, mode='down':
+                                 self.model.translate(mode))
+        transl_left_but.on_click(lambda _, mode='left':
+                                 self.model.translate(mode))
+        transl_right_but.on_click(lambda _, mode='right':
+                                  self.model.translate(mode))
 
-        rot_clock_button = pn.widgets.Button(name='↻')
-        rot_anticlock_button = pn.widgets.Button(name='↺')
-        rot_clock_button.on_click(lambda _: self.rotate())
-        rot_anticlock_button.on_click(lambda _: self.rotate(reverse=True))
+        rot_clock_button = Button(name='↻')
+        rot_anticlock_button = Button(name='↺')
+        rot_clock_button.on_click(lambda _: self.model.rotate())
+        rot_anticlock_button.on_click(lambda _: self.model.rotate(reverse=True))
 
-        self.xc_rel = pn.widgets.FloatInput(value=0.5, width=60)
-        self.yc_rel = pn.widgets.FloatInput(value=0.5, width=60)
+        self.xc_rel = FloatInput(value=0.5, width=60)
+        self.yc_rel = FloatInput(value=0.5, width=60)
 
-        view_mode = pn.widgets.RadioButtonGroup(options=VIEW_MODES[0],
-                                                button_style='outline',
-                                                button_type='primary',
-                                                value=self.view_modes[0],
-                                                align='center')
+        view_mode = RadioButtonGroup(options=VIEW_MODES[0],
+                                     button_style='outline',
+                                     button_type='primary',
+                                     value=self.view_modes[0],
+                                     align='center')
         view_mode.param.watch(self.update_view_mode, 'value')
 
-        view_mode_zoom = pn.widgets.RadioButtonGroup(options=VIEW_MODES[1],
-                                                     button_style='outline',
-                                                     button_type='primary',
-                                                     value=self.view_modes[1],
-                                                     align='center')
+        view_mode_zoom = RadioButtonGroup(options=VIEW_MODES[1],
+                                          button_style='outline',
+                                          button_type='primary',
+                                          value=self.view_modes[1],
+                                          align='center')
         view_mode_zoom.param.watch(self.update_view_mode_zoom, 'value')
 
-        select_dir_button = pn.widgets.Button(name='SELECT DIR. RESULT')
+        select_dir_button = Button(name='SELECT DIR. RESULT')
         select_dir_button.on_click(lambda _: self.select_dir_result())
 
-        apply_button = pn.widgets.Button(name='APPLY & SAVE')
-        apply_button.on_click(lambda _: self.apply())
+        apply_button = Button(name='APPLY & SAVE')
+        apply_button.on_click(lambda _: self.model.apply())
 
-        fixed_reg_check = pn.widgets.Checkbox(name='Fixed registration',
-                                              value=self.fixed_reg)
+        fixed_reg_check = Checkbox(name='Fixed registration',
+                                   value=self.model.fixed_reg)
 
-        save_button = pn.widgets.Button(name='SAVE MODEL')
-        save_button.on_click(lambda _: self.save())
-        self.save_input = pn.widgets.FileInput(accept='.json')
-        self.save_input.param.watch(self.update_save_fname, 'value')
+        save_button = Button(name='SAVE MODEL')
+        save_button.on_click(lambda _: self.model.save_model())
 
-        reload_button = pn.widgets.Button(name='RELOAD MODEL')
-        reload_button.on_click(
-            lambda _, fname=self.reload_fname: self.reload(fname=fname))
-        reload_input = pn.widgets.FileInput(accept='.json')
-        reload_input.param.watch(self.update_reload_fname, 'value')
+        reload_button = Button(name='RELOAD MODEL')
+        reload_button.on_click(lambda _: self.reload_model())
 
         boxes = []
 
@@ -212,7 +212,8 @@ class App(ImagesAlign):
             img_box = pn.WidgetBox(pn.pane.Markdown(f"**{text[k]}**"),
                                    file_inputs[k],
                                    pn.Row(reinit_buttons[k], crop_buttons[k]),
-                                   pn.Row(thresh_sliders[k], reverse_checks[k]),
+                                   pn.Row(self.thresh_sliders[k],
+                                          self.reverse_checks[k]),
                                    margin=(5, 5), width=350)
             boxes.append(img_box)
 
@@ -280,14 +281,14 @@ class App(ImagesAlign):
 
     def update_mode_auto(self, event):
         """ Update the 'mode_auto' attribute """
-        self.mode_auto = event.new == FLOW_MODES[0]
+        self.model.mode_auto = event.new == FLOW_MODES[0]
         self.update_disabled()
 
     def update_disabled(self):
         """ Change the disabled status of some buttons """
-        self.resizing_button.disabled = self.mode_auto
-        self.binarize_button.disabled = self.mode_auto
-        self.register_button.disabled = self.mode_auto
+        self.resizing_button.disabled = self.model.mode_auto
+        self.binarize_button.disabled = self.model.mode_auto
+        self.register_button.disabled = self.model.mode_auto
 
     def update_files(self, k, fnames):
         """ Load the k-th image files """
@@ -302,13 +303,13 @@ class App(ImagesAlign):
                 fnames_.append(fname_)
             fnames = fnames_
 
-        self.load_files(k, fnames=fnames)
+        self.model.load_files(k, fnames=fnames)
 
         self.update_plot(k)
         self.update_plot(2)
 
-        if self.mode_auto:
-            self.resizing()
+        if self.model.mode_auto:
+            self.model.resizing()
 
     def update_plot(self, k, patch=None):
         """ Update the k-th ax """
@@ -324,49 +325,50 @@ class App(ImagesAlign):
             cmap, vmin, vmax = 'gray', None, None
 
         if k in [0, 1]:
-            img = self.imgs[k]
-            if self.fnames[k] is not None:
-                title += f" - {self.fnames[k].name}"
+            img = self.model.imgs[k]
+            if self.model.fnames[k] is not None:
+                title += f" - {self.model.fnames[k].name}"
 
             if mode == 'Binarized':
-                img_bin = self.imgs_bin[k]
+                img_bin = self.model.imgs_bin[k]
                 if img_bin is None:
-                    img_bin = self.binarization_k(k)
+                    img_bin = self.model.binarization_k(k)
                 img = np.zeros_like(img_bin, dtype=int)
                 img[img_bin] = 2 * k - 1
             else:
-                if k == 1 and self.img_reg is not None:
-                    img = self.img_reg
+                if k == 1 and self.model.img_reg is not None:
+                    img = self.model.img_reg
 
         if k == 2:
             img = None
-            img_0, img_1 = self.imgs
+            img_0, img_1 = self.model.imgs
 
             if img_0 is not None and img_1 is not None:
 
                 if mode == "Gray":
-                    if self.img_reg is not None:
-                        img_1 = self.img_reg
+                    if self.model.img_reg is not None:
+                        img_1 = self.model.img_reg
                     img_0, img_1 = padding(img_0, img_1)
                     img = 0.5 * (img_0 + img_1)
 
                 elif mode == "Binarized":
-                    img_0, img_1 = self.imgs_bin
+                    img_0, img_1 = self.model.imgs_bin
                     if img_0 is None:
-                        img_0 = self.binarization_k(0)
+                        img_0 = self.model.binarization_k(0)
                     if img_1 is None:
-                        img_1 = self.binarization_k(1)
+                        img_1 = self.model.binarization_k(1)
                     img_0, img_1 = padding(img_0, img_1)
                     img = np.zeros_like(img_0, dtype=int)
                     img[img_1 * ~img_0] = -1
                     img[img_0 * ~img_1] = 1
 
                 elif mode == "Matching (SIFT)":
-                    if self.matches is not None:
-                        img_0, img_1 = self.imgs
+                    if self.model.matches is not None:
+                        img_0, img_1 = self.model.imgs
                         plot_matches(self.ax[k], img_0, img_1,
-                                     self.keypoints[0], self.keypoints[1],
-                                     self.matches,
+                                     self.model.keypoints[0],
+                                     self.model.keypoints[1],
+                                     self.model.matches,
                                      alignment='vertical')
                         self.ax[k].invert_yaxis()
 
@@ -412,60 +414,66 @@ class App(ImagesAlign):
 
     def update_reinit(self, k):
         """ Reinit the k-th image """
-        self.reinit(k)
-        self.update_files(k, fnames=[self.fnames[k]])
+        self.model.reinit(k)
+        self.update_files(k, fnames=[self.model.fnames[k]])
         self.update_plot_zoom()
 
     def update_cropping(self, k):
         """ Update the cropping of the k-th image """
         x, y = self.figs[3].x_range, self.figs[3].y_range
-        self.cropping_areas[k] = [int(y.start), int(y.end),
-                                  int(x.start), int(x.end)]
-        self.cropping(k)
+        self.model.cropping_areas[k] = [int(y.start), int(y.end),
+                                        int(x.start), int(x.end)]
+        self.model.cropping(k)
 
-        if not self.mode_auto:
+        if not self.model.mode_auto:
             [self.update_plot(i) for i in range(3)]
             self.update_plot_zoom()
 
     def update_resizing(self):
         """ Resize the images """
-        self.resizing()
+        self.model.resizing()
 
-        if not self.mode_auto:
+        if not self.model.mode_auto:
             [self.update_plot(i) for i in range(3)]
             self.update_plot_zoom()
 
     def update_threshold(self, k, event):
         """ Update the k-th 'thresholds' attribute """
-        self.thresholds[k] = event.new
+        self.model.thresholds[k] = event.new
         self.update_binarization()
 
     def update_reverse(self, k, event):
         """ Update the k-th 'bin_inversions' attribute """
-        self.bin_inversions[k] = event.new
+        self.model.bin_inversions[k] = event.new
         self.update_binarization()
 
     def update_binarization(self):
         """ Binarize the images """
-        self.binarization()
+        self.model.binarization()
 
-        if not self.mode_auto:
+        if not self.model.mode_auto:
             [self.update_plot(i) for i in range(3)]
             self.update_plot_zoom()
 
     def update_registration_model(self, event):
         """ Update the 'registration_model' attribute """
-        self.registration_model = event.new
+        self.model.registration_model = event.new
+
+    def update_registration(self):
+        """ Apply registration """
+        self.model.registration()
         self.update_plot(2)
         self.update_plot_zoom()
 
-    def update_save_fname(self, event):
-        """ Update the 'save_fname' attributes """
-        self.save_fname = event.new
+    def reload_model(self):
+        """ Reload model """
+        model_reloaded = self.model.reload_model()
+        for key in KEYS:
+            setattr(self.model, key, eval(f"model_reloaded.{key}"))
 
-    def update_reload_fname(self, event):
-        """ Update the 'reload_fname' attributes """
-        self.reload_fname = event.new
+        for k in range(2):
+            self.thresh_sliders[k].value = self.model.thresholds[k]
+            self.reverse_checks[k].value = self.model.bin_inversions[k]
 
 
 if __name__ == "__main__":
