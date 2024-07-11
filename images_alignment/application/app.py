@@ -403,6 +403,11 @@ class App:
             self.reverse_checks[k].value = self.model.bin_inversions[k]
 
 
+def launcher():
+    """ Launch the panel application """
+    app = App()
+    app.window.show()
+
+
 if __name__ == "__main__":
-    my_app = App()
-    my_app.window.show()
+    launcher()
