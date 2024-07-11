@@ -392,6 +392,9 @@ class App:
         self.update_plot_k(2)
         self.update_plot_bokeh()
 
+        score, tmat = self.model.score, self.model.tmat
+        self.result_str.object = f'SCORE: {score:.1f} % \n\n {tmat}'
+
     def reload_model(self):
         """ Reload model """
         model_reloaded = self.model.reload_model()

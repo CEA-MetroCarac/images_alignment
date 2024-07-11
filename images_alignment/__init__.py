@@ -72,6 +72,7 @@ class ImagesAlign:
         self.descriptors = [[], []]
         self.matches = None
         self.tmat = np.identity(3)
+        self.score = None
         self.img_reg = None
         self.results = {}
         self.dir_results = None
@@ -216,18 +217,10 @@ class ImagesAlign:
                     cval=0, preserve_range=True, order=None)
         mismatch = np.logical_xor(*self.imgs_bin)
         mismatch[~mask] = 0
-        score = 100 * (1. - np.sum(mismatch) / np.sum(mask))
+        self.score = 100 * (1. - np.sum(mismatch) / np.sum(mask))
 
-        self.results[self.registration_model] = {'score': score,
+        self.results[self.registration_model] = {'score': self.score,
                                                  'tmat': self.tmat}
-
-        # TODO
-        # np.set_printoptions(precision=4)
-        # self.result_str.object = f'SCORE: {score:.1f} % \n\n {self.tmat}'
-        # np.set_printoptions(precision=None)
-        #
-        # [self.update_plot(i) for i in range(3)]
-        # self.update_plot_zoom()
 
     def translate(self, mode, step=STEP):
         """ Apply translation step in 'tmat' """
