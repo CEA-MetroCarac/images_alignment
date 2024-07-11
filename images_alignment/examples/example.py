@@ -8,8 +8,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from skimage.data import shepp_logan_phantom
 from skimage.transform import rotate
-from skimage.io import imsave, imread
+from skimage.io import imsave
 
+from images_alignment import ImagesAlign
 from images_alignment.application.app import App
 
 
@@ -36,8 +37,9 @@ def moving_image_generation(radius):
     return img
 
 
-def example(dirfunc, show_plots=True):
+def example(dirfunc, panel_app=False):
     """ Example based on 3 duplicated moving images with additional patterns """
+
     with dirfunc() as tmpdir:
         dirname = Path(tmpdir) / "images_alignement"
         dirname.mkdir(exist_ok=True)
@@ -58,54 +60,43 @@ def example(dirfunc, show_plots=True):
             imsave(fname_moving, img2)
             fnames_moving.append(fname_moving)
 
-        # App definition
-        app = App(fnames_fixed=fnames_fixed,
-                  fnames_moving=fnames_moving,
-                  thresholds=[0.15, 0.15],
-                  bin_inversions=[False, False],
-                  mode_auto=False)
+        kwargs = {'fnames_fixed': fnames_fixed,
+                  'fnames_moving': fnames_moving,
+                  'thresholds': [0.15, 0.15],
+                  'bin_inversions': [False, False],
+                  'mode_auto': False}
+
+        if panel_app:
+            app = App(**kwargs)
+            imgalign = app.model
+
+        else:
+            imgalign = ImagesAlign(**kwargs)
+
+            plt.close()  # to close the default figure
+            fig0, ax0 = plt.subplots(1, 3, figsize=(12, 4))
+            fig0.suptitle("Original images")
+            imgalign.plot(ax=ax0, mode="Gray")
 
         # cropping - resizing - binarization - registration
-        app.cropping(1, area_percent=[0.40, 0.95, 0.25, 1.00])
-        app.resizing()
-        app.binarization()
-        app.registration(registration_model='StackReg')
-        # app.registration(registration_model='SIFT')
+        imgalign.cropping(1, area_percent=[0.40, 0.95, 0.25, 1.00])
+        imgalign.resizing()
+        imgalign.binarization()
+        imgalign.registration(registration_model='StackReg')
 
         # apply the transformation to the set of images
-        dirname_res = dirname / 'results'
-        app.apply(dirname_res=dirname_res)
+        imgalign.apply(dirname_res=dirname / 'results')
 
-        if show_plots:
-            plt.rcParams['image.cmap'] = 'gray'
-            plt.rcParams['image.origin'] = 'lower'
+        if panel_app:
+            app.window.show()
 
-            img1 = imread(dirname / 'img1.tif')
-            img2 = imread(dirname / 'img2_1.tif')
-            img1_res = imread(dirname_res / 'fixed_images' / 'img1.tif')
-            img2_res = imread(dirname_res / 'moving_images' / 'img2_1.tif')
-
-            plt.figure(figsize=(10, 3))
-            plt.tight_layout()
-            plt.subplot(1, 3, 1)
-            plt.title('Fixed image')
-            plt.imshow(img1)
-            plt.subplot(1, 3, 2)
-            plt.title('Moving image 1')
-            plt.imshow(img2)
-            plt.subplot(1, 3, 3)
-            plt.title('Overlay 1')
-            plt.imshow(0.5 * (img1_res + img2_res))
-
-            plt.figure(figsize=(10, 3))
-            plt.tight_layout()
-            for k in range(3):
-                name = f'img2_{k + 1}.tif'
-                img2_res = imread(dirname_res / 'moving_images' / name)
-                plt.subplot(1, 3, k + 1)
-                plt.title(f'Overlay {k + 1}')
-                plt.imshow(0.5 * (img1_res + img2_res))
-
+        else:
+            fig1, ax1 = plt.subplots(1, 3, figsize=(12, 4))
+            fig2, ax2 = plt.subplots(1, 3, figsize=(12, 4))
+            fig1.suptitle("Processed images (Gray mode)")
+            fig2.suptitle("Processed images (Binarized mode)")
+            imgalign.plot(ax=ax1, mode="Gray")
+            imgalign.plot(ax=ax2, mode="Binarized")
             plt.show()
 
         return app
@@ -115,5 +106,5 @@ if __name__ == '__main__':
     my_dirfunc = UserTempDirectory  # use the user temp location
     # my_dirfunc = tempfile.TemporaryDirectory  # use a TemporaryDirectory
 
-    my_app = example(my_dirfunc, show_plots=False)
-    my_app.window.show()
+    # example(my_dirfunc)
+    example(my_dirfunc, panel_app=True)

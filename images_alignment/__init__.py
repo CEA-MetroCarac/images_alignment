@@ -9,7 +9,8 @@ from tkinter import filedialog
 import panel as pn
 import numpy as np
 import imageio.v3 as iio
-from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 from pystackreg import StackReg
 from skimage.transform import warp, AffineTransform
 from skimage.feature import plot_matches
@@ -25,7 +26,13 @@ STEP = 1  # translation increment
 ANGLE = np.deg2rad(1)  # rotation angular increment
 COEF1, COEF2 = 0.99, 1.01  # scaling coefficient
 
+AXES_NAMES = ['Fixed image', 'Moving image', 'Combined image']
+COLORS = [(0, 1, 0), (0, 0, 0), (1, 0, 0)]  # Green -> Black -> Red
+CMAP_BINARIZED = LinearSegmentedColormap.from_list('GreenBlackRed', COLORS, N=3)
+
 KEYS = ['cropping_areas', 'thresholds', 'bin_inversions', 'tmat']
+
+plt.rcParams['image.origin'] = 'lower'
 
 
 class ImagesAlign:
@@ -70,6 +77,8 @@ class ImagesAlign:
         self.dir_results = None
         self.fixed_reg = False
 
+        _, self.ax = plt.subplots(1, 3, figsize=(12, 4))
+
         if self.fnames_tot[0] is not None:
             self.fnames[0] = self.fnames_tot[0]
             self.load_files(0, self.fnames[0])
@@ -90,17 +99,16 @@ class ImagesAlign:
         """ Load the k-th image files """
         if not isinstance(fnames, list):
             fnames = [fnames]
+
         try:
             img = iio.imread(fnames[0])
+            self.reinit(k)
+            self.fnames_tot[k] = fnames
+            self.fnames[k] = fnames[0]
+            self.imgs[k] = image_normalization(gray_conversion(img))
+
         except Exception as _:
             self.terminal.write(f"Failed to load {fnames[0]}\n\n")
-            return
-
-        self.fnames_tot[k] = fnames
-        self.fnames[k] = fnames[0]
-
-        # image normalization in range [0, 1]
-        self.imgs[k] = image_normalization(gray_conversion(img))
 
     def cropping(self, k, area=None, area_percent=None):
         """ Crop the k-th image"""
@@ -170,11 +178,12 @@ class ImagesAlign:
             self.registration()
 
     def registration(self, registration_model=None):
+        """ Calculate the transformation matrix 'tmat' and apply it """
         self.registration_calc(registration_model=registration_model)
         self.registration_apply()
 
     def registration_calc(self, registration_model=None):
-        """ Calculate the transformation matrix 'tmat' and apply it """
+        """ Calculate the transformation matrix 'tmat' """
         if registration_model in REG_MODELS:
             self.registration_model = registration_model
 
@@ -192,7 +201,7 @@ class ImagesAlign:
         print(self.tmat)
 
     def registration_apply(self):
-        """ Apply 'tmat' to the moving image """
+        """ Apply the transformation matrix 'tmat' to the moving image """
 
         self.imgs_bin[0] = self.binarization_k(0)  # reinit
         self.imgs_bin[1] = self.binarization_k(1)  # reinit
@@ -255,11 +264,6 @@ class ImagesAlign:
 
         self.tmat = self.tmat @ inv_transl @ rotation_mat @ transl
         self.registration_apply()
-
-    def select_dir_result(self):
-        dirname = filedialog.askdirectory()
-        if dirname:
-            self.dir_results = dirname
 
     def apply(self, dirname_res=None):
         """ Apply the transformations to a set of images """
@@ -358,10 +362,8 @@ class ImagesAlign:
 
         if fname_json is None:
             fname_json = filedialog.askopenfile(defaultextension='.json')
-            if fname_json is None:
-                return
 
-        if os.path.isfile(fname_json):
+        if isinstance(fname_json, (str, Path)) and os.path.isfile(fname_json):
             with open(fname_json, 'r', encoding='utf-8') as fid:
                 data = json.load(fid)
 
@@ -372,3 +374,86 @@ class ImagesAlign:
             return imgalign
         else:
             return None
+
+    def plot(self, ax=None, mode='Gray'):
+        """ Plot all the axis """
+        if ax is not None:
+            self.ax = ax
+
+        for k in range(3):
+            self.plot_k(k, mode=mode)
+
+    def plot_k(self, k, mode='Gray'):
+        """ Plot the k-th axis """
+        self.ax[k].clear()
+        self.ax[k].set_title(AXES_NAMES[k])
+
+        if k in [0, 1]:
+            self.plot_fixed_or_moving_image(self.ax[k], k, mode=mode)
+        else:
+            self.plot_combined_image(self.ax[2], mode=mode)
+
+        self.ax[k].autoscale(tight=True)
+
+    def plot_fixed_or_moving_image(self, ax, k, mode='Gray'):
+        """ Plot the fixed or the moving image """
+
+        if self.imgs[k] is None:
+            return
+
+        ax.set_title(AXES_NAMES[k] + f" - {self.fnames[k].name}")
+
+        if mode in ['Gray', "Matching (SIFT)"]:
+            if k == 1 and self.img_reg is not None:
+                img = self.img_reg
+            else:
+                img = self.imgs[k]
+            ax.imshow(img, cmap='gray')
+
+        elif mode == 'Binarized':
+            img_bin = self.imgs_bin[k]
+            if img_bin is None:
+                img_bin = self.binarization_k(k)
+            img = np.zeros_like(img_bin, dtype=int)
+            img[img_bin] = 2 * k - 1
+            ax.imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
+
+        else:
+            raise IOError
+
+    def plot_combined_image(self, ax, mode='Gray'):
+        """ Plot the combined image """
+
+        if self.imgs[0] is None or self.imgs[1] is None:
+            return
+
+        if mode == "Gray":
+            img_0, img_1 = self.imgs
+            if self.img_reg is not None:
+                img_1 = self.img_reg
+            img_0, img_1 = padding(img_0, img_1)
+            img = 0.5 * (img_0 + img_1)
+            ax.imshow(img, cmap='gray')
+
+        elif mode == "Binarized":
+            img_0, img_1 = self.imgs_bin
+            if img_0 is None:
+                img_0 = self.binarization_k(0)
+            if img_1 is None:
+                img_1 = self.binarization_k(1)
+            img_0, img_1 = padding(img_0, img_1)
+            img = np.zeros_like(img_0, dtype=int)
+            img[img_1 * ~img_0] = -1
+            img[img_0 * ~img_1] = 1
+            ax.imshow(img, cmap=CMAP_BINARIZED)
+
+        elif mode == "Matching (SIFT)":
+            if self.matches is not None:
+                img_0, img_1 = self.imgs
+                plot_matches(ax, img_0, img_1,
+                             self.keypoints[0], self.keypoints[1], self.matches,
+                             only_matches=True)
+                ax.invert_yaxis()
+
+        else:
+            raise IOError

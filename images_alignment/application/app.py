@@ -4,26 +4,18 @@ Application for images registration
 from pathlib import Path
 import tempfile
 import panel as pn
-import numpy as np
 import param
 import imageio.v3 as iio
-from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.figure import Figure
 from bokeh.plotting import figure as Figure_bokeh
 from bokeh.models import DataRange1d, LinearColorMapper
-from skimage.feature import plot_matches
 from panel.widgets import (FileInput, Button, RadioButtonGroup, FloatSlider,
                            FloatInput, Checkbox, TextInput, Terminal)
 
-from images_alignment import ImagesAlign, REG_MODELS, KEYS
-from images_alignment.utils import padding
+from images_alignment import ImagesAlign, REG_MODELS, KEYS, AXES_NAMES
 
-AXES_TITLES = ['Fixed image', 'Moving image', 'Combined image', None]
 FLOW_MODES = ['Flow Auto', 'Iterative']
-VIEW_MODES = [['Gray', 'Binarized', 'Matching (SIFT)'], AXES_TITLES[:3]]
-
-COLORS = [(0, 1, 0), (0, 0, 0), (1, 0, 0)]  # Green -> Black -> Red
-CMAP_BINARIZED = LinearSegmentedColormap.from_list('GreenBlackRed', COLORS, N=3)
+VIEW_MODES = ['Gray', 'Binarized', 'Matching (SIFT)']
 CMAP_BINARIZED_BOKEH = LinearColorMapper(low=-1, high=1,
                                          palette=["#00FF00", "black", "red"])
 
@@ -63,8 +55,8 @@ class App:
 
         self.window = None
         self.tmpdir = tempfile.TemporaryDirectory()
-        self.ax = [None, None, None, None]
-        self.view_modes = ['Gray', 'Fixed image']
+        self.view_mode = 'Gray'
+        self.view_mode_bokeh = 'Fixed image'
         self.mpl_panes = [None, None, None, None]
         self.result_str = pn.pane.Str(None, styles={'text-align': 'center'})
         self.terminal = Terminal(height=100,
@@ -88,9 +80,7 @@ class App:
                                   sizing_mode='stretch_both')]
 
         for k in range(3):
-            self.ax[k] = self.figs[k].subplots()
-            self.ax[k].set_title(AXES_TITLES[k])
-            self.ax[k].autoscale(tight=True)
+            self.model.ax[k] = self.figs[k].subplots()  # model.ax overridden
             self.mpl_panes[k] = pn.pane.Matplotlib(self.figs[k],
                                                    dpi=80, tight=True,
                                                    align='center',
@@ -176,19 +166,19 @@ class App:
         self.xc_rel = FloatInput(value=0.5, width=60)
         self.yc_rel = FloatInput(value=0.5, width=60)
 
-        view_mode = RadioButtonGroup(options=VIEW_MODES[0],
+        view_mode = RadioButtonGroup(options=VIEW_MODES,
                                      button_style='outline',
                                      button_type='primary',
-                                     value=self.view_modes[0],
+                                     value=self.view_mode,
                                      align='center')
         view_mode.param.watch(self.update_view_mode, 'value')
 
-        view_mode_zoom = RadioButtonGroup(options=VIEW_MODES[1],
-                                          button_style='outline',
-                                          button_type='primary',
-                                          value=self.view_modes[1],
-                                          align='center')
-        view_mode_zoom.param.watch(self.update_view_mode_zoom, 'value')
+        view_mode_bokeh = RadioButtonGroup(options=AXES_NAMES,
+                                           button_style='outline',
+                                           button_type='primary',
+                                           value=self.view_mode_bokeh,
+                                           align='center')
+        view_mode_bokeh.param.watch(self.update_view_mode_bokeh, 'value')
 
         select_dir_button = Button(name='SELECT DIR. RESULT')
         select_dir_button.on_click(lambda _: self.select_dir_result())
@@ -256,7 +246,7 @@ class App:
                          self.mpl_panes[1],
                          self.mpl_panes[2], width=350)
 
-        col3 = pn.Column(view_mode_zoom,
+        col3 = pn.Column(view_mode_bokeh,
                          self.mpl_panes[3],
                          self.terminal,
                          sizing_mode='stretch_width')
@@ -266,18 +256,17 @@ class App:
 
     def get_selected_figure_index(self):
         """ Return the index of the selected figure """
-        return AXES_TITLES.index(self.view_modes[1])
+        return AXES_NAMES.index(self.view_mode_bokeh)
 
     def update_view_mode(self, event):
         """ Update the 'view_mode' attribute and replot """
-        self.view_modes[0] = event.new
-        [self.update_plot(i) for i in range(3)]
-        self.update_plot_zoom()
+        self.view_mode = event.new
+        self.update_plots()
 
-    def update_view_mode_zoom(self, event):
+    def update_view_mode_bokeh(self, event):
         """ Update the 'view_mode' attribute and replot """
-        self.view_modes[1] = event.new
-        self.update_plot_zoom()
+        self.view_mode_bokeh = event.new
+        self.update_plot_bokeh()
 
     def update_mode_auto(self, event):
         """ Update the 'mode_auto' attribute """
@@ -305,94 +294,35 @@ class App:
 
         self.model.load_files(k, fnames=fnames)
 
-        self.update_plot(k)
-        self.update_plot(2)
-
         if self.model.mode_auto:
-            self.model.resizing()
-
-    def update_plot(self, k, patch=None):
-        """ Update the k-th ax """
-        self.ax[k].clear()
-
-        img = None
-        mode = self.view_modes[0]
-        title = AXES_TITLES[k]
-
-        if mode == 'Binarized':
-            cmap, vmin, vmax = CMAP_BINARIZED, -1, 1
+            self.update_resizing()
         else:
-            cmap, vmin, vmax = 'gray', None, None
+            self.update_plots()
 
-        if k in [0, 1]:
-            img = self.model.imgs[k]
-            if self.model.fnames[k] is not None:
-                title += f" - {self.model.fnames[k].name}"
+    def update_plots(self):
+        """ Update all the plots """
+        for k in range(3):
+            self.update_plot_k(k)
+        self.update_plot_bokeh()
 
-            if mode == 'Binarized':
-                img_bin = self.model.imgs_bin[k]
-                if img_bin is None:
-                    img_bin = self.model.binarization_k(k)
-                img = np.zeros_like(img_bin, dtype=int)
-                img[img_bin] = 2 * k - 1
-            else:
-                if k == 1 and self.model.img_reg is not None:
-                    img = self.model.img_reg
-
-        if k == 2:
-            img = None
-            img_0, img_1 = self.model.imgs
-
-            if img_0 is not None and img_1 is not None:
-
-                if mode == "Gray":
-                    if self.model.img_reg is not None:
-                        img_1 = self.model.img_reg
-                    img_0, img_1 = padding(img_0, img_1)
-                    img = 0.5 * (img_0 + img_1)
-
-                elif mode == "Binarized":
-                    img_0, img_1 = self.model.imgs_bin
-                    if img_0 is None:
-                        img_0 = self.model.binarization_k(0)
-                    if img_1 is None:
-                        img_1 = self.model.binarization_k(1)
-                    img_0, img_1 = padding(img_0, img_1)
-                    img = np.zeros_like(img_0, dtype=int)
-                    img[img_1 * ~img_0] = -1
-                    img[img_0 * ~img_1] = 1
-
-                elif mode == "Matching (SIFT)":
-                    if self.model.matches is not None:
-                        img_0, img_1 = self.model.imgs
-                        plot_matches(self.ax[k], img_0, img_1,
-                                     self.model.keypoints[0],
-                                     self.model.keypoints[1],
-                                     self.model.matches,
-                                     alignment='vertical')
-                        self.ax[k].invert_yaxis()
-
-        if img is not None:
-            self.ax[k].imshow(img, origin='lower',
-                              cmap=cmap, vmin=vmin, vmax=vmax)
-        if patch is not None:
-            self.ax[k].add_patch(patch)
-        self.ax[k].set_title(title)
+    def update_plot_k(self, k):
+        """ Update the k-th ax """
+        self.model.plot_k(k, mode=self.view_mode)
         self.mpl_panes[k].param.trigger('object')
         pn.io.push_notebook(self.mpl_panes[k])
 
-    def update_plot_zoom(self):
+    def update_plot_bokeh(self):
         """ Update the bokeh image """
         fig = self.figs[3]
 
         fig.renderers.clear()
 
         k = self.get_selected_figure_index()
-        ax = self.ax[k]
+        ax = self.model.ax[k]
         imgs = ax.get_images()
         if len(imgs) > 0:
             arr = imgs[0].get_array()
-            if self.view_modes[0] == "Binarized":
+            if self.view_mode == "Binarized":
                 color_mapper = CMAP_BINARIZED_BOKEH
             else:
                 color_mapper = LinearColorMapper(palette="Greys256")
@@ -405,18 +335,18 @@ class App:
 
         lines = ax.get_lines()
         for line in lines:
+            color = (255 * line.get_color()).astype(int)
+            hex_color = '#{:02x}{:02x}{:02x}'.format(*color)
             fig.line(x=line.get_xdata(), y=line.get_ydata(),
-                     line_color=line.get_color(),
-                     line_dash=line.get_linestyle())
+                     line_color=hex_color, line_width=2)
 
         self.mpl_panes[3].param.trigger('object')
         pn.io.push_notebook(self.mpl_panes[3])
 
     def update_reinit(self, k):
         """ Reinit the k-th image """
-        self.model.reinit(k)
         self.update_files(k, fnames=[self.model.fnames[k]])
-        self.update_plot_zoom()
+        self.update_plot_bokeh()
 
     def update_cropping(self, k):
         """ Update the cropping of the k-th image """
@@ -426,16 +356,14 @@ class App:
         self.model.cropping(k)
 
         if not self.model.mode_auto:
-            [self.update_plot(i) for i in range(3)]
-            self.update_plot_zoom()
+            self.update_plots()
 
     def update_resizing(self):
         """ Resize the images """
         self.model.resizing()
 
         if not self.model.mode_auto:
-            [self.update_plot(i) for i in range(3)]
-            self.update_plot_zoom()
+            self.update_plots()
 
     def update_threshold(self, k, event):
         """ Update the k-th 'thresholds' attribute """
@@ -452,8 +380,7 @@ class App:
         self.model.binarization()
 
         if not self.model.mode_auto:
-            [self.update_plot(i) for i in range(3)]
-            self.update_plot_zoom()
+            self.update_plots()
 
     def update_registration_model(self, event):
         """ Update the 'registration_model' attribute """
@@ -462,8 +389,8 @@ class App:
     def update_registration(self):
         """ Apply registration """
         self.model.registration()
-        self.update_plot(2)
-        self.update_plot_zoom()
+        self.update_plot_k(2)
+        self.update_plot_bokeh()
 
     def reload_model(self):
         """ Reload model """

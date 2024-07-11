@@ -1,6 +1,7 @@
 """
 Application for images registration
 """
+import sys
 import numpy as np
 from skimage.color import rgba2rgb, rgb2gray
 from skimage.transform import AffineTransform
