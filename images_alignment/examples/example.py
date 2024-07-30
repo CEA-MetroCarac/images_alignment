@@ -80,7 +80,7 @@ def example(dirname):
     imgalign.registration(registration_model='StackReg')
 
     # apply the transformation to the set of images
-    imgalign.apply(dirname_res=dirname / 'results')
+    imgalign.apply_to_all(dirname_res=dirname / 'results')
 
     fig1, ax1 = plt.subplots(1, 3, figsize=(12, 4))
     fig2, ax2 = plt.subplots(1, 3, figsize=(12, 4))

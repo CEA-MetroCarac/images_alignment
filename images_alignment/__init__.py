@@ -72,7 +72,7 @@ class ImagesAlign:
         self.descriptors = [[], []]
         self.matches = None
         self.tmat = np.identity(3)
-        self.score = None
+        self.score = 0
         self.img_reg = None
         self.results = {}
         self.dirname_res = [None, None]
@@ -195,6 +195,7 @@ class ImagesAlign:
 
         if self.registration_model == 'StackReg':
             self.imgs_bin[1] = self.binarization_k(1)  # reinit
+            print(self.imgs_bin[0].shape, self.imgs_bin[1].shape)
             self.tmat = STREG.register(*self.imgs_bin)
 
         elif self.registration_model == 'SIFT':
@@ -263,7 +264,24 @@ class ImagesAlign:
         self.tmat = self.tmat @ inv_transl @ rotation_mat @ transl
         self.registration_apply()
 
-    def apply(self, dirname_res=None):
+    def set_dirname_res(self, dirname_res=None):
+        if dirname_res is None:
+            initialdir = None
+            if self.fnames_tot[1] is not None:
+                initialdir = Path(self.fnames_tot[1][-1]).parent
+            dirname_res = filedialog.askdirectory(initialdir=initialdir)
+            if dirname_res is None:
+                return
+
+        dirname_res = Path(dirname_res)
+        dirname_res.mkdir(exist_ok=True)
+
+        self.dirname_res[0] = dirname_res / "fixed_images"
+        self.dirname_res[1] = dirname_res / "moving_images"
+        self.dirname_res[0].mkdir(exist_ok=True)
+        self.dirname_res[1].mkdir(exist_ok=True)
+
+    def apply_to_all(self, dirname_res=None):
         """ Apply the transformations to a set of images """
         if self.fnames_tot[0] is None:
             self.terminal.write("ERROR: fixed images are not defined\n\n")
@@ -279,23 +297,12 @@ class ImagesAlign:
             self.terminal.write(msg)
             return
 
-        if dirname_res is None:
-            initialdir = Path(self.fnames_tot[1][-1]).parent
-            dirname_res = filedialog.askdirectory(initialdir=initialdir)
-            if dirname_res is None:
-                return
-        dirname_res = Path(dirname_res)
-        self.dirname_res[0] = dirname_res / "fixed_images"
-        self.dirname_res[1] = dirname_res / "moving_images"
-        dirname_res.mkdir(exist_ok=True)
-        self.dirname_res[0].mkdir(exist_ok=True)
-        self.dirname_res[1].mkdir(exist_ok=True)
-
         fnames_fixed = self.fnames_tot[0]
         fnames_moving = self.fnames_tot[1]
 
         mode_auto_save = self.mode_auto
         self.mode_auto = False
+        self.set_dirname_res(dirname_res=dirname_res)
 
         for i, fname_moving in enumerate(fnames_moving):
 

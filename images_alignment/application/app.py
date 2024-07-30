@@ -181,12 +181,12 @@ class App:
         view_mode_bokeh.param.watch(self.update_view_mode_bokeh, 'value')
 
         select_dir_button = Button(name='SELECT DIR. RESULT')
-        select_dir_button.on_click(lambda _: self.select_dir_result())
+        select_dir_button.on_click(lambda _: self.set_dirname_res())
 
         fixed_reg_check = Checkbox(name='Fixed registration',
                                    value=self.model.fixed_reg)
 
-        apply_button = Button(name='APPLY TO ALL & SAVE')
+        apply_button = Button(name='APPLY TO ALL')
         apply_button.on_click(lambda _: self.apply_to_all())
 
         up_button = Button(name='▲')
@@ -194,25 +194,23 @@ class App:
         up_button.on_click(lambda _, mode='up': self.change_images(mode))
         down_button.on_click(lambda _, mode='down': self.change_images(mode))
 
-        save_button = Button(name='SAVE MODEL')
+        save_button = Button(name='SAVE')
         save_button.on_click(lambda _: self.model.save_model())
 
-        reload_button = Button(name='RELOAD MODEL')
+        reload_button = Button(name='RELOAD')
         reload_button.on_click(lambda _: self.reload_model())
 
         boxes = []
 
         text = ['FIXED IMAGE', 'MOVING IMAGE']
         for k in range(2):
-            img_box = pn.WidgetBox(pn.pane.Markdown(f"**{text[k]}**"),
-                                   file_inputs[k],
-                                   pn.Row(reinit_buttons[k], crop_buttons[k]),
-                                   pn.Row(self.thresh_sliders[k],
-                                          self.reverse_checks[k]),
-                                   margin=(5, 5), width=350)
-            boxes.append(img_box)
-
-        proc_box_title = pn.pane.Markdown("**IMAGES PROCESSING**")
+            box = pn.WidgetBox(pn.pane.Markdown(f"**{text[k]}**"),
+                               file_inputs[k],
+                               pn.Row(reinit_buttons[k], crop_buttons[k]),
+                               pn.Row(self.thresh_sliders[k],
+                                      self.reverse_checks[k]),
+                               margin=(5, 5), width=350)
+            boxes.append(box)
 
         transl_box = pn.GridBox(*[None for _ in range(3)], nrows=3, width=100)
         transl_box[0] = transl_up_but
@@ -227,25 +225,29 @@ class App:
         rot_box[4] = pn.pane.Str("yc:")
         rot_box[5] = self.yc_rel
 
-        proc_box = pn.Column(pn.Row(mode_auto_check, self.reg_models),
-                             pn.Row(self.resizing_button,
-                                    self.binarize_button,
-                                    self.register_button),
-                             pn.Row(transl_box, pn.Spacer(width=30), rot_box),
-                             self.result_str)
-        proc_box = pn.WidgetBox(proc_box_title, proc_box, margin=(5, 5),
-                                width=350)
-        boxes.append(proc_box)
+        box = pn.WidgetBox(pn.pane.Markdown("**IMAGES PRE-PROCESSING**"),
+                           pn.Row(mode_auto_check, self.reg_models),
+                           pn.Row(self.resizing_button,
+                                  self.binarize_button,
+                                  self.register_button),
+                           margin=(5, 5), width=350)
+        boxes.append(box)
 
-        appl_box_title = pn.pane.Markdown("**APPLICATION**")
+        box = pn.WidgetBox(pn.pane.Markdown("**APPLICATION**"),
+                           select_dir_button,
+                           pn.Row(fixed_reg_check, apply_button),
+                           pn.Row(up_button, down_button,
+                                  save_button, reload_button),
+                           margin=(5, 5), width=350)
+        boxes.append(box)
 
-        appl_box = pn.WidgetBox(appl_box_title,
-                                fixed_reg_check,
-                                pn.Row(apply_button, up_button, down_button),
-                                pn.Row(save_button, reload_button),
-                                margin=(5, 5), width=350)
+        box = pn.WidgetBox(pn.pane.Markdown("**REGISTRATION**"),
+                           self.result_str,
+                           pn.Row(transl_box, pn.Spacer(width=30), rot_box),
+                           margin=(5, 5), width=350)
+        boxes.append(box)
 
-        col1 = pn.Column(*boxes, appl_box, width=350)
+        col1 = pn.Column(*boxes, width=350)
 
         col2 = pn.Column(view_mode,
                          self.mpl_panes[0],
@@ -259,6 +261,7 @@ class App:
 
         self.window = pn.Row(col1, col2, col3, sizing_mode='stretch_both')
         self.update_disabled()
+        self.update_result_str()
 
     def get_selected_figure_index(self):
         """ Return the index of the selected figure """
@@ -404,9 +407,14 @@ class App:
         score, tmat = self.model.score, self.model.tmat
         self.result_str.object = f'SCORE: {score:.1f} % \n\n {tmat}'
 
-    def apply_to_all(self):
+    def set_dirname_res(self):
+        """ Select the dirname where to save the results """
+        self.model.set_dirname_res()
+
+    def apply_to_all(self, dirname_res=None):
         """ Apply the model to all the set of moving images """
-        self.model.apply()
+        self.model.apply_to_all(dirname_res=dirname_res)
+        self.update_result_str()
 
     def change_images(self, mode):
         """ Select next or previous images of the set """

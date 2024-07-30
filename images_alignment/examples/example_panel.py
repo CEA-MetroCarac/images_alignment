@@ -26,15 +26,15 @@ def example_panel(dirname):
     imgalign.registration(registration_model='StackReg')
 
     # apply the transformation to the set of images
-    imgalign.apply(dirname_res=dirname / 'results')
+    app.apply_to_all(dirname_res=dirname / 'results')
 
     app.update_plots()
     app.window.show()
 
 
 if __name__ == '__main__':
-    # dirfunc = UserTempDirectory  # use the user temp location
-    dirfunc = tempfile.TemporaryDirectory  # use a TemporaryDirectory
+    dirfunc = UserTempDirectory  # use the user temp location
+    # dirfunc = tempfile.TemporaryDirectory  # use a TemporaryDirectory
 
     with dirfunc() as tmpdir:
         dirname = Path(tmpdir) / "images_alignement"
