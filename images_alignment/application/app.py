@@ -41,7 +41,7 @@ class App:
     Parameters
     ----------
     fnames: iterable of 2 str, optional
-        Images pathnames to handle
+        Images pathname to handle
     thresholds: iterable of 2 floats, optional
         Thresholds used to binarize the images
     bin_inversions: iterable of 2 bools, optional
@@ -183,11 +183,16 @@ class App:
         select_dir_button = Button(name='SELECT DIR. RESULT')
         select_dir_button.on_click(lambda _: self.select_dir_result())
 
-        apply_button = Button(name='APPLY & SAVE')
-        apply_button.on_click(lambda _: self.model.apply())
-
         fixed_reg_check = Checkbox(name='Fixed registration',
                                    value=self.model.fixed_reg)
+
+        apply_button = Button(name='APPLY TO ALL & SAVE')
+        apply_button.on_click(lambda _: self.apply_to_all())
+
+        up_button = Button(name='▲')
+        down_button = Button(name='▼')
+        up_button.on_click(lambda _, mode='up': self.change_images(mode))
+        down_button.on_click(lambda _, mode='down': self.change_images(mode))
 
         save_button = Button(name='SAVE MODEL')
         save_button.on_click(lambda _: self.model.save_model())
@@ -235,7 +240,8 @@ class App:
         appl_box_title = pn.pane.Markdown("**APPLICATION**")
 
         appl_box = pn.WidgetBox(appl_box_title,
-                                pn.Row(apply_button, fixed_reg_check),
+                                fixed_reg_check,
+                                pn.Row(apply_button, up_button, down_button),
                                 pn.Row(save_button, reload_button),
                                 margin=(5, 5), width=350)
 
@@ -391,9 +397,41 @@ class App:
         self.model.registration()
         self.update_plot_k(2)
         self.update_plot_bokeh()
+        self.update_result_str()
 
+    def update_result_str(self):
+        """ Update the result_str object """
         score, tmat = self.model.score, self.model.tmat
         self.result_str.object = f'SCORE: {score:.1f} % \n\n {tmat}'
+
+    def apply_to_all(self):
+        """ Apply the model to all the set of moving images """
+        self.model.apply()
+
+    def change_images(self, mode):
+        """ Select next or previous images of the set """
+        ind0 = self.model.fnames_tot[0].index(self.model.fnames[0])
+        ind1 = self.model.fnames_tot[1].index(self.model.fnames[1])
+        if mode == 'up':
+            ind0_new = max(0, ind0 - 1)
+            ind1_new = max(0, ind1 - 1)
+        else:
+            ind0_new = min(len(self.model.fnames_tot[0]) - 1, ind0 + 1)
+            ind1_new = min(len(self.model.fnames_tot[1]) - 1, ind1 + 1)
+
+        def load_image(k, fname):
+            self.model.load_image(k, fname)
+            if k == 1 and self.model.dirname_res[k] is not None:
+                fname_res = self.model.dirname_res[k] / fname.name
+                if fname_res.exists():
+                    self.model.img_reg = iio.imread(fname_res)
+
+        if ind0_new != ind0:
+            load_image(0, self.model.fnames_tot[0][ind0_new])
+        if ind1_new != ind1:
+            load_image(1, self.model.fnames_tot[1][ind1_new])
+
+        self.update_plots()
 
     def reload_model(self):
         """ Reload model """

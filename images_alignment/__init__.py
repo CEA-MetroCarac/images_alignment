@@ -75,7 +75,7 @@ class ImagesAlign:
         self.score = None
         self.img_reg = None
         self.results = {}
-        self.dir_results = None
+        self.dirname_res = [None, None]
         self.fixed_reg = False
 
         _, self.ax = plt.subplots(1, 3, figsize=(12, 4))
@@ -101,15 +101,20 @@ class ImagesAlign:
         if not isinstance(fnames, list):
             fnames = [fnames]
 
+        self.fnames_tot[k] = fnames
+        self.load_image(k, fnames[0], reinit=True)
+
+    def load_image(self, k, fname, reinit=False):
+        """ Load the k-th image """
         try:
-            img = iio.imread(fnames[0])
-            self.reinit(k)
-            self.fnames_tot[k] = fnames
-            self.fnames[k] = fnames[0]
+            img = iio.imread(fname)
+            if reinit:
+                self.reinit(k)
+            self.fnames[k] = fname
             self.imgs[k] = image_normalization(gray_conversion(img))
 
         except Exception as _:
-            self.terminal.write(f"Failed to load {fnames[0]}\n\n")
+            self.terminal.write(f"Failed to load {fname}\n\n")
 
     def cropping(self, k, area=None, area_percent=None):
         """ Crop the k-th image"""
@@ -280,11 +285,11 @@ class ImagesAlign:
             if dirname_res is None:
                 return
         dirname_res = Path(dirname_res)
-        dirname_res0 = dirname_res / "fixed_images"
-        dirname_res1 = dirname_res / "moving_images"
+        self.dirname_res[0] = dirname_res / "fixed_images"
+        self.dirname_res[1] = dirname_res / "moving_images"
         dirname_res.mkdir(exist_ok=True)
-        dirname_res0.mkdir(exist_ok=True)
-        dirname_res1.mkdir(exist_ok=True)
+        self.dirname_res[0].mkdir(exist_ok=True)
+        self.dirname_res[1].mkdir(exist_ok=True)
 
         fnames_fixed = self.fnames_tot[0]
         fnames_moving = self.fnames_tot[1]
@@ -322,8 +327,8 @@ class ImagesAlign:
                 self.registration_apply()
 
                 if n0 != 1 or i == 0:
-                    iio.imwrite(dirname_res0 / name0, self.imgs[0])
-                iio.imwrite(dirname_res1 / name1, self.img_reg)
+                    iio.imwrite(self.dirname_res[0] / name0, self.imgs[0])
+                iio.imwrite(self.dirname_res[1] / name1, self.img_reg)
 
                 score = self.results[self.registration_model]['score']
                 self.terminal.write(f"OK - score : {score:.1f} %\n")
