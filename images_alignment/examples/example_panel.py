@@ -16,8 +16,7 @@ def example_panel(dirname):
     app = App(fnames_fixed=fnames_fixed,
               fnames_moving=fnames_moving,
               thresholds=[0.15, 0.15],
-              bin_inversions=[False, False],
-              mode_auto=False)
+              bin_inversions=[False, False])
 
     imgalign = app.model
     imgalign.cropping(1, area_percent=[0.40, 0.95, 0.25, 1.00])

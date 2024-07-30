@@ -47,20 +47,16 @@ class ImagesAlign:
         Thresholds used to binarize the images
     bin_inversions: iterable of 2 bools, optional
         Activation keywords to reverse the image binarization
-    mode_auto: bool, optional
-        Activation keyword to realize image processing in automatic mode
     """
 
     def __init__(self, fnames_fixed=None, fnames_moving=None,
-                 thresholds=None, bin_inversions=None, mode_auto=False,
-                 terminal=None):
+                 thresholds=None, bin_inversions=None, terminal=None):
 
         self.fnames_tot = [fnames_fixed, fnames_moving]
         self.fnames = [None, None]
 
         self.thresholds = thresholds or [0.5, 0.5]
         self.bin_inversions = bin_inversions or [False, False]
-        self.mode_auto = mode_auto
         self.terminal = terminal or Terminal()
 
         self.imgs = [None, None]
@@ -116,7 +112,7 @@ class ImagesAlign:
         except Exception as _:
             self.terminal.write(f"Failed to load {fname}\n\n")
 
-    def cropping(self, k, area=None, area_percent=None):
+    def cropping(self, k, area=None, area_percent=None, mode_auto=False):
         """ Crop the k-th image"""
         if area is not None and area_percent is not None:
             msg = "ERROR: 'area' and 'area_percent' cannot be defined " \
@@ -142,10 +138,10 @@ class ImagesAlign:
         self.imgs[k] = self.imgs[k][imin:imax, jmin:jmax]
         self.is_cropped[k] = True
 
-        if self.mode_auto:
-            self.resizing()
+        if mode_auto:
+            self.resizing(mode_auto=True)
 
-    def resizing(self):
+    def resizing(self, mode_auto=False):
         """ Resize the low resolution image from the high resolution image """
         if self.imgs[0] is None or self.imgs[1] is None:
             return
@@ -161,8 +157,8 @@ class ImagesAlign:
             self.terminal.write(msg)
             return
 
-        if self.mode_auto:
-            self.binarization()
+        if mode_auto:
+            self.binarization(mode_auto=True)
 
     def binarization_k(self, k):
         """ Binarize the k-th image """
@@ -176,11 +172,11 @@ class ImagesAlign:
             img_bin = ~img_bin
         return img_bin
 
-    def binarization(self):
+    def binarization(self, mode_auto=False):
         """ Binarize the images """
         self.imgs_bin = [self.binarization_k(0), self.binarization_k(1)]
 
-        if self.mode_auto:
+        if mode_auto:
             self.registration()
 
     def registration(self, registration_model=None):
@@ -300,8 +296,6 @@ class ImagesAlign:
         fnames_fixed = self.fnames_tot[0]
         fnames_moving = self.fnames_tot[1]
 
-        mode_auto_save = self.mode_auto
-        self.mode_auto = False
         self.set_dirname_res(dirname_res=dirname_res)
 
         for i, fname_moving in enumerate(fnames_moving):
@@ -344,7 +338,6 @@ class ImagesAlign:
                 self.terminal.write("FAILED\n")
 
         self.terminal.write("\n")
-        self.mode_auto = mode_auto_save
 
     def save_model(self, fname_json=None):
         """ Save model in a .json file """

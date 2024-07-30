@@ -53,6 +53,8 @@ class App:
     def __init__(self, fnames_fixed=None, fnames_moving=None,
                  thresholds=None, bin_inversions=None, mode_auto=False):
 
+        self.mode_auto = mode_auto
+
         self.window = None
         self.tmpdir = tempfile.TemporaryDirectory()
         self.view_mode = 'Gray'
@@ -68,7 +70,6 @@ class App:
                                  fnames_moving=fnames_moving,
                                  thresholds=thresholds,
                                  bin_inversions=bin_inversions,
-                                 mode_auto=mode_auto,
                                  terminal=self.terminal)
 
         self.figs = [Figure(figsize=(4, 4)),
@@ -122,7 +123,7 @@ class App:
                 lambda event, k=k: self.update_reverse(k, event), 'value')
             self.reverse_checks.append(reverse_check)
 
-        value = FLOW_MODES[not self.model.mode_auto]
+        value = FLOW_MODES[not self.mode_auto]
         mode_auto_check = RadioButtonGroup(options=FLOW_MODES,
                                            button_style='outline',
                                            button_type='primary',
@@ -279,14 +280,14 @@ class App:
 
     def update_mode_auto(self, event):
         """ Update the 'mode_auto' attribute """
-        self.model.mode_auto = event.new == FLOW_MODES[0]
+        self.mode_auto = event.new == FLOW_MODES[0]
         self.update_disabled()
 
     def update_disabled(self):
         """ Change the disabled status of some buttons """
-        self.resizing_button.disabled = self.model.mode_auto
-        self.binarize_button.disabled = self.model.mode_auto
-        self.register_button.disabled = self.model.mode_auto
+        self.resizing_button.disabled = self.mode_auto
+        self.binarize_button.disabled = self.mode_auto
+        self.register_button.disabled = self.mode_auto
 
     def update_files(self, k, fnames):
         """ Load the k-th image files """
@@ -303,7 +304,7 @@ class App:
 
         self.model.load_files(k, fnames=fnames)
 
-        if self.model.mode_auto:
+        if self.mode_auto:
             self.update_resizing()
         else:
             self.update_plots()
@@ -362,16 +363,16 @@ class App:
         x, y = self.figs[3].x_range, self.figs[3].y_range
         self.model.cropping_areas[k] = [int(y.start), int(y.end),
                                         int(x.start), int(x.end)]
-        self.model.cropping(k)
+        self.model.cropping(k, mode_auto=self.mode_auto)
 
-        if not self.model.mode_auto:
+        if not self.mode_auto:
             self.update_plots()
 
     def update_resizing(self):
         """ Resize the images """
-        self.model.resizing()
+        self.model.resizing(mode_auto=self.mode_auto)
 
-        if not self.model.mode_auto:
+        if not self.mode_auto:
             self.update_plots()
 
     def update_threshold(self, k, event):
@@ -386,9 +387,9 @@ class App:
 
     def update_binarization(self):
         """ Binarize the images """
-        self.model.binarization()
+        self.model.binarization(mode_auto=self.mode_auto)
 
-        if not self.model.mode_auto:
+        if not self.mode_auto:
             self.update_plots()
 
     def update_registration_model(self, event):
@@ -429,6 +430,9 @@ class App:
 
         def load_image(k, fname):
             self.model.load_image(k, fname)
+            self.model.is_cropped[k] = False
+            self.model.cropping(k, area=self.model.cropping_areas[k])
+            self.model.resizing()
             if k == 1 and self.model.dirname_res[k] is not None:
                 fname_res = self.model.dirname_res[k] / fname.name
                 if fname_res.exists():

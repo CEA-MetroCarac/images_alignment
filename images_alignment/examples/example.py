@@ -66,8 +66,7 @@ def example(dirname):
     imgalign = ImagesAlign(fnames_fixed=fnames_fixed,
                            fnames_moving=fnames_moving,
                            thresholds=[0.15, 0.15],
-                           bin_inversions=[False, False],
-                           mode_auto=False)
+                           bin_inversions=[False, False])
 
     plt.close()  # to close the default figure
     fig0, ax0 = plt.subplots(1, 3, figsize=(12, 4))
