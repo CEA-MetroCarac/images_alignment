@@ -12,7 +12,8 @@ from bokeh.models import DataRange1d, LinearColorMapper
 from panel.widgets import (FileInput, Button, RadioButtonGroup, FloatSlider,
                            FloatInput, Checkbox, TextInput, Terminal)
 
-from images_alignment import ImagesAlign, REG_MODELS, KEYS, AXES_NAMES
+from images_alignment import ImagesAlign
+from images_alignment import REG_MODELS, KEYS, AXES_NAMES, STEP, ANGLE, COEF
 
 FLOW_MODES = ['Flow Auto', 'Iterative']
 VIEW_MODES = ['Gray', 'Binarized', 'Matching (SIFT)']
@@ -101,11 +102,11 @@ class App:
             file_inputs.append(file_input)
 
             reinit_button = Button(name='REINIT')
-            reinit_button.on_click(lambda _, k=k: self.update_reinit(k))
+            reinit_button.on_click(lambda _, k=k: self.reinit(k))
             reinit_buttons.append(reinit_button)
 
             crop_button = Button(name='CROP FROM ZOOM')
-            crop_button.on_click(lambda _, k=k: self.update_cropping(k))
+            crop_button.on_click(lambda _, k=k: self.cropping(k))
             crop_buttons.append(crop_button)
 
             thresh_slider = FloatSlider(name='threshold ', step=0.01,
@@ -131,13 +132,13 @@ class App:
         mode_auto_check.param.watch(self.update_mode_auto, 'value')
 
         self.resizing_button = Button(name='RESIZING', margin=2)
-        self.resizing_button.on_click(lambda _: self.update_resizing())
+        self.resizing_button.on_click(lambda _: self.resizing())
 
         self.binarize_button = Button(name='BINARIZATION', margin=2)
-        self.binarize_button.on_click(lambda _: self.update_binarization())
+        self.binarize_button.on_click(lambda _: self.binarization())
 
         self.register_button = Button(name='REGISTRATION', margin=2)
-        self.register_button.on_click(lambda _: self.update_registration())
+        self.register_button.on_click(lambda _: self.registration())
 
         value = self.model.registration_model
         self.reg_models = RadioButtonGroup(options=REG_MODELS,
@@ -150,19 +151,15 @@ class App:
         transl_down_but = Button(name='▼')
         transl_left_but = Button(name='◄', margin=5)
         transl_right_but = Button(name='►', margin=5)
-        transl_up_but.on_click(lambda _, mode='up':
-                               self.model.translate(mode))
-        transl_down_but.on_click(lambda _, mode='down':
-                                 self.model.translate(mode))
-        transl_left_but.on_click(lambda _, mode='left':
-                                 self.model.translate(mode))
-        transl_right_but.on_click(lambda _, mode='right':
-                                  self.model.translate(mode))
+        transl_up_but.on_click(lambda _, mode='up': self.translate(mode))
+        transl_down_but.on_click(lambda _, mode='down': self.translate(mode))
+        transl_left_but.on_click(lambda _, mode='left': self.translate(mode))
+        transl_right_but.on_click(lambda _, mode='right': self.translate(mode))
 
         rot_clock_button = Button(name='↻')
         rot_anticlock_button = Button(name='↺')
-        rot_clock_button.on_click(lambda _: self.model.rotate())
-        rot_anticlock_button.on_click(lambda _: self.model.rotate(reverse=True))
+        rot_clock_button.on_click(lambda _: self.rotate())
+        rot_anticlock_button.on_click(lambda _: self.rotate(clockwise=False))
 
         self.xc_rel = FloatInput(value=0.5, width=60)
         self.yc_rel = FloatInput(value=0.5, width=60)
@@ -305,7 +302,7 @@ class App:
         self.model.load_files(k, fnames=fnames)
 
         if self.mode_auto:
-            self.update_resizing()
+            self.resizing()
         else:
             self.update_plots()
 
@@ -353,12 +350,36 @@ class App:
         self.mpl_panes[3].param.trigger('object')
         pn.io.push_notebook(self.mpl_panes[3])
 
-    def update_reinit(self, k):
+    def update_threshold(self, k, event):
+        """ Update the k-th 'thresholds' attribute """
+        self.model.thresholds[k] = event.new
+        self.binarization()
+
+    def update_reverse(self, k, event):
+        """ Update the k-th 'bin_inversions' attribute """
+        self.model.bin_inversions[k] = event.new
+        self.binarization()
+
+    def update_registration_model(self, event):
+        """ Update the 'registration_model' attribute """
+        self.model.registration_model = event.new
+
+    def update_result_str(self):
+        """ Update the result_str object """
+        score, tmat = self.model.score, self.model.tmat
+        self.result_str.object = f'SCORE: {score:.1f} % \n\n {tmat}'
+
+    def update(self):
+        self.update_plot_k(2)
+        self.update_plot_bokeh()
+        self.update_result_str()
+
+    def reinit(self, k):
         """ Reinit the k-th image """
         self.update_files(k, fnames=[self.model.fnames[k]])
         self.update_plot_bokeh()
 
-    def update_cropping(self, k):
+    def cropping(self, k):
         """ Update the cropping of the k-th image """
         x, y = self.figs[3].x_range, self.figs[3].y_range
         self.model.cropping_areas[k] = [int(y.start), int(y.end),
@@ -368,45 +389,43 @@ class App:
         if not self.mode_auto:
             self.update_plots()
 
-    def update_resizing(self):
+    def resizing(self):
         """ Resize the images """
         self.model.resizing(mode_auto=self.mode_auto)
 
         if not self.mode_auto:
             self.update_plots()
 
-    def update_threshold(self, k, event):
-        """ Update the k-th 'thresholds' attribute """
-        self.model.thresholds[k] = event.new
-        self.update_binarization()
-
-    def update_reverse(self, k, event):
-        """ Update the k-th 'bin_inversions' attribute """
-        self.model.bin_inversions[k] = event.new
-        self.update_binarization()
-
-    def update_binarization(self):
+    def binarization(self):
         """ Binarize the images """
         self.model.binarization(mode_auto=self.mode_auto)
 
         if not self.mode_auto:
             self.update_plots()
 
-    def update_registration_model(self, event):
-        """ Update the 'registration_model' attribute """
-        self.model.registration_model = event.new
-
-    def update_registration(self):
+    def registration(self):
         """ Apply registration """
         self.model.registration()
-        self.update_plot_k(2)
-        self.update_plot_bokeh()
-        self.update_result_str()
+        self.update()
 
-    def update_result_str(self):
-        """ Update the result_str object """
-        score, tmat = self.model.score, self.model.tmat
-        self.result_str.object = f'SCORE: {score:.1f} % \n\n {tmat}'
+    def translate(self, mode):
+        """ Translate the moving image """
+        self.model.translate(mode=mode)
+        self.update()
+
+    def rotate(self, clockwise=True):
+        """ Rotate the moving image """
+        xc_rel, yc_rel = self.xc_rel.value, self.yc_rel.value
+        angle = -ANGLE if clockwise else ANGLE
+        self.model.rotate(angle, xc_rel=xc_rel, yc_rel=yc_rel)
+        self.update()
+
+    def rescale(self, mode):
+        """ Rescale the moving image """
+        xc_rel, yc_rel = self.xc_rel.value, self.yc_rel.value
+        coef = COEF is mode == 'up'
+        self.model.rescale(coef, xc_rel=xc_rel, yc_rel=yc_rel)
+        self.update()
 
     def set_dirname_res(self):
         """ Select the dirname where to save the results """

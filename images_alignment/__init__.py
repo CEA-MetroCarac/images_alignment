@@ -22,9 +22,9 @@ from images_alignment.utils import (Terminal,
 REG_MODELS = ['StackReg', 'SIFT']
 STREG = StackReg(StackReg.AFFINE)
 
-STEP = 1  # translation increment
-ANGLE = np.deg2rad(1)  # rotation angular increment
-COEF1, COEF2 = 0.99, 1.01  # scaling coefficient
+STEP = 1  # default translation increment
+ANGLE = np.deg2rad(0.5)  # default rotation angular increment
+COEF = 1.01  # default scaling coefficient
 
 AXES_NAMES = ['Fixed image', 'Moving image', 'Combined image']
 COLORS = [(0, 1, 0), (0, 0, 0), (1, 0, 0)]  # Green -> Black -> Red
@@ -236,19 +236,15 @@ class ImagesAlign:
             self.tmat[0, 2] -= step
         self.registration_apply()
 
-    def rotate(self, angle=ANGLE, reverse=False):
+    def rotate(self, angle=ANGLE, xc_rel=0.5, yc_rel=0.5):
         """ Apply rotation coefficients in 'tmat' """
-
-        if reverse:
-            angle *= -1
 
         rotation_mat = np.array([[np.cos(angle), np.sin(angle), 0],
                                  [-np.sin(angle), np.cos(angle), 0],
                                  [0, 0, 1]])
 
         shape = self.imgs_bin[0].shape
-        xc_rel, yc_rel = self.xc_rel.value, self.yc_rel.value
-        transl_y, transl_x = int(xc_rel * shape[0]), int(yc_rel * shape[1])
+        transl_x, transl_y = int(xc_rel * shape[1]), int(yc_rel * shape[0])
 
         transl = np.array([[1, 0, -transl_x],
                            [0, 1, -transl_y],
