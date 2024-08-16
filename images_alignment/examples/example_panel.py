@@ -4,7 +4,7 @@ Example via the panel application
 from pathlib import Path
 import tempfile
 
-from images_alignment.application.app import App
+from images_alignment.application.app_panel import App
 from example import images_generation, UserTempDirectory
 
 
@@ -23,6 +23,7 @@ def example_panel(dirname):
     imgalign.resizing()
     imgalign.binarization()
     imgalign.registration(registration_model='StackReg')
+    # imgalign.registration(registration_model='SIFT')
 
     # apply the transformation to the set of images
     app.apply_to_all(dirname_res=dirname / 'results')

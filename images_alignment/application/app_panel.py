@@ -15,7 +15,6 @@ from panel.widgets import (FileInput, Button, RadioButtonGroup, FloatSlider,
 from images_alignment import ImagesAlign
 from images_alignment import REG_MODELS, KEYS, AXES_NAMES, STEP, ANGLE, COEF
 
-FLOW_MODES = ['Flow Auto', 'Iterative']
 VIEW_MODES = ['Gray', 'Binarized', 'Matching (SIFT)']
 CMAP_BINARIZED_BOKEH = LinearColorMapper(low=-1, high=1,
                                          palette=["#00FF00", "black", "red"])
@@ -47,14 +46,10 @@ class App:
         Thresholds used to binarize the images
     bin_inversions: iterable of 2 bools, optional
         Activation keywords to reverse the image binarization
-    mode_auto: bool, optional
-        Activation keyword to realize image processing in automatic mode
     """
 
     def __init__(self, fnames_fixed=None, fnames_moving=None,
-                 thresholds=None, bin_inversions=None, mode_auto=False):
-
-        self.mode_auto = mode_auto
+                 thresholds=None, bin_inversions=None):
 
         self.window = None
         self.tmpdir = tempfile.TemporaryDirectory()
@@ -124,28 +119,21 @@ class App:
                 lambda event, k=k: self.update_reverse(k, event), 'value')
             self.reverse_checks.append(reverse_check)
 
-        value = FLOW_MODES[not self.mode_auto]
-        mode_auto_check = RadioButtonGroup(options=FLOW_MODES,
-                                           button_style='outline',
-                                           button_type='primary',
-                                           value=value)
-        mode_auto_check.param.watch(self.update_mode_auto, 'value')
+        resizing_button = Button(name='RESIZING', margin=2)
+        resizing_button.on_click(lambda _: self.resizing())
 
-        self.resizing_button = Button(name='RESIZING', margin=2)
-        self.resizing_button.on_click(lambda _: self.resizing())
+        binarization_button = Button(name='BINARIZATION', margin=2)
+        binarization_button.on_click(lambda _: self.binarization())
 
-        self.binarize_button = Button(name='BINARIZATION', margin=2)
-        self.binarize_button.on_click(lambda _: self.binarization())
-
-        self.register_button = Button(name='REGISTRATION', margin=2)
-        self.register_button.on_click(lambda _: self.registration())
+        registration_button = Button(name='REGISTRATION', margin=2)
+        registration_button.on_click(lambda _: self.registration())
 
         value = self.model.registration_model
-        self.reg_models = RadioButtonGroup(options=REG_MODELS,
-                                           button_style='outline',
-                                           button_type='primary',
-                                           value=value)
-        self.reg_models.param.watch(self.update_registration_model, 'value')
+        reg_models = RadioButtonGroup(options=REG_MODELS,
+                                      button_style='outline',
+                                      button_type='primary',
+                                      value=value)
+        reg_models.param.watch(self.update_registration_model, 'value')
 
         transl_up_but = Button(name='▲')
         transl_down_but = Button(name='▼')
@@ -224,10 +212,10 @@ class App:
         rot_box[5] = self.yc_rel
 
         box = pn.WidgetBox(pn.pane.Markdown("**IMAGES PRE-PROCESSING**"),
-                           pn.Row(mode_auto_check, self.reg_models),
-                           pn.Row(self.resizing_button,
-                                  self.binarize_button,
-                                  self.register_button),
+                           pn.Row(resizing_button,
+                                  binarization_button,
+                                  registration_button),
+                           reg_models,
                            margin=(5, 5), width=350)
         boxes.append(box)
 
@@ -258,7 +246,6 @@ class App:
                          sizing_mode='stretch_width')
 
         self.window = pn.Row(col1, col2, col3, sizing_mode='stretch_both')
-        self.update_disabled()
         self.update_result_str()
 
     def get_selected_figure_index(self):
@@ -275,17 +262,6 @@ class App:
         self.view_mode_bokeh = event.new
         self.update_plot_bokeh()
 
-    def update_mode_auto(self, event):
-        """ Update the 'mode_auto' attribute """
-        self.mode_auto = event.new == FLOW_MODES[0]
-        self.update_disabled()
-
-    def update_disabled(self):
-        """ Change the disabled status of some buttons """
-        self.resizing_button.disabled = self.mode_auto
-        self.binarize_button.disabled = self.mode_auto
-        self.register_button.disabled = self.mode_auto
-
     def update_files(self, k, fnames):
         """ Load the k-th image files """
         # make a local copy (in the host) of the images issued from pn.FileInput
@@ -300,11 +276,7 @@ class App:
             fnames = fnames_
 
         self.model.load_files(k, fnames=fnames)
-
-        if self.mode_auto:
-            self.resizing()
-        else:
-            self.update_plots()
+        self.update_plots()
 
     def update_plots(self):
         """ Update all the plots """
@@ -314,7 +286,7 @@ class App:
 
     def update_plot_k(self, k):
         """ Update the k-th ax """
-        self.model.plot_k(k, mode=self.view_mode)
+        self.model.plot_k(k)
         self.mpl_panes[k].param.trigger('object')
         pn.io.push_notebook(self.mpl_panes[k])
 
@@ -384,24 +356,18 @@ class App:
         x, y = self.figs[3].x_range, self.figs[3].y_range
         self.model.cropping_areas[k] = [int(y.start), int(y.end),
                                         int(x.start), int(x.end)]
-        self.model.cropping(k, mode_auto=self.mode_auto)
-
-        if not self.mode_auto:
-            self.update_plots()
+        self.model.cropping(k)
+        self.update_plots()
 
     def resizing(self):
         """ Resize the images """
-        self.model.resizing(mode_auto=self.mode_auto)
-
-        if not self.mode_auto:
-            self.update_plots()
+        self.model.resizing()
+        self.update_plots()
 
     def binarization(self):
         """ Binarize the images """
-        self.model.binarization(mode_auto=self.mode_auto)
-
-        if not self.mode_auto:
-            self.update_plots()
+        self.model.binarization()
+        self.update_plots()
 
     def registration(self):
         """ Apply registration """
