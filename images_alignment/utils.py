@@ -7,7 +7,7 @@ from skimage.color import rgba2rgb, rgb2gray
 from skimage.transform import AffineTransform
 from skimage.feature import SIFT, match_descriptors
 from skimage.measure import ransac
-from scipy.interpolate import RegularGridInterpolator
+from skimage.util import img_as_float
 
 
 class Terminal:
@@ -57,68 +57,6 @@ def padding(img1, img2):
     return img1_pad, img2_pad
 
 
-def interpolation(img1, img2):
-    """
-    Interpolate the low resolution image on the high resolution image support
-
-    Parameters
-    ----------
-    img1, img2: numpy.ndarray((m, n)), numpy.ndarray((p, q))
-
-    Returns
-    -------
-    img1_int, img2_int: numpy.ndarrays((r, s))
-        The linearly interpolated arrays on the high resolution support of size
-        (r, s) = max((m, n), (p, q))
-    success: bool
-        Status related to differentiation between low and high resolution images
-    """
-    shape1 = np.array(img1.shape)
-    shape2 = np.array(img2.shape)
-    success = True
-
-    if (shape1 == shape2).all():
-        return img1, img2, success
-    elif (shape1 <= shape2).all():
-        img_lr = img1
-        img_hr = img2
-    elif (shape1 >= shape2).all():
-        img_lr = img2
-        img_hr = img1
-    else:
-        success = False
-        return None, None, success
-
-    # image padding to have same scale ratio between images
-    ratio0 = img_hr.shape[0] / img_lr.shape[0]
-    ratio1 = img_hr.shape[1] / img_lr.shape[1]
-    if ratio0 < ratio1:
-        pad = int((img_hr.shape[1] / ratio0) - img_lr.shape[1])
-        img_lr = np.pad(img_lr, ((0, 0), (int(pad / 2), pad - int(pad / 2))))
-    else:
-        pad = int((img_hr.shape[0] / ratio1) - img_lr.shape[0])
-        img_lr = np.pad(img_lr, ((int(pad / 2), pad - int(pad / 2)), (0, 0)))
-
-    # low resolution support
-    row_lr = np.linspace(0, 1, img_lr.shape[0])
-    col_lr = np.linspace(0, 1, img_lr.shape[1])
-
-    # high resolution support
-    row_hr = np.linspace(0, 1, img_hr.shape[0])
-    col_hr = np.linspace(0, 1, img_hr.shape[1])
-
-    # interpolation
-    interp = RegularGridInterpolator((row_lr, col_lr), img_lr)
-    rows_hr, cols_hr = np.meshgrid(row_hr, col_hr, indexing='ij')
-    pts = np.vstack((rows_hr.ravel(), cols_hr.ravel())).T
-    img_lr_int = interp(pts).reshape(img_hr.shape)
-
-    if (shape1 <= shape2).all():
-        return img_lr_int, img_hr, success
-    else:
-        return img_hr, img_lr_int, success
-
-
 def sift(img1, img2, model_class=None):
     """
     SIFT feature detection and descriptor extraction
@@ -148,7 +86,7 @@ def sift(img1, img2, model_class=None):
     if model_class is None:
         model_class = AffineTransform
 
-    sift_ = SIFT(upsampling=2)
+    sift_ = SIFT()
 
     keypoints = []
     descriptors = []
@@ -165,4 +103,96 @@ def sift(img1, img2, model_class=None):
     tmat = ransac((src, dst), model_class,
                   min_samples=4, residual_threshold=2)[0].params
 
-    return tmat, keypoints, descriptors, matches
+    return tmat, src, dst
+
+
+def concatenate_images(image1, image2, alignment):
+    """
+    concatenate image1 and image2
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Pairs and image are drawn in this ax.
+    image1 : (N, M [, 3]) array
+        First grayscale or color image.
+    image2 : (N, M [, 3]) array
+        Second grayscale or color image.
+    points1 : (n, 2) array
+        Points coordinates as ``(row, col)`` related to image1.
+    points2 : (n, 2) array
+        Points coordinates as ``(row, col)`` related to image2.
+    alignment : {'horizontal', 'vertical'}, optional
+        Whether to show images side by side, ``'horizontal'``, or one above
+        the other, ``'vertical'``.
+    """
+    image1 = img_as_float(image1)
+    image2 = img_as_float(image2)
+
+    new_shape1 = list(image1.shape)
+    new_shape2 = list(image2.shape)
+
+    if image1.shape[0] < image2.shape[0]:
+        new_shape1[0] = image2.shape[0]
+    elif image1.shape[0] > image2.shape[0]:
+        new_shape2[0] = image1.shape[0]
+
+    if image1.shape[1] < image2.shape[1]:
+        new_shape1[1] = image2.shape[1]
+    elif image1.shape[1] > image2.shape[1]:
+        new_shape2[1] = image1.shape[1]
+
+    if new_shape1 != image1.shape:
+        new_image1 = np.zeros(new_shape1, dtype=image1.dtype)
+        new_image1[:image1.shape[0], :image1.shape[1]] = image1
+        image1 = new_image1
+
+    if new_shape2 != image2.shape:
+        new_image2 = np.zeros(new_shape2, dtype=image2.dtype)
+        new_image2[:image2.shape[0], :image2.shape[1]] = image2
+        image2 = new_image2
+
+    offset = np.array(image1.shape)
+    if alignment == 'horizontal':
+        image = np.concatenate([image1, image2], axis=1)
+        offset[0] = 0
+    elif alignment == 'vertical':
+        image = np.concatenate([image1, image2], axis=0)
+        offset[1] = 0
+
+    return image, offset
+
+
+def plot_pairs(ax, image1, image2, points1, points2, alignment='horizontal'):
+    """
+    Plot pairs
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Pairs and image are drawn in this ax.
+    image1 : (N, M [, 3]) array
+        First grayscale or color image.
+    image2 : (N, M [, 3]) array
+        Second grayscale or color image.
+    points1 : (n, 2) array
+        Points coordinates as ``(row, col)`` related to image1.
+    points2 : (n, 2) array
+        Points coordinates as ``(row, col)`` related to image2.
+    alignment : {'horizontal', 'vertical'}, optional
+        Whether to show images side by side, ``'horizontal'``, or one above
+        the other, ``'vertical'``.
+    """
+    image, offset = concatenate_images(image1, image2, alignment)
+
+    ax.imshow(image, cmap='gray')
+    ax.axis((0, image1.shape[1] + offset[1], image1.shape[0] + offset[0], 0))
+
+    if points1 is not None:
+        np.random.seed(0)
+        rng = np.random.default_rng()
+
+        for point1, point2 in zip(points1, points2):
+            color = rng.random(3)
+            ax.plot((point1[1], point2[1] + offset[1]),
+                    (point1[0], point2[0] + offset[0]), '-', color=color)

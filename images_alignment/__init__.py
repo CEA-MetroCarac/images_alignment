@@ -12,12 +12,12 @@ import imageio.v3 as iio
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from pystackreg import StackReg
-from skimage.transform import warp, AffineTransform
-from skimage.feature import plot_matches
+from skimage.transform import resize, warp, AffineTransform
 
 from images_alignment.utils import (Terminal,
                                     gray_conversion, image_normalization,
-                                    edges_trend, padding, interpolation, sift)
+                                    edges_trend, padding, sift,
+                                    plot_pairs)
 
 REG_MODELS = ['StackReg', 'SIFT']
 STREG = StackReg(StackReg.AFFINE)
@@ -26,7 +26,7 @@ STEP = 1  # default translation increment
 ANGLE = np.deg2rad(0.5)  # default rotation angular increment
 COEF = 1.01  # default scaling coefficient
 
-AXES_NAMES = ['Fixed image', 'Moving image', 'Combined image']
+AXES_NAMES = ['Fixed image', 'Moving image', 'Combined/Juxtaposed images']
 COLORS = [(0, 1, 0), (0, 0, 0), (1, 0, 0)]  # Green -> Black -> Red
 CMAP_BINARIZED = LinearSegmentedColormap.from_list('GreenBlackRed', COLORS, N=3)
 
@@ -64,9 +64,7 @@ class ImagesAlign:
         self.is_cropped = [False, False]
         self.imgs_bin = [None, None]
         self.registration_model = 'StackReg'
-        self.keypoints = [[], []]
-        self.descriptors = [[], []]
-        self.matches = None
+        self.points = [None, None]
         self.tmat = np.identity(3)
         self.score = 0
         self.img_reg = None
@@ -88,7 +86,7 @@ class ImagesAlign:
         self.imgs[k] = self.imgs_bin[k] = None
         self.cropping_areas[k] = None
         self.is_cropped[k] = False
-        self.tmat = self.keypoints = self.descriptors = self.matches = None
+        self.tmat = self.points[0] = self.points[1] = None
         self.img_reg = None
         self.results = {}
 
@@ -142,20 +140,14 @@ class ImagesAlign:
             self.resizing(mode_auto=True)
 
     def resizing(self, mode_auto=False):
-        """ Resize the low resolution image from the high resolution image """
+        """ Resize the images to have similar shape (request for pyStackReg) """
         if self.imgs[0] is None or self.imgs[1] is None:
             return
 
-        img0, img1, success = interpolation(*self.imgs)
-
-        if success:
-            self.imgs = [img0, img1]
+        if self.imgs[0].size <= self.imgs[1].size:
+            self.imgs[0] = resize(self.imgs[0], self.imgs[1].shape)
         else:
-            shape0, shape1 = self.imgs[0].shape, self.imgs[1].shape
-            msg = 'Differentiation between low and high resolution image can ' \
-                  f' not be done from shapes {shape0} and {shape1}\n\n'
-            self.terminal.write(msg)
-            return
+            self.imgs[1] = resize(self.imgs[1], self.imgs[0].shape)
 
         if mode_auto:
             self.binarization(mode_auto=True)
@@ -165,16 +157,16 @@ class ImagesAlign:
         if self.imgs[k] is None:
             return
 
-        img_bin = self.imgs[k] > self.thresholds[k]
+        self.imgs_bin[k] = self.imgs[k] > self.thresholds[k]
         if edges_trend(self.imgs[k]):
-            img_bin = ~img_bin
+            self.imgs_bin[k] = ~self.imgs_bin[k]
         if self.bin_inversions[k]:
-            img_bin = ~img_bin
-        return img_bin
+            self.imgs_bin[k] = ~self.imgs_bin[k]
 
     def binarization(self, mode_auto=False):
         """ Binarize the images """
-        self.imgs_bin = [self.binarization_k(0), self.binarization_k(1)]
+        self.binarization_k(0)
+        self.binarization_k(1)
 
         if mode_auto:
             self.registration()
@@ -190,13 +182,12 @@ class ImagesAlign:
             self.registration_model = registration_model
 
         if self.registration_model == 'StackReg':
-            self.imgs_bin[1] = self.binarization_k(1)  # reinit
+            self.binarization_k(1)  # reinit
             print(self.imgs_bin[0].shape, self.imgs_bin[1].shape)
             self.tmat = STREG.register(*self.imgs_bin)
 
         elif self.registration_model == 'SIFT':
-            out = sift(*self.imgs)
-            self.tmat, self.keypoints, self.descriptors, self.matches = out
+            self.tmat, self.points[0], self.points[1] = sift(*self.imgs)
 
         else:
             raise IOError
@@ -206,8 +197,8 @@ class ImagesAlign:
     def registration_apply(self):
         """ Apply the transformation matrix 'tmat' to the moving image """
 
-        self.imgs_bin[0] = self.binarization_k(0)  # reinit
-        self.imgs_bin[1] = self.binarization_k(1)  # reinit
+        self.binarization_k(0)  # reinit
+        self.binarization_k(1)  # reinit
 
         self.img_reg = warp(self.imgs[1], self.tmat, mode='constant',
                             cval=1, preserve_range=True, order=None)
@@ -380,7 +371,6 @@ class ImagesAlign:
     def plot_k(self, k, mode='Gray'):
         """ Plot the k-th axis """
         self.ax[k].clear()
-        self.ax[k].set_title(AXES_NAMES[k])
 
         if k in [0, 1]:
             self.plot_fixed_or_moving_image(self.ax[k], k, mode=mode)
@@ -395,9 +385,9 @@ class ImagesAlign:
         if self.imgs[k] is None:
             return
 
-        ax.set_title(AXES_NAMES[k] + f" - {self.fnames[k].name}")
+        ax.set_title(AXES_NAMES[k] + f" - {Path(self.fnames[k]).name}")
 
-        if mode in ['Gray', "Matching (SIFT)"]:
+        if mode in ['Gray', "Juxtaposed"]:
             if k == 1 and self.img_reg is not None:
                 img = self.img_reg
             else:
@@ -405,11 +395,10 @@ class ImagesAlign:
             ax.imshow(img, cmap='gray')
 
         elif mode == 'Binarized':
-            img_bin = self.imgs_bin[k]
-            if img_bin is None:
-                img_bin = self.binarization_k(k)
-            img = np.zeros_like(img_bin, dtype=int)
-            img[img_bin] = 2 * k - 1
+            if self.imgs_bin[k] is None:
+                self.binarization_k(k)
+            img = np.zeros_like(self.imgs_bin[k], dtype=int)
+            img[self.imgs_bin[k]] = 2 * k - 1
             ax.imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
         else:
@@ -421,6 +410,8 @@ class ImagesAlign:
         if self.imgs[0] is None or self.imgs[1] is None:
             return
 
+        ax.set_title("Combined images")
+
         if mode == "Gray":
             img_0, img_1 = self.imgs
             if self.img_reg is not None:
@@ -430,24 +421,23 @@ class ImagesAlign:
             ax.imshow(img, cmap='gray')
 
         elif mode == "Binarized":
+            if self.imgs_bin[0] is None:
+                self.binarization_k(0)
+            if self.imgs_bin[1] is None:
+                self.binarization_k(1)
             img_0, img_1 = self.imgs_bin
-            if img_0 is None:
-                img_0 = self.binarization_k(0)
-            if img_1 is None:
-                img_1 = self.binarization_k(1)
             img_0, img_1 = padding(img_0, img_1)
             img = np.zeros_like(img_0, dtype=int)
-            img[img_1 * ~img_0] = -1
-            img[img_0 * ~img_1] = 1
-            ax.imshow(img, cmap=CMAP_BINARIZED)
+            img[img_1 * ~img_0] = 1
+            img[img_0 * ~img_1] = -1
+            ax.imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
-        elif mode == "Matching (SIFT)":
-            if self.matches is not None:
-                img_0, img_1 = self.imgs
-                plot_matches(ax, img_0, img_1,
-                             self.keypoints[0], self.keypoints[1], self.matches,
-                             only_matches=True)
-                ax.invert_yaxis()
+        elif mode == "Juxtaposed":
+            img_0, img_1 = self.imgs
+            plot_pairs(ax, img_0, img_1, self.points[0], self.points[1])
+            ax.invert_yaxis()
+            ax.set_title("Juxtaposed raw images")
+
 
         else:
             raise IOError
