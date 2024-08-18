@@ -17,7 +17,7 @@ from skimage.transform import resize, warp, AffineTransform, estimate_transform
 from images_alignment.utils import (Terminal,
                                     gray_conversion, image_normalization,
                                     edges_trend, padding, sift,
-                                    plot_pairs)
+                                    concatenate_images)
 
 REG_MODELS = ['StackReg', 'SIFT']
 STREG = StackReg(StackReg.AFFINE)
@@ -59,6 +59,9 @@ class ImagesAlign:
         self.thresholds = thresholds or [0.5, 0.5]
         self.bin_inversions = bin_inversions or [False, False]
         self.terminal = terminal or Terminal()
+
+        self.color = 'Gray'
+        self.mode = 'Juxtaposed'
 
         self.imgs = [None, None]
         self.cropping_areas = [None, None]
@@ -204,6 +207,8 @@ class ImagesAlign:
 
     def registration_apply(self):
         """ Apply the transformation matrix 'tmat' to the moving image """
+        if self.tmat is None:
+            return
 
         self.binarization_k(0)  # reinit
         self.binarization_k(1)  # reinit
@@ -371,67 +376,56 @@ class ImagesAlign:
         else:
             return None
 
-    def plot(self, ax=None, mode='Gray'):
+    def plot_all(self, ax=None):
         """ Plot all the axis """
         if ax is not None:
             self.ax = ax
 
         for k in range(3):
-            self.plot_k(k, mode=mode)
+            self.plot_k(k)
 
-    def plot_k(self, k, mode='Gray'):
+    def plot_k(self, k):
         """ Plot the k-th axis """
         self.ax[k].clear()
 
         if k in [0, 1]:
-            self.plot_fixed_or_moving_image(self.ax[k], k, mode=mode)
+            self.plot_fixed_or_moving_image(k)
+
+        elif self.mode == 'Juxtaposed':
+            self.plot_juxtaposed_images()
+
         else:
-            self.plot_combined_image(self.ax[2], mode=mode)
+            self.plot_combined_images()
 
         self.ax[k].autoscale(tight=True)
 
-    def plot_fixed_or_moving_image(self, ax, k, mode='Gray'):
+    def plot_fixed_or_moving_image(self, k):
         """ Plot the fixed or the moving image """
 
         if self.imgs[k] is None:
             return
 
-        ax.set_title(AXES_NAMES[k] + f" - {Path(self.fnames[k]).name}")
+        self.ax[k].set_title(AXES_NAMES[k] + f" - {Path(self.fnames[k]).name}")
 
-        if mode in ['Gray', "Juxtaposed"]:
-            if k == 1 and self.img_reg is not None:
-                img = self.img_reg
-            else:
-                img = self.imgs[k]
-            ax.imshow(img, cmap='gray')
-
-        elif mode == 'Binarized':
+        if self.color == 'Binarized':
             if self.imgs_bin[k] is None:
                 self.binarization_k(k)
             img = np.zeros_like(self.imgs_bin[k], dtype=int)
             img[self.imgs_bin[k]] = 2 * k - 1
-            ax.imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
-
+            self.ax[k].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
         else:
-            raise IOError
+            # if k==1 and self.img_reg is not None:
+            self.ax[k].imshow(self.imgs[k], cmap='gray')
 
-    def plot_combined_image(self, ax, mode='Gray'):
-        """ Plot the combined image """
+    def plot_combined_images(self):
+        """ Plot the combined images """
+
+        self.ax[2].set_title("Combined images")
 
         if self.imgs[0] is None or self.imgs[1] is None:
             return
 
-        ax.set_title("Combined images")
-
-        if mode == "Gray":
-            img_0, img_1 = self.imgs
-            if self.img_reg is not None:
-                img_1 = self.img_reg
-            img_0, img_1 = padding(img_0, img_1)
-            img = 0.5 * (img_0 + img_1)
-            ax.imshow(img, cmap='gray')
-
-        elif mode == "Binarized":
+        if self.color == "Binarized":
             if self.imgs_bin[0] is None:
                 self.binarization_k(0)
             if self.imgs_bin[1] is None:
@@ -441,13 +435,42 @@ class ImagesAlign:
             img = np.zeros_like(img_0, dtype=int)
             img[img_1 * ~img_0] = 1
             img[img_0 * ~img_1] = -1
-            ax.imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
-
-        elif mode == "Juxtaposed":
-            img_0, img_1 = self.imgs
-            plot_pairs(ax, img_0, img_1, self.points[0], self.points[1])
-            ax.set_title("Juxtaposed raw images")
-
+            self.ax[2].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
         else:
-            raise IOError
+            img_0, img_1 = self.imgs
+            if self.img_reg is not None:
+                img_1 = self.img_reg
+            img_0, img_1 = padding(img_0, img_1)
+            img = 0.5 * (img_0 + img_1)
+            self.ax[2].imshow(img, cmap='gray')
+
+    def plot_juxtaposed_images(self):
+        """ Plot the juxtaposed images """
+
+        self.ax[2].set_title("Juxtaposed images")
+
+        img_0 = self.ax[0].get_images()
+        img_1 = self.ax[1].get_images()
+        if len(img_0) == 0 or len(img_1) == 0:
+            return
+
+        arr_0 = img_0[0].get_array()
+        arr_1 = img_1[0].get_array()
+
+        img, offset = concatenate_images(arr_0, arr_1, 'horizontal')
+
+        if self.color == 'Gray':
+            self.ax[2].imshow(img, cmap='gray')
+        else:
+            self.ax[2].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
+
+        # ax.axis((0, img_0.shape[1] + offset[0], img_1.shape[0] + offset[1],
+        # 0))
+
+        rng = np.random.default_rng(0)
+        for point0, point1 in zip(self.points[0][:30], self.points[1][:30]):
+            color = rng.random(3)
+            self.ax[2].plot((point0[0], point1[0] + offset[0]),
+                            (point0[1], point1[1] + offset[1]), '-',
+                            color=color)

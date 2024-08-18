@@ -107,10 +107,10 @@ class View:
 
         self.thresholds = [DoubleVar(value=self.model.thresholds[0]),
                            DoubleVar(value=self.model.thresholds[1])]
-        self.bin_inversions = [BooleanVar(value=self.model.bin_inversions[0]),
-                               BooleanVar(value=self.model.bin_inversions[0])]
         self.registration_model = StringVar(value=self.model.registration_model)
 
+        self.color = StringVar(value='Gray')
+        self.mode = StringVar(value='Juxtaposed')
         self.k_ref = 2
         self.pair = [None, None]
         self.line = None
@@ -139,17 +139,25 @@ class View:
         self.model.ax = [ax[i] for i in range(4)]
 
         frame = Frame(frame_visu)
-        add(frame, 0, 0, pady=0)
-        self.view_mode = StringVar(value=VIEW_MODES[0])
-        add(Radiobutton(frame, text=VIEW_MODES[0], value=VIEW_MODES[0],
-                        variable=self.view_mode,
+        add(frame, 0, 0)
+
+        fr = LabelFrame(frame)
+        add(fr, 0, 0, pady=0)
+        add(Radiobutton(fr, text='Gray', value='Gray',
+                        variable=self.color,
                         command=self.update_plots), 0, 0, W, pady=0)
-        add(Radiobutton(frame, text=VIEW_MODES[1], value=VIEW_MODES[1],
-                        variable=self.view_mode,
+        add(Radiobutton(fr, text='Binarized', value='Binarized',
+                        variable=self.color,
                         command=self.update_plots), 0, 1, pady=0)
-        add(Radiobutton(frame, text=VIEW_MODES[2], value=VIEW_MODES[2],
-                        variable=self.view_mode,
-                        command=self.update_plots), 0, 2, E, pady=0)
+
+        fr = LabelFrame(frame)
+        add(fr, 0, 1, pady=0)
+        add(Radiobutton(fr, text='Juxtaposed', value='Juxtaposed',
+                        variable=self.mode,
+                        command=self.update_plots), 0, 0, W, pady=0)
+        add(Radiobutton(fr, text='Combined', value='Combined',
+                        variable=self.mode,
+                        command=self.update_plots), 0, 1, pady=0)
 
         self.canvas = FigureCanvasTkAgg(fig, master=frame_visu)
         add(self.canvas.get_tk_widget(), 2, 0)
@@ -187,9 +195,8 @@ class View:
             add(Scale(frame, resolution=0.01, to=1., orient=HORIZONTAL,
                       tickinterval=1, variable=self.thresholds[k],
                       command=lambda v, k=k: self.update_threshold(v, k)), 2, 1)
-            add(Checkbutton(frame, text='Reversed',
-                            variable=self.bin_inversions[k],
-                            command=lambda k=k: self.update_reversed(k)), 2, 2)
+            add(Button(frame, text='Reverse',
+                       command=lambda k=k: self.bin_inversion(k)), 2, 2)
 
         frame = LabelFrame(frame_proc, text='Preprocessing', font=FONT)
         add(frame, 2, 0, W + E)
@@ -216,7 +223,7 @@ class View:
             self.canvas.draw()
 
         # 'User-Driven' points selection
-        elif self.view_mode.get() != 'User-Driven':
+        elif self.registration_model.get() != 'User-Driven':
             x, y = event.xdata, event.ydata
             x12 = self.model.imgs[0].shape[1]
             if x > x12:
@@ -270,12 +277,13 @@ class View:
         self.update_plots()
 
     def update_plots(self, k=None):
-        view_mode = self.view_mode.get()
+        self.model.color = self.color.get()
+        self.model.mode = self.mode.get()
         if k is None:
-            self.model.plot(mode=view_mode)
+            self.model.plot_all()
         elif k in range(2):
-            self.model.plot_k(k, mode=view_mode)
-            self.model.plot_k(2, mode=view_mode)
+            self.model.plot_k(k)
+            self.model.plot_k(2)
         self.update_plot_3()
         self.canvas.draw()
 
@@ -287,8 +295,7 @@ class View:
         imgs = ax_ref.get_images()
         if len(imgs) > 0:
             arr = imgs[0].get_array()
-            view_mode = self.view_mode.get()
-            if view_mode == 'Binarized':
+            if self.color.get() == 'Binarized':
                 cmap, vmin, vmax = CMAP_BINARIZED, -1, 1
             else:
                 cmap, vmin, vmax = 'gray', None, None
@@ -301,7 +308,7 @@ class View:
             self.model.ax[3].plot(line.get_xdata(), line.get_ydata(),
                                   c=hex_color, lw=2)
 
-        if self.k_ref == 2 and self.view_mode.get() == 'Juxtaposed':
+        if self.k_ref == 2 and self.mode.get() == 'Juxtaposed':
             self.model.ax[3].axvline(self.model.imgs[0].shape[1],
                                      c='w', ls='dashed', lw=0.5)
 
@@ -311,10 +318,10 @@ class View:
         self.model.registration_apply()
         self.update_plots(k)
 
-    def update_reversed(self, k):
-        self.model.bin_inversions[k] = self.bin_inversions[k].get()
-        # self.model.binarization_k(k)
-        self.model.registration_apply()
+    def bin_inversion(self, k):
+        self.model.bin_inversions[k] = not self.model.bin_inversions[k]
+        if self.model.imgs_bin[k] is not None:
+            self.model.imgs_bin[k] = ~self.model.imgs_bin[k]
         self.update_plots(k)
 
     def reinit(self, k):

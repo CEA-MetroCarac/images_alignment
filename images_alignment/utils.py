@@ -7,7 +7,6 @@ from skimage.color import rgba2rgb, rgb2gray
 from skimage.transform import AffineTransform
 from skimage.feature import SIFT, match_descriptors
 from skimage.measure import ransac
-from skimage.util import img_as_float
 
 
 class Terminal:
@@ -128,9 +127,6 @@ def concatenate_images(image1, image2, alignment):
         Whether to show images side by side, ``'horizontal'``, or one above
         the other, ``'vertical'``.
     """
-    image1 = img_as_float(image1)
-    image2 = img_as_float(image2)
-
     new_shape1 = list(image1.shape)
     new_shape2 = list(image2.shape)
 
@@ -154,45 +150,13 @@ def concatenate_images(image1, image2, alignment):
         new_image2[:image2.shape[0], :image2.shape[1]] = image2
         image2 = new_image2
 
-    offset = np.array(image1.shape)
+    shape = image1.shape
+    offset = np.array([shape[1], shape[0]])
     if alignment == 'horizontal':
         image = np.concatenate([image1, image2], axis=1)
-        offset[0] = 0
+        offset[1] = 0
     elif alignment == 'vertical':
         image = np.concatenate([image1, image2], axis=0)
-        offset[1] = 0
+        offset[0] = 0
 
     return image, offset
-
-
-def plot_pairs(ax, image1, image2, points1, points2, alignment='horizontal'):
-    """
-    Plot pairs
-
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Pairs and image are drawn in this ax.
-    image1 : (N, M [, 3]) array
-        First grayscale or color image.
-    image2 : (N, M [, 3]) array
-        Second grayscale or color image.
-    points1 : (n, 2) array
-        Points coordinates as ``(row, col)`` related to image1.
-    points2 : (n, 2) array
-        Points coordinates as ``(row, col)`` related to image2.
-    alignment : {'horizontal', 'vertical'}, optional
-        Whether to show images side by side, ``'horizontal'``, or one above
-        the other, ``'vertical'``.
-    """
-    image, offset = concatenate_images(image1, image2, alignment)
-
-    ax.imshow(image, cmap='gray')
-    ax.axis((0, image1.shape[1] + offset[1], image1.shape[0] + offset[0], 0))
-
-    rng = np.random.default_rng(0)
-
-    for point1, point2 in zip(points1[:30], points2[:30]):
-        color = rng.random(3)
-        ax.plot((point1[0], point2[0] + offset[1]),
-                (point1[1], point2[1] + offset[0]), '-', color=color)
