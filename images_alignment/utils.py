@@ -98,12 +98,12 @@ def sift(img1, img2, model_class=None):
     matches = match_descriptors(descriptors[0], descriptors[1],
                                 cross_check=True, max_ratio=0.9)
 
-    points = [keypoints[0][matches[:, 0]], keypoints[1][matches[:, 1]]]
-
-    src = np.asarray([(col, row) for (row, col) in points[0]])
-    dst = np.asarray([(col, row) for (row, col) in points[1]])
+    src = np.asarray(keypoints[0][matches[:, 0]]).reshape(-1, 2)[:, ::-1]
+    dst = np.asarray(keypoints[1][matches[:, 1]]).reshape(-1, 2)[:, ::-1]
     tmat = ransac((src, dst), model_class,
                   min_samples=4, residual_threshold=2)[0].params
+
+    points = [src, dst]
 
     return tmat, points
 
@@ -194,5 +194,5 @@ def plot_pairs(ax, image1, image2, points1, points2, alignment='horizontal'):
 
     for point1, point2 in zip(points1[:30], points2[:30]):
         color = rng.random(3)
-        ax.plot((point1[1], point2[1] + offset[1]),
-                (point1[0], point2[0] + offset[0]), '-', color=color)
+        ax.plot((point1[0], point2[0] + offset[1]),
+                (point1[1], point2[1] + offset[0]), '-', color=color)

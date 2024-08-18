@@ -192,8 +192,8 @@ class ImagesAlign:
             self.tmat, self.points = sift(*self.imgs)
 
         elif self.registration_model == 'User-Driven':
-            src = np.asarray([(col, row) for (row, col) in self.points[0]])
-            dst = np.asarray([(col, row) for (row, col) in self.points[1]])
+            src = np.asarray(self.points[0])
+            dst = np.asarray(self.points[1])
             self.tmat = estimate_transform('affine', src, dst).params
 
         else:

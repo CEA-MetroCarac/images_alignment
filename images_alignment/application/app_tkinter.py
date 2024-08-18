@@ -228,8 +228,8 @@ class View:
             if None not in self.pair:
                 (x1, y1), (x2, y2) = self.pair
                 self.model.ax[3].plot((x1, x2), (y1, y2), 'r-')
-                self.model.points[0].append([y1, x1])
-                self.model.points[1].append([y2, x2 - x12])
+                self.model.points[0].append([x1, y1])
+                self.model.points[1].append([x2 - x12, y2])
                 self.canvas.draw()
                 self.pair = [None, None]
                 if self.line is not None:
