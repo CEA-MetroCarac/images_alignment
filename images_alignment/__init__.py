@@ -12,7 +12,7 @@ import imageio.v3 as iio
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from pystackreg import StackReg
-from skimage.transform import resize, warp, AffineTransform
+from skimage.transform import resize, warp, AffineTransform, estimate_transform
 
 from images_alignment.utils import (Terminal,
                                     gray_conversion, image_normalization,
@@ -32,7 +32,8 @@ CMAP_BINARIZED = LinearSegmentedColormap.from_list('GreenBlackRed', COLORS, N=3)
 
 KEYS = ['cropping_areas', 'thresholds', 'bin_inversions', 'tmat']
 
-plt.rcParams['image.origin'] = 'lower'
+
+# plt.rcParams['image.origin'] = 'lower'
 
 
 class ImagesAlign:
@@ -64,7 +65,7 @@ class ImagesAlign:
         self.is_cropped = [False, False]
         self.imgs_bin = [None, None]
         self.registration_model = 'StackReg'
-        self.points = [None, None]
+        self.points = [[], []]
         self.tmat = np.identity(3)
         self.score = 0
         self.img_reg = None
@@ -83,10 +84,11 @@ class ImagesAlign:
 
     def reinit(self, k):
         """ Reinitialize the k-th image and beyond """
-        self.imgs[k] = self.imgs_bin[k] = None
+        self.imgs_bin[k] = None
         self.cropping_areas[k] = None
         self.is_cropped[k] = False
-        self.tmat = self.points[0] = self.points[1] = None
+        self.tmat = None
+        self.points = [[], []]
         self.img_reg = None
         self.results = {}
 
@@ -182,12 +184,17 @@ class ImagesAlign:
             self.registration_model = registration_model
 
         if self.registration_model == 'StackReg':
+            self.binarization_k(0)  # reinit
             self.binarization_k(1)  # reinit
-            print(self.imgs_bin[0].shape, self.imgs_bin[1].shape)
             self.tmat = STREG.register(*self.imgs_bin)
 
         elif self.registration_model == 'SIFT':
-            self.tmat, self.points[0], self.points[1] = sift(*self.imgs)
+            self.tmat, self.points = sift(*self.imgs)
+
+        elif self.registration_model == 'User-Driven':
+            src = np.asarray([(col, row) for (row, col) in self.points[0]])
+            dst = np.asarray([(col, row) for (row, col) in self.points[1]])
+            self.tmat = estimate_transform('affine', src, dst).params
 
         else:
             raise IOError
@@ -200,10 +207,13 @@ class ImagesAlign:
         self.binarization_k(0)  # reinit
         self.binarization_k(1)  # reinit
 
-        self.img_reg = warp(self.imgs[1], self.tmat, mode='constant',
-                            cval=1, preserve_range=True, order=None)
-        self.imgs_bin[1] = warp(self.imgs_bin[1], self.tmat, mode='constant',
-                                cval=1, preserve_range=True, order=None)
+        output_shape = self.imgs[0].shape
+        self.img_reg = warp(self.imgs[1], self.tmat,
+                            output_shape=output_shape, preserve_range=True,
+                            mode='constant', cval=1, order=None)
+        self.imgs_bin[1] = warp(self.imgs_bin[1], self.tmat,
+                                output_shape=output_shape, preserve_range=True,
+                                mode='constant', cval=1, order=None)
 
         # score calculation
         mask = warp(np.ones_like(self.imgs_bin[1]), self.tmat, mode='constant',
@@ -435,7 +445,6 @@ class ImagesAlign:
         elif mode == "Juxtaposed":
             img_0, img_1 = self.imgs
             plot_pairs(ax, img_0, img_1, self.points[0], self.points[1])
-            ax.invert_yaxis()
             ax.set_title("Juxtaposed raw images")
 
 

@@ -96,14 +96,16 @@ def sift(img1, img2, model_class=None):
         descriptors.append(sift_.descriptors)
 
     matches = match_descriptors(descriptors[0], descriptors[1],
-                                cross_check=True, max_ratio=0.8)
+                                cross_check=True, max_ratio=0.9)
 
-    src = keypoints[0][matches[:, 0]][:, ::-1]
-    dst = keypoints[1][matches[:, 1]][:, ::-1]
+    points = [keypoints[0][matches[:, 0]], keypoints[1][matches[:, 1]]]
+
+    src = np.asarray([(col, row) for (row, col) in points[0]])
+    dst = np.asarray([(col, row) for (row, col) in points[1]])
     tmat = ransac((src, dst), model_class,
                   min_samples=4, residual_threshold=2)[0].params
 
-    return tmat, src, dst
+    return tmat, points
 
 
 def concatenate_images(image1, image2, alignment):
@@ -188,11 +190,9 @@ def plot_pairs(ax, image1, image2, points1, points2, alignment='horizontal'):
     ax.imshow(image, cmap='gray')
     ax.axis((0, image1.shape[1] + offset[1], image1.shape[0] + offset[0], 0))
 
-    if points1 is not None:
-        np.random.seed(0)
-        rng = np.random.default_rng()
+    rng = np.random.default_rng(0)
 
-        for point1, point2 in zip(points1, points2):
-            color = rng.random(3)
-            ax.plot((point1[1], point2[1] + offset[1]),
-                    (point1[0], point2[0] + offset[0]), '-', color=color)
+    for point1, point2 in zip(points1[:30], points2[:30]):
+        color = rng.random(3)
+        ax.plot((point1[1], point2[1] + offset[1]),
+                (point1[0], point2[0] + offset[0]), '-', color=color)

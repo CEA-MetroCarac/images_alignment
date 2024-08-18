@@ -22,7 +22,7 @@ from matplotlib.colors import ListedColormap
 from images_alignment import ImagesAlign
 from images_alignment import REG_MODELS, KEYS, AXES_NAMES, STEP, ANGLE, COEF
 
-REG_MODELS += ['Full Auto.', 'User-Driven']
+REG_MODELS += ['User-Driven']
 VIEW_MODES = ['Gray', 'Binarized', 'Juxtaposed']
 FONT = ('Helvetica', 8, 'bold')
 CMAP_BINARIZED = ListedColormap(["#00FF00", "black", "red"])
@@ -102,13 +102,6 @@ class View:
     """
 
     def __init__(self, root, model):
-        # super().__init__()
-        #
-        # self.model = ImagesAlign(fnames_fixed=fnames_fixed,
-        #                          fnames_moving=fnames_moving,
-        #                          thresholds=thresholds,
-        #                          bin_inversions=bin_inversions,
-        #                          terminal=None)
 
         self.model = model
 
@@ -118,9 +111,9 @@ class View:
                                BooleanVar(value=self.model.bin_inversions[0])]
         self.registration_model = StringVar(value=self.model.registration_model)
 
-        self.axis_3 = 0
-        self.x0 = None
-        self.points = []
+        self.k_ref = 2
+        self.pair = [None, None]
+        self.line = None
 
         # Frames creation
         #################
@@ -138,7 +131,6 @@ class View:
         # VISU frame
         ############
 
-        # fig, self.ax = plt.subplots(1, 3, figsize=(12, 6))
         gs_kw = dict(width_ratios=[1, 4])
         fig, ax = plt.subplot_mosaic([[0, 3], [1, 3], [2, 3]],
                                      gridspec_kw=gs_kw,
@@ -207,38 +199,61 @@ class View:
         add(Button(frame, text='REGISTRATION', command=self.registration), 0, 2)
 
         add(Radiobutton(frame, text=REG_MODELS[0], value=REG_MODELS[0],
-                        variable=self.registration_model), 1, 0, W)
+                        variable=self.registration_model), 1, 0)
         add(Radiobutton(frame, text=REG_MODELS[1], value=REG_MODELS[1],
-                        variable=self.registration_model), 1, 1, W)
+                        variable=self.registration_model), 1, 1)
         add(Radiobutton(frame, text=REG_MODELS[2], value=REG_MODELS[2],
-                        variable=self.registration_model), 1, 2, W)
-        add(Radiobutton(frame, text=REG_MODELS[3], value=REG_MODELS[3],
-                        variable=self.registration_model), 2, 1, W)
+                        variable=self.registration_model), 1, 2)
 
     def on_press(self, event):
         if self.toolbar.mode != '' and event.inaxes not in self.model.ax:
             return
 
+        # set the clicked axis to be the ref. axis to be displayed in ax[3]
         if event.inaxes in self.model.ax[:3]:
-            self.axis_3 = int(event.inaxes.axes.get_label())
+            self.k_ref = int(event.inaxes.axes.get_label())
             self.update_plot_3()
             self.canvas.draw()
 
+        # 'User-Driven' points selection
         elif self.view_mode.get() != 'User-Driven':
             x, y = event.xdata, event.ydata
-
-            # if event.button == 1:
-            #     self.xs.append(event.xdata)
-            #     self.ys.append(event.ydata)
-            #     if event.dblclick:
-            #         self.xs.pop()
-            #         self.ys.pop()
-            # elif event.button == 3 and len(self.xs) > 0:
-            #     self.xs.pop()
-            #     self.ys.pop()
+            x12 = self.model.imgs[0].shape[1]
+            if x > x12:
+                if self.pair[1] is None:
+                    self.pair[1] = [x, y]
+            else:
+                if self.pair[0] is None:
+                    self.pair[0] = [x, y]
+            if None not in self.pair:
+                (x1, y1), (x2, y2) = self.pair
+                self.model.ax[3].plot((x1, x2), (y1, y2), 'r-')
+                self.model.points[0].append([y1, x1])
+                self.model.points[1].append([y2, x2 - x12])
+                self.canvas.draw()
+                self.pair = [None, None]
+                if self.line is not None:
+                    self.line.remove()
+                self.line = None
 
     def on_motion(self, event):
-        pass
+        if self.toolbar.mode != '' or event.inaxes != self.model.ax[3]:
+            return
+
+        if self.pair == [None, None]:
+            return
+
+        if self.line is not None:
+            self.line.remove()
+
+        x, y = event.xdata, event.ydata
+        if self.pair[1] is None:
+            x1, y1 = self.pair[0]
+            self.line, = self.model.ax[3].plot((x1, x), (y1, y), 'r-')
+        else:
+            x2, y2 = self.pair[1]
+            self.line, = self.model.ax[3].plot((x, x2), (y, y2), 'r-')
+        self.canvas.draw()
 
     def update(self, k):
         ind = self.fselectors[k].lbox.curselection()[0]
@@ -267,7 +282,7 @@ class View:
     def update_plot_3(self):
 
         self.model.ax[3].clear()
-        ax_ref = self.model.ax[self.axis_3]
+        ax_ref = self.model.ax[self.k_ref]
 
         imgs = ax_ref.get_images()
         if len(imgs) > 0:
@@ -286,8 +301,8 @@ class View:
             self.model.ax[3].plot(line.get_xdata(), line.get_ydata(),
                                   c=hex_color, lw=2)
 
-        if self.axis_3 == 2 and self.view_mode.get() == 'Juxtaposed':
-            self.model.ax[3].axvline(self.model.imgs[0].shape[0],
+        if self.k_ref == 2 and self.view_mode.get() == 'Juxtaposed':
+            self.model.ax[3].axvline(self.model.imgs[0].shape[1],
                                      c='w', ls='dashed', lw=0.5)
 
     def update_threshold(self, value, k):
@@ -302,34 +317,23 @@ class View:
         self.model.registration_apply()
         self.update_plots(k)
 
-        # print('update_reversed', k, self.threshold_reversed[k])
-
-    # def update_registration_mode(self):
-    #     registration_mode = self.registration_model.get()
-    #     print('registration_mode', registration_mode)
-
     def reinit(self, k):
         """ Reinit the k-th image """
         ind = self.fselectors[k].lbox.curselection()[0]
         fname = self.fselectors[k].fnames[ind]
         self.model.load_image(k, fname=fname, reinit=True)
-        self.update_plots(k)
+        self.update_plots()
 
     def cropping(self):
         """ Crop the images """
-        is_cropped = False
-        for k in range(4):
-            x, y = self.model.ax[k].get_xlim(), self.model.ax[k].get_ylim()
-            area = [int(y[0]), int(y[1]), int(x[0]), int(x[1])]
-            if k == 3:
-                k = self.axis_3
-            shape = self.model.imgs[k]
-            if area != [0, shape[0], 0, shape[1]]:
-                self.model.cropping_areas[k] = area
-                self.model.cropping(k)
-                is_cropped = True
-        if is_cropped:
-            self.update_plots()
+        k = self.k_ref
+        if k not in [0, 1]:
+            return
+        x, y = self.model.ax[3].get_xlim(), self.model.ax[3].get_ylim()
+        area = [int(y[1]), int(y[0]), int(x[0]), int(x[1])]
+        self.model.cropping_areas[k] = area
+        self.model.cropping(k)
+        self.update_plots(k)
 
     def resizing(self):
         """ Resize the images """

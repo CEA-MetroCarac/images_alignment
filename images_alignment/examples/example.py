@@ -6,8 +6,8 @@ import tempfile
 
 import numpy as np
 import matplotlib.pyplot as plt
-from skimage.data import shepp_logan_phantom
-from skimage.transform import rotate
+from skimage import data
+from skimage.transform import AffineTransform, warp
 from skimage.io import imsave
 
 from images_alignment import ImagesAlign
@@ -23,16 +23,14 @@ class UserTempDirectory:
         pass
 
 
-def moving_image_generation(radius):
+def moving_image_generation(img0, radius):
     """Low resolution image generation with an additional rectangular pattern"""
-    img = shepp_logan_phantom()[::4, ::4]  # low image resolution
-    if radius is not None:
-        shape = img.shape
-        y, x = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]))
-        mask = (x - 70) ** 2 + (y - 70) ** 2 < radius ** 2
-        img[mask] = 1.
-    img = rotate(img, 10, center=(40, 60), cval=0)  # rotation
-    img = np.pad(img, ((40, 0), (60, 0)))  # padding
+    img = img0.copy()
+    img = img[::2, ::2]  # low image resolution
+    tform = AffineTransform(scale=(1.5, 0.8),
+                            rotation=0.5,
+                            translation=(-50, -100))
+    img = warp(img, tform)
     return img
 
 
@@ -40,17 +38,20 @@ def images_generation(dirname):
     """ Generate the set of images to handle """
 
     # fixed image (high resolution squared image)
-    img1 = shepp_logan_phantom()
+    # img1 = data.shepp_logan_phantom()
+    # img1 = data.astronaut()
+    img1 = data.camera()
+
     fname_fixed = dirname / 'img1.tif'
     imsave(fname_fixed, img1)
     fnames_fixed = [fname_fixed]
 
     # moving images (low resolution rectangular images)
-    img2 = moving_image_generation(radius=4)
+    img2 = moving_image_generation(img1, radius=4)
     imsave(dirname / 'img2.tif', img2)
     fnames_moving = []
     for k in range(3):
-        img2 = moving_image_generation(radius=2 + k)
+        img2 = moving_image_generation(img1, radius=2 + k)
         fname_moving = dirname / f'img2_{k + 1}.tif'
         imsave(fname_moving, img2)
         fnames_moving.append(fname_moving)
