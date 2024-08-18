@@ -330,9 +330,8 @@ class View:
         if k not in [0, 1]:
             return
         x, y = self.model.ax[3].get_xlim(), self.model.ax[3].get_ylim()
-        area = [int(y[1]), int(y[0]), int(x[0]), int(x[1])]
-        self.model.cropping_areas[k] = area
-        self.model.cropping(k)
+        area = [x[0], x[1], y[1], y[0]]  # origin='upper' -> y inversion
+        self.model.cropping(k, area=area)
         self.update_plots(k)
 
     def resizing(self):

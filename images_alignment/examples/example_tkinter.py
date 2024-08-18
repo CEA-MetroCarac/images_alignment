@@ -23,8 +23,8 @@ def example_tkinter(dirname, registration_model=None):
               )
 
     if registration_model == 'StackReg':
-        app.model.cropping(0, area=[50, 220, 130, 330])
-        app.model.cropping(1, area=[40, 140, 120, 190])
+        app.model.cropping(0, area=[130, 330, 50, 220])
+        app.model.cropping(1, area=[120, 190, 40, 140])
         app.model.resizing()
         app.model.registration(registration_model='StackReg')
 
@@ -48,5 +48,5 @@ if __name__ == '__main__':
         dirname = Path(tmpdir) / "images_alignement"
     dirname.mkdir(exist_ok=True)
 
-    # example_tkinter(dirname, registration_model='StackReg')
-    example_tkinter(dirname, registration_model='SIFT')
+    example_tkinter(dirname, registration_model='StackReg')
+    # example_tkinter(dirname, registration_model='SIFT')

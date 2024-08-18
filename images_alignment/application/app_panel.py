@@ -308,6 +308,7 @@ class App:
             fig.image([arr], x=0, y=0,
                       dw=arr.shape[1], dh=arr.shape[0],
                       color_mapper=color_mapper)
+            fig.y_range = DataRange1d(start=arr.shape[0], end=0)
             # fig.x_range.start, fig.x_range.end = 0, arr.shape[1]
             # fig.y_range.start, fig.y_range.end = 0, arr.shape[0]
             # fig.aspect_ratio = arr.shape[1] / arr.shape[0]
@@ -354,9 +355,8 @@ class App:
     def cropping(self, k):
         """ Update the cropping of the k-th image """
         x, y = self.figs[3].x_range, self.figs[3].y_range
-        self.model.cropping_areas[k] = [int(y.start), int(y.end),
-                                        int(x.start), int(x.end)]
-        self.model.cropping(k)
+        area = [x.start, x.end, y.end, y.start]  # origin='upper' -> y inversion
+        self.model.cropping(k, area=area)
         self.update_plots()
 
     def resizing(self):

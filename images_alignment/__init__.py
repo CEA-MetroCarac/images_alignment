@@ -126,15 +126,16 @@ class ImagesAlign:
             return
 
         if area is not None:
-            self.cropping_areas[k] = area
+            xmin, xmax, ymin, ymax = area
+            imin, imax = int(ymin), int(ymax)
+            jmin, jmax = int(xmin), int(xmax)
         if area_percent is not None:
-            xmin, xmax, ymin, ymax = area_percent
+            xmin_p, xmax_p, ymin_p, ymax_p = area_percent
             shape = self.imgs[k].shape
-            imin, imax = int(ymin * shape[0]), int(ymax * shape[0])
-            jmin, jmax = int(xmin * shape[1]), int(xmax * shape[1])
-            self.cropping_areas[k] = [imin, imax, jmin, jmax]
+            imin, imax = int(ymin_p * shape[0]), int(ymax_p * shape[0])
+            jmin, jmax = int(xmin_p * shape[1]), int(xmax_p * shape[1])
 
-        imin, imax, jmin, jmax = self.cropping_areas[k]
+        self.cropping_areas[k] = [imin, imax, jmin, jmax]
         self.imgs[k] = self.imgs[k][imin:imax, jmin:jmax]
         self.is_cropped[k] = True
 
