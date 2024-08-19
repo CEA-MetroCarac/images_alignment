@@ -118,7 +118,7 @@ class ImagesAlign:
         except Exception as _:
             self.terminal.write(f"Failed to load {fname}\n\n")
 
-    def cropping(self, k, area=None, area_percent=None, mode_auto=False):
+    def cropping(self, k, area=None, area_percent=None):
         """ Crop the k-th image"""
         if area is not None and area_percent is not None:
             msg = "ERROR: 'area' and 'area_percent' cannot be defined " \
@@ -148,10 +148,7 @@ class ImagesAlign:
             self.imgs[k] = self.imgs[k][imin:imax, jmin:jmax]
             self.is_cropped[k] = True
 
-        if mode_auto:
-            self.resizing(mode_auto=True)
-
-    def resizing(self, mode_auto=False):
+    def resizing(self):
         """ Resize the images to have similar shape (request for pyStackReg) """
         if self.imgs[0] is None or self.imgs[1] is None:
             return
@@ -160,9 +157,6 @@ class ImagesAlign:
             self.imgs[0] = resize(self.imgs[0], self.imgs[1].shape)
         else:
             self.imgs[1] = resize(self.imgs[1], self.imgs[0].shape)
-
-        if mode_auto:
-            self.binarization(mode_auto=True)
 
     def binarization_k(self, k):
         """ Binarize the k-th image """
@@ -174,13 +168,10 @@ class ImagesAlign:
         if self.bin_inversions[k]:
             self.imgs_bin[k] = ~self.imgs_bin[k]
 
-    def binarization(self, mode_auto=False):
+    def binarization(self):
         """ Binarize the images """
         self.binarization_k(0)
         self.binarization_k(1)
-
-        if mode_auto:
-            self.registration()
 
     def registration(self, registration_model=None):
         """ Calculate the transformation matrix 'tmat' and apply it """
