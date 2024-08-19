@@ -16,8 +16,8 @@ from skimage.transform import resize, warp, AffineTransform, estimate_transform
 
 from images_alignment.utils import (Terminal,
                                     gray_conversion, image_normalization,
-                                    edges_trend, padding, sift,
-                                    concatenate_images)
+                                    padding, sift,
+                                    concatenate_images, recast)
 
 REG_MODELS = ['StackReg', 'SIFT']
 STREG = StackReg(StackReg.AFFINE)
@@ -64,6 +64,7 @@ class ImagesAlign:
         self.mode = 'Juxtaposed'
 
         self.imgs = [None, None]
+        self.dtypes = [None, None]
         self.cropping_areas = [None, None]
         self.is_cropped = [False, False]
         self.imgs_bin = [None, None]
@@ -72,6 +73,7 @@ class ImagesAlign:
         self.tmat = np.identity(3)
         self.score = 0
         self.img_reg = None
+        self.img_reg_bin = None
         self.results = {}
         self.dirname_res = [None, None]
         self.fixed_reg = False
@@ -111,6 +113,7 @@ class ImagesAlign:
                 self.reinit(k)
             self.fnames[k] = fname
             self.imgs[k] = image_normalization(gray_conversion(img))
+            self.dtypes[k] = img.dtype
 
         except Exception as _:
             self.terminal.write(f"Failed to load {fname}\n\n")
@@ -129,18 +132,21 @@ class ImagesAlign:
             return
 
         if area is not None:
-            xmin, xmax, ymin, ymax = area
-            imin, imax = int(ymin), int(ymax)
-            jmin, jmax = int(xmin), int(xmax)
-        if area_percent is not None:
+            self.cropping_areas[k] = area
+        elif area_percent is not None:
             xmin_p, xmax_p, ymin_p, ymax_p = area_percent
             shape = self.imgs[k].shape
-            imin, imax = int(ymin_p * shape[0]), int(ymax_p * shape[0])
-            jmin, jmax = int(xmin_p * shape[1]), int(xmax_p * shape[1])
+            ymin, ymax = ymin_p * shape[0], ymax_p * shape[0]
+            xmin, xmax = xmin_p * shape[1], xmax_p * shape[1]
+            self.cropping_areas[k] = xmin, xmax, ymin, ymax
 
-        self.cropping_areas[k] = [imin, imax, jmin, jmax]
-        self.imgs[k] = self.imgs[k][imin:imax, jmin:jmax]
-        self.is_cropped[k] = True
+        if self.cropping_areas[k] is None:
+            return
+        else:
+            xmin, xmax, ymin, ymax = self.cropping_areas[k]
+            imin, imax, jmin, jmax = int(ymin), int(ymax), int(xmin), int(xmax)
+            self.imgs[k] = self.imgs[k][imin:imax, jmin:jmax]
+            self.is_cropped[k] = True
 
         if mode_auto:
             self.resizing(mode_auto=True)
@@ -164,8 +170,7 @@ class ImagesAlign:
             return
 
         self.imgs_bin[k] = self.imgs[k] > self.thresholds[k]
-        if edges_trend(self.imgs[k]):
-            self.imgs_bin[k] = ~self.imgs_bin[k]
+
         if self.bin_inversions[k]:
             self.imgs_bin[k] = ~self.imgs_bin[k]
 
@@ -188,6 +193,7 @@ class ImagesAlign:
             self.registration_model = registration_model
 
         if self.registration_model == 'StackReg':
+            self.resizing()
             self.binarization_k(0)  # reinit
             self.binarization_k(1)  # reinit
             self.tmat = STREG.register(*self.imgs_bin)
@@ -203,6 +209,7 @@ class ImagesAlign:
         else:
             raise IOError
 
+        print()
         print(self.tmat)
 
     def registration_apply(self):
@@ -217,14 +224,14 @@ class ImagesAlign:
         self.img_reg = warp(self.imgs[1], self.tmat,
                             output_shape=output_shape, preserve_range=True,
                             mode='constant', cval=1, order=None)
-        self.imgs_bin[1] = warp(self.imgs_bin[1], self.tmat,
+        self.img_reg_bin = warp(self.imgs_bin[1], self.tmat,
                                 output_shape=output_shape, preserve_range=True,
                                 mode='constant', cval=1, order=None)
 
         # score calculation
-        mask = warp(np.ones_like(self.imgs_bin[1]), self.tmat, mode='constant',
+        mask = warp(np.ones_like(self.img_reg_bin), self.tmat, mode='constant',
                     cval=0, preserve_range=True, order=None)
-        mismatch = np.logical_xor(*self.imgs_bin)
+        mismatch = np.logical_xor(self.imgs_bin[0], self.img_reg_bin)
         mismatch[~mask] = 0
         self.score = 100 * (1. - np.sum(mismatch) / np.sum(mask))
 
@@ -296,43 +303,33 @@ class ImagesAlign:
             self.terminal.write(msg)
             return
 
+        self.set_dirname_res(dirname_res=dirname_res)
+
         fnames_fixed = self.fnames_tot[0]
         fnames_moving = self.fnames_tot[1]
-
-        self.set_dirname_res(dirname_res=dirname_res)
+        cropping_areas = self.cropping_areas.copy()
 
         for i, fname_moving in enumerate(fnames_moving):
 
             fname_fixed = fnames_fixed[0] if n0 == 1 else fnames_fixed[i]
 
-            self.fnames = [fname_fixed, fname_moving]
+            names = [Path(fname_fixed).name, Path(fname_moving).name]
 
-            name0 = Path(fname_fixed).name
-            name1 = Path(fname_moving).name
-
-            self.terminal.write(f"{i + 1}/{n1} {name0} - {name1}: ")
+            self.terminal.write(f"{i + 1}/{n1} {names[0]} - {names[1]}: ")
 
             try:
 
-                self.imgs[0] = iio.imread(fname_fixed)
-                self.imgs[1] = iio.imread(fname_moving)
-
-                if self.cropping_areas[0] is not None:
-                    (imin, imax, jmin, jmax) = self.cropping_areas[0]
-                    self.imgs[0] = self.imgs[0][imin: imax, jmin: jmax]
-
-                if self.cropping_areas[1] is not None:
-                    (imin, imax, jmin, jmax) = self.cropping_areas[1]
-                    self.imgs[1] = self.imgs[1][imin: imax, jmin: jmax]
-
-                self.resizing()
-                if i == 0 or not self.fixed_reg:
+                self.load_image(0, fname=fname_fixed, reinit=True)
+                self.load_image(1, fname=fname_moving, reinit=True)
+                self.cropping(0, area=cropping_areas[0])
+                self.cropping(1, area=cropping_areas[1])
+                if not self.fixed_reg:
                     self.registration_calc()
                 self.registration_apply()
 
-                if n0 != 1 or i == 0:
-                    iio.imwrite(self.dirname_res[0] / name0, self.imgs[0])
-                iio.imwrite(self.dirname_res[1] / name1, self.img_reg)
+                for k, img in enumerate([self.imgs[0], self.img_reg]):
+                    iio.imwrite(self.dirname_res[k] / name[k],
+                                recast(img, self.dtypes[k]))
 
                 score = self.results[self.registration_model]['score']
                 self.terminal.write(f"OK - score : {score:.1f} %\n")
@@ -431,6 +428,8 @@ class ImagesAlign:
             if self.imgs_bin[1] is None:
                 self.binarization_k(1)
             img_0, img_1 = self.imgs_bin
+            if self.img_reg_bin is not None:
+                img_1 = self.img_reg_bin
             img_0, img_1 = padding(img_0, img_1)
             img = np.zeros_like(img_0, dtype=int)
             img[img_1 * ~img_0] = 1
@@ -464,9 +463,6 @@ class ImagesAlign:
             self.ax[2].imshow(img, cmap='gray')
         else:
             self.ax[2].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
-
-        # ax.axis((0, img_0.shape[1] + offset[0], img_1.shape[0] + offset[1],
-        # 0))
 
         rng = np.random.default_rng(0)
         for point0, point1 in zip(self.points[0][:30], self.points[1][:30]):
