@@ -7,6 +7,7 @@ from skimage.color import rgba2rgb, rgb2gray
 from skimage.transform import AffineTransform
 from skimage.feature import SIFT, match_descriptors
 from skimage.measure import ransac
+from skimage import img_as_ubyte
 
 
 class Terminal:
@@ -16,6 +17,14 @@ class Terminal:
         """ Write message in the console """
         sys.stdout.write(message)
         sys.stdout.flush()
+
+
+def recast(img, dtype):
+    """ Recast 'img' according to 'dtype' """
+    if dtype == np.uint8:
+        return img_as_ubyte(img)
+    else:
+        return img
 
 
 def gray_conversion(img):
@@ -31,15 +40,6 @@ def image_normalization(img):
     """ Normalize image in range [0., 1.] """
     vmin, vmax = img.min(), img.max()
     return (img - vmin) / (vmax - vmin)
-
-
-def edges_trend(img):
-    """ Estimate if the average value along the image edges is > 0.5 """
-    shape = img.shape
-    mask = np.ones_like(img, dtype=bool)
-    mask[1:-1, 1:-1] = 0
-    sum_edges = np.sum(img[mask])
-    return (sum_edges / (2 * (shape[0] + shape[1] - 2))) > 0.5
 
 
 def padding(img1, img2):
