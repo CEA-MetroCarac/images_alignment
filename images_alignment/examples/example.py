@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from skimage import data
 from skimage.transform import AffineTransform, warp
 from skimage.io import imsave
+from skimage import img_as_ubyte
 
 from images_alignment import ImagesAlign
 
@@ -23,21 +24,25 @@ class UserTempDirectory:
         pass
 
 
-def moving_image_generation(img0, radius):
+def moving_image_generation(img0, rotation=0.5):
     """Low resolution image generation with an additional rectangular pattern"""
     img = img0.copy()
     img = img[::2, ::2]  # low image resolution
     tform = AffineTransform(scale=(1.5, 0.8),
-                            rotation=0.5,
+                            rotation=rotation,
                             translation=(-50, -100))
     img = warp(img, tform)
+
+    if img0.dtype == np.uint8:
+        img = img_as_ubyte(img)
+
     return img
 
 
 def images_generation(dirname):
     """ Generate the set of images to handle """
 
-    # fixed image (high resolution squared image)
+    # # fixed image (high resolution squared image)
     # img1 = data.shepp_logan_phantom()
     # img1 = data.astronaut()
     img1 = data.camera()
@@ -47,11 +52,11 @@ def images_generation(dirname):
     fnames_fixed = [fname_fixed]
 
     # moving images (low resolution rectangular images)
-    img2 = moving_image_generation(img1, radius=4)
+    img2 = moving_image_generation(img1)
     imsave(dirname / 'img2.tif', img2)
     fnames_moving = []
     for k in range(3):
-        img2 = moving_image_generation(img1, radius=2 + k)
+        img2 = moving_image_generation(img1, rotation=0.5 + 0.1 * k)
         fname_moving = dirname / f'img2_{k + 1}.tif'
         imsave(fname_moving, img2)
         fnames_moving.append(fname_moving)
