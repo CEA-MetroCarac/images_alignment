@@ -1,26 +1,25 @@
+"""
+Tkinter-application for images alignment
+"""
 import os
-import platform
-import warnings
 import re
+import glob
 
-from tkinter import (Tk, Toplevel, Frame, LabelFrame, Label, Radiobutton, Scale,
-                     Entry, Text, Button, Checkbutton, messagebox, W, E, END,
-                     HORIZONTAL, IntVar, DoubleVar, StringVar, BooleanVar,
-                     Listbox, EXTENDED, BOTTOM, X, Y, LEFT, RIGHT)
-from tkinter.ttk import Combobox, Scrollbar
+from tkinter import (Tk, Frame, LabelFrame, Label, Radiobutton, Scale,
+                     Button, Checkbutton, Listbox, messagebox,
+                     W, E, END, HORIZONTAL, Y, LEFT, RIGHT,
+                     DoubleVar, StringVar)
+from tkinter.ttk import Scrollbar
 from tkinter import filedialog as fd
-from tkinter.messagebox import askyesno
-import itertools
 from pathlib import Path
-from io import BytesIO
-import numpy as np
+from imageio.v3 import imwrite
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.colors import ListedColormap
 
 from images_alignment import ImagesAlign
-from images_alignment import REG_MODELS, KEYS, AXES_NAMES, STEP, ANGLE, COEF
+from images_alignment import REG_MODELS
 
 REG_MODELS += ['User-Driven']
 VIEW_MODES = ['Gray', 'Binarized', 'Juxtaposed']
@@ -169,8 +168,8 @@ class View:
         add(fr_toolbar, 3, 0, W)
         self.toolbar = NavigationToolbar2Tk(self.canvas, fr_toolbar)
 
-        # IMG1 SETTINGS frame
-        #####################
+        # PROCESSING frame
+        ##################
 
         self.fselectors = []
         for k, label in enumerate(['Fixed image', 'Moving image']):
@@ -212,18 +211,36 @@ class View:
         add(Radiobutton(frame, text=REG_MODELS[2], value=REG_MODELS[2],
                         variable=self.registration_model), 1, 2)
 
+        add(Button(frame, text='SAVE FIXED IMAGE',
+                   command=lambda: self.save_image_k(0)), 2, 1)
+        add(Button(frame, text='SAVE MOVING IMAGE',
+                   command=lambda: self.save_image_k(1)), 3, 1)
+
+        frame = LabelFrame(frame_proc, text='Application', font=FONT)
+        add(frame, 3, 0, W + E)
+
+        add(Button(frame, text='SELECT DIR. RESULT',
+                   command=self.model.set_dirname_res), 0, 0, cspan=3)
+
+        add(Checkbutton(frame, text='Fixed registration',
+                        variable=self.model.fixed_reg), 1, 0, cspan=2)
+
+        add(Button(frame, text='APPLY TO ALL',
+                   command=self.apply_to_all), 1, 2)
+
     def on_press(self, event):
-        if self.toolbar.mode != '' and event.inaxes not in self.model.ax:
+        """ Select the axis to be displayed in ax[3] or the line points """
+        if self.toolbar.mode != '' or event.inaxes not in self.model.ax:
             return
 
-        # set the clicked axis to be the ref. axis to be displayed in ax[3]
-        if event.inaxes in self.model.ax[:3]:
+        # select the axis to be displayed in ax[3]
+        if event.inaxes != self.model.ax[3]:
             self.k_ref = int(event.inaxes.axes.get_label())
             self.update_plot_3()
             self.canvas.draw()
 
         # 'User-Driven' points selection
-        elif self.registration_model.get() != 'User-Driven':
+        elif self.registration_model.get() == 'User-Driven':
             x, y = event.xdata, event.ydata
             x12 = self.model.imgs[0].shape[1]
             if x > x12:
@@ -244,10 +261,11 @@ class View:
                 self.line = None
 
     def on_motion(self, event):
-        if self.toolbar.mode != '' or event.inaxes != self.model.ax[3]:
-            return
-
-        if self.pair == [None, None]:
+        """ Draw the line (dynamically) in 'User-Driven' mode """
+        if self.mode != 'User-Driven' or \
+                self.toolbar.mode != '' or \
+                event.inaxes != self.model.ax[3] or \
+                self.pair == [None, None]:
             return
 
         if self.line is not None:
@@ -263,20 +281,24 @@ class View:
         self.canvas.draw()
 
     def update(self, k):
-        ind = self.fselectors[k].lbox.curselection()[0]
-        self.model.load_image(k, fname=self.fselectors[k].fnames[ind])
+        """ Update the k-th image from the fileselector and its related one """
+        fsel = self.fselectors
+
+        ind = fsel[k].lbox.curselection()[0]
+        self.model.load_image(k, fname=fsel[k].fnames[ind], reinit=True)
 
         if k == 0:
-            self.fselectors[1].select_item(ind)
-            self.model.load_image(1, fname=self.fselectors[1].fnames[ind])
+            fsel[1].select_item(ind)
+            self.model.load_image(1, fname=fsel[1].fnames[ind], reinit=True)
 
         elif len(self.fselectors[0].fnames) > 1:
-            self.fselectors[0].select_item(ind)
-            self.model.load_image(0, fname=self.fselectors[0].fnames[ind])
+            fsel[0].select_item(ind)
+            self.model.load_image(0, fname=fsel[0].fnames[ind], reinit=True)
 
         self.update_plots()
 
     def update_plots(self, k=None):
+        """ Update the plots """
         self.model.color = self.color.get()
         self.model.mode = self.mode.get()
         if k is None:
@@ -288,6 +310,7 @@ class View:
         self.canvas.draw()
 
     def update_plot_3(self):
+        """ Update the 3rd axis """
 
         self.model.ax[3].clear()
         ax_ref = self.model.ax[self.k_ref]
@@ -313,12 +336,13 @@ class View:
                                      c='w', ls='dashed', lw=0.5)
 
     def update_threshold(self, value, k):
+        """ Update the threshold value associated with the k-th image """
         self.model.thresholds[k] = float(value)
-        # self.model.binarization_k(k)
         self.model.registration_apply()
         self.update_plots(k)
 
     def bin_inversion(self, k):
+        """ Invert the binarized k-th image """
         self.model.bin_inversions[k] = not self.model.bin_inversions[k]
         if self.model.imgs_bin[k] is not None:
             self.model.imgs_bin[k] = ~self.model.imgs_bin[k]
@@ -351,6 +375,33 @@ class View:
         registration_model = self.registration_model.get()
         self.model.registration(registration_model=registration_model)
         self.update_plots()
+
+    def save_image_k(self, k):
+        """ Save the the k-th image """
+        ind = self.fselectors[k].lbox.curselection()[0]
+        fname = Path(self.fselectors[k].fnames[ind])
+        initialdir = fname.parent
+        initialfile = fname.stem + "_aligned" + fname.suffix
+
+        fname_reg = fd.asksaveasfilename(initialfile=initialfile,
+                                         initialdir=initialdir)
+
+        if fname_reg == "":
+            return
+
+        img = self.model.imgs[k]
+        if k == 1 and self.model.img_reg is not None:
+            img = self.model.img_reg
+
+        imwrite(fname_reg, img)
+
+    def apply_to_all(self, dirname_res=None):
+        model = self.model
+        model.apply_to_all(dirname_res=dirname_res)
+        for k in range(2):
+            self.fselectors[k].fnames = [model.dirname_res[k] / Path(x).name
+                                         for x in model.fnames_tot[k]]
+        self.update(0)
 
 
 class FilesSelector:
@@ -464,7 +515,7 @@ class FilesSelector:
             dirname = fd.askdirectory(title='Select directory')
 
         ind_start = len(self.fnames)
-        fnames = glob.glob(os.path.join(dirname, '*.txt'))
+        fnames = glob.glob(os.path.join(dirname, '*.tif'))
         self.add_items(fnames, ind_start=ind_start)
 
         self.lbox.event_generate('<<ListboxAdd>>')
