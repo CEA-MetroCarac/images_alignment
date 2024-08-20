@@ -4,19 +4,19 @@ Tkinter-application for images alignment
 import os
 import re
 import glob
-
+from pathlib import Path
+from itertools import groupby, count
 from tkinter import (Tk, Frame, LabelFrame, Label, Radiobutton, Scale,
                      Button, Checkbutton, Listbox, messagebox,
                      W, E, END, HORIZONTAL, Y, LEFT, RIGHT,
                      DoubleVar, StringVar)
 from tkinter.ttk import Scrollbar
 from tkinter import filedialog as fd
-from pathlib import Path
-from imageio.v3 import imwrite
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.colors import ListedColormap
+from imageio.v3 import imwrite
 
 from images_alignment import ImagesAlign
 from images_alignment import REG_MODELS
@@ -113,6 +113,7 @@ class View:
         self.k_ref = 2
         self.pair = [None, None]
         self.line = None
+        self.lines = []
 
         # Frames creation
         #################
@@ -130,43 +131,43 @@ class View:
         # VISU frame
         ############
 
-        gs_kw = dict(width_ratios=[1, 4])
-        fig, ax = plt.subplot_mosaic([[0, 3], [1, 3], [2, 3]],
-                                     gridspec_kw=gs_kw,
-                                     figsize=(12, 8),
-                                     layout="constrained")
-        self.model.ax = [ax[i] for i in range(4)]
+        fig0, ax0 = plt.subplots(1, 4, figsize=(10, 1.8),
+                                 gridspec_kw={'width_ratios': [1, 1, 1, 2]})
+        [ax0[i].set_label(i) for i in range(4)]
+        [ax0[i].get_xaxis().set_visible(False) for i in range(4)]
+        [ax0[i].get_yaxis().set_visible(False) for i in range(4)]
+        self.model.ax = [ax0[i] for i in range(4)]
+
+        fig1, self.ax1 = plt.subplots(1, 1, figsize=(10, 5))
+        plt.tight_layout()
 
         frame = Frame(frame_visu)
         add(frame, 0, 0)
 
         fr = LabelFrame(frame)
-        add(fr, 0, 0, pady=0)
+        add(fr, 0, 0)
         add(Radiobutton(fr, text='Gray', value='Gray',
                         variable=self.color,
-                        command=self.update_plots), 0, 0, W, pady=0)
+                        command=self.update_plots), 0, 0, pady=0)
         add(Radiobutton(fr, text='Binarized', value='Binarized',
                         variable=self.color,
                         command=self.update_plots), 0, 1, pady=0)
 
-        fr = LabelFrame(frame)
-        add(fr, 0, 1, pady=0)
-        add(Radiobutton(fr, text='Juxtaposed', value='Juxtaposed',
-                        variable=self.mode,
-                        command=self.update_plots), 0, 0, W, pady=0)
-        add(Radiobutton(fr, text='Combined', value='Combined',
-                        variable=self.mode,
-                        command=self.update_plots), 0, 1, pady=0)
+        self.canvas0 = FigureCanvasTkAgg(fig0, master=frame_visu)
+        add(self.canvas0.get_tk_widget(), 1, 0, padx=0)
+        self.canvas0.draw()
+        self.canvas0.mpl_connect('button_press_event', self.on_press)
 
-        self.canvas = FigureCanvasTkAgg(fig, master=frame_visu)
-        add(self.canvas.get_tk_widget(), 2, 0)
-        self.canvas.draw()
-        self.canvas.mpl_connect('button_press_event', self.on_press)
-        self.canvas.mpl_connect('motion_notify_event', self.on_motion)
+        self.canvas1 = FigureCanvasTkAgg(fig1, master=frame_visu)
+        add(self.canvas1.get_tk_widget(), 2, 0, padx=0)
+        self.canvas1.draw()
+        self.canvas1.mpl_connect('button_press_event', self.on_press1)
+        self.canvas1.mpl_connect('motion_notify_event', self.on_motion1)
+        self.canvas1.mpl_connect('scroll_event', self.on_scroll1)
 
         fr_toolbar = Frame(frame_visu)
         add(fr_toolbar, 3, 0, W)
-        self.toolbar = NavigationToolbar2Tk(self.canvas, fr_toolbar)
+        self.toolbar = NavigationToolbar2Tk(self.canvas1, fr_toolbar)
 
         # PROCESSING frame
         ##################
@@ -229,20 +230,35 @@ class View:
                    command=self.apply_to_all), 1, 2)
 
     def on_press(self, event):
-        """ Select the axis to be displayed in ax[3] or the line points """
-        if self.toolbar.mode != '' or event.inaxes not in self.model.ax:
+        """ Select the axis to be displayed in 'fig1' """
+        if self.toolbar.mode != '' or \
+                event.inaxes not in self.model.ax:
             return
 
-        # select the axis to be displayed in ax[3]
-        if event.inaxes != self.model.ax[3]:
-            self.k_ref = int(event.inaxes.axes.get_label())
-            self.update_plot_3()
-            self.canvas.draw()
+        self.k_ref = int(event.inaxes.axes.get_label())
+        self.update_plot_1()
+        self.canvas1.draw()
 
-        # 'User-Driven' points selection
-        elif self.registration_model.get() == 'User-Driven':
-            x, y = event.xdata, event.ydata
-            x12 = self.model.imgs[0].shape[1]
+    def remove_line(self):
+        """ Remove the current line """
+        self.pair = [None, None]
+        if self.line is not None:
+            self.line.remove()
+        self.line = None
+        self.canvas1.draw_idle()
+
+    def on_press1(self, event):
+        """ Select the 'User-Driven' points in 'fig1' """
+        if self.toolbar.mode != '' or \
+                event.inaxes != self.ax1 or \
+                self.registration_model.get() != 'User-Driven':
+            return
+
+        x, y = event.xdata, event.ydata
+        x12 = self.model.imgs[0].shape[1]
+
+        if event.button == 1:
+
             if x > x12:
                 if self.pair[1] is None:
                     self.pair[1] = [x, y]
@@ -251,20 +267,31 @@ class View:
                     self.pair[0] = [x, y]
             if None not in self.pair:
                 (x1, y1), (x2, y2) = self.pair
-                self.model.ax[3].plot((x1, x2), (y1, y2), 'r-')
+                self.lines.append(self.ax1.plot((x1, x2), (y1, y2), 'r-')[0])
                 self.model.points[0].append([x1, y1])
                 self.model.points[1].append([x2 - x12, y2])
-                self.canvas.draw()
-                self.pair = [None, None]
-                if self.line is not None:
-                    self.line.remove()
-                self.line = None
+                self.remove_line()
 
-    def on_motion(self, event):
-        """ Draw the line (dynamically) in 'User-Driven' mode """
-        if self.mode != 'User-Driven' or \
-                self.toolbar.mode != '' or \
-                event.inaxes != self.model.ax[3] or \
+        elif event.button == 3:
+            if self.pair != [None, None]:  # remove the current line
+                self.remove_line()
+            elif len(self.lines) > 0:  # remove the closest line
+                pts = self.model.points
+                d0 = [(xp - x) ** 2 + (yp - y) ** 2 for xp, yp in pts[0]]
+                d1 = [(xp + x12 - x) ** 2 + (yp - y) ** 2 for xp, yp in pts[1]]
+                d0_min, d1_min = min(d0), min(d1)
+                ind = d0.index(d0_min) if d0_min < d1_min else d1.index(d1_min)
+                self.lines[ind].remove()
+                del self.lines[ind]
+                del self.model.points[0][ind]
+                del self.model.points[1][ind]
+                self.canvas1.draw_idle()
+
+    def on_motion1(self, event):
+        """ Draw the line (dynamically) in 'User-Driven' mode  in 'fig1' """
+        if self.toolbar.mode != '' or \
+                event.inaxes != self.ax1 or \
+                self.registration_model.get() != 'User-Driven' or \
                 self.pair == [None, None]:
             return
 
@@ -274,11 +301,39 @@ class View:
         x, y = event.xdata, event.ydata
         if self.pair[1] is None:
             x1, y1 = self.pair[0]
-            self.line, = self.model.ax[3].plot((x1, x), (y1, y), 'r-')
+            self.line, = self.ax1.plot((x1, x), (y1, y), 'r-')
         else:
             x2, y2 = self.pair[1]
-            self.line, = self.model.ax[3].plot((x, x2), (y, y2), 'r-')
-        self.canvas.draw()
+            self.line, = self.ax1.plot((x, x2), (y, y2), 'r-')
+        self.canvas1.draw_idle()
+
+    def on_scroll1(self, event):
+        """ Zoom/Unzoom the 'fig1' """
+        base_scale = 1.1
+
+        if event.button == 'up':
+            scale_factor = base_scale
+        elif event.button == 'down':
+            scale_factor = 1 / base_scale
+        else:
+            return
+
+        x, y = event.xdata, event.ydata
+
+        xlim0 = self.ax1.get_xlim()
+        ylim0 = self.ax1.get_ylim()
+
+        new_width = (xlim0[1] - xlim0[0]) * scale_factor
+        new_height = (ylim0[1] - ylim0[0]) * scale_factor
+
+        relx = (xlim0[1] - x) / (xlim0[1] - xlim0[0])
+        rely = (ylim0[1] - y) / (ylim0[1] - ylim0[0])
+
+        self.ax1.set_xlim([x - new_width * (1 - relx), x + new_width * relx])
+        self.ax1.set_ylim([y - new_height * (1 - rely), y + new_height * rely])
+
+        self.ax1.figure.canvas.toolbar.push_current()
+        self.canvas1.draw_idle()
 
     def update(self, k):
         """ Update the k-th image from the fileselector and its related one """
@@ -306,13 +361,15 @@ class View:
         elif k in range(2):
             self.model.plot_k(k)
             self.model.plot_k(2)
-        self.update_plot_3()
-        self.canvas.draw()
+            self.model.plot_k(3)
+        self.update_plot_1()
+        self.canvas0.draw()
+        self.canvas1.draw()
 
-    def update_plot_3(self):
-        """ Update the 3rd axis """
+    def update_plot_1(self):
+        """ Update the fig1 """
 
-        self.model.ax[3].clear()
+        self.ax1.clear()
         ax_ref = self.model.ax[self.k_ref]
 
         imgs = ax_ref.get_images()
@@ -322,18 +379,17 @@ class View:
                 cmap, vmin, vmax = CMAP_BINARIZED, -1, 1
             else:
                 cmap, vmin, vmax = 'gray', None, None
-            self.model.ax[3].imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax)
+            self.ax1.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax)
 
         lines = ax_ref.get_lines()
         for line in lines:
             color = (255 * line.get_color()).astype(int)
             hex_color = '#{:02x}{:02x}{:02x}'.format(*color)
-            self.model.ax[3].plot(line.get_xdata(), line.get_ydata(),
-                                  c=hex_color, lw=2)
+            self.ax1.plot(line.get_xdata(), line.get_ydata(), c=hex_color, lw=2)
 
-        if self.k_ref == 2 and self.mode.get() == 'Juxtaposed':
-            self.model.ax[3].axvline(self.model.imgs[0].shape[1],
-                                     c='w', ls='dashed', lw=0.5)
+        if self.k_ref == 3:
+            self.ax1.axvline(self.model.imgs[0].shape[1],
+                             c='w', ls='dashed', lw=0.5)
 
     def update_threshold(self, value, k):
         """ Update the threshold value associated with the k-th image """
@@ -360,7 +416,7 @@ class View:
         k = self.k_ref
         if k not in [0, 1]:
             return
-        x, y = self.model.ax[3].get_xlim(), self.model.ax[3].get_ylim()
+        x, y = self.ax1.get_xlim(), self.ax1.get_ylim()
         area = [x[0], x[1], y[1], y[0]]  # origin='upper' -> y inversion
         self.model.cropping(k, area=area)
         self.update_plots(k)
@@ -396,6 +452,7 @@ class View:
         imwrite(fname_reg, img)
 
     def apply_to_all(self, dirname_res=None):
+        """ Apply the alignment processing to all the images """
         model = self.model
         model.apply_to_all(dirname_res=dirname_res)
         for k in range(2):
@@ -568,7 +625,7 @@ class App:
     """
 
     def __init__(self,
-                 root, size="1550x950", force_terminal_exit=True,
+                 root, size="1400x800", force_terminal_exit=True,
                  fnames_fixed=None,
                  fnames_moving=None,
                  thresholds=None,

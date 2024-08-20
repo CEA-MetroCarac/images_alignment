@@ -32,8 +32,8 @@ CMAP_BINARIZED = LinearSegmentedColormap.from_list('GreenBlackRed', COLORS, N=3)
 
 KEYS = ['cropping_areas', 'thresholds', 'bin_inversions', 'tmat']
 
-
 # plt.rcParams['image.origin'] = 'lower'
+plt.rcParams['axes.titlesize'] = 10
 
 
 class ImagesAlign:
@@ -78,7 +78,8 @@ class ImagesAlign:
         self.dirname_res = [None, None]
         self.fixed_reg = False
 
-        _, self.ax = plt.subplots(1, 3, figsize=(12, 4))
+        _, ax = plt.subplots(2, 2, figsize=(8, 8))
+        self.ax = ax.flatten()
 
         if self.fnames_tot[0] is not None:
             self.fnames[0] = self.fnames_tot[0]
@@ -369,21 +370,24 @@ class ImagesAlign:
         if ax is not None:
             self.ax = ax
 
-        for k in range(3):
+        for k in range(4):
             self.plot_k(k)
 
     def plot_k(self, k):
         """ Plot the k-th axis """
         self.ax[k].clear()
 
-        if k in [0, 1]:
+        if k == 0 or k == 1:
             self.plot_fixed_or_moving_image(k)
 
-        elif self.mode == 'Juxtaposed':
+        elif k == 2:
+            self.plot_combined_images()
+
+        elif k == 3:
             self.plot_juxtaposed_images()
 
         else:
-            self.plot_combined_images()
+            raise IOError
 
         self.ax[k].autoscale(tight=True)
 
@@ -393,7 +397,10 @@ class ImagesAlign:
         if self.imgs[k] is None:
             return
 
-        self.ax[k].set_title(AXES_NAMES[k] + f" - {Path(self.fnames[k]).name}")
+        title = AXES_NAMES[k]
+        # title += f" - {Path(self.fnames[k]).name}"
+
+        self.ax[k].set_title(title)
 
         if self.color == 'Binarized':
             if self.imgs_bin[k] is None:
@@ -438,7 +445,7 @@ class ImagesAlign:
     def plot_juxtaposed_images(self):
         """ Plot the juxtaposed images """
 
-        self.ax[2].set_title("Juxtaposed images")
+        self.ax[3].set_title("Juxtaposed images")
 
         img_0 = self.ax[0].get_images()
         img_1 = self.ax[1].get_images()
@@ -451,13 +458,13 @@ class ImagesAlign:
         img, offset = concatenate_images(arr_0, arr_1, 'horizontal')
 
         if self.color == 'Gray':
-            self.ax[2].imshow(img, cmap='gray')
+            self.ax[3].imshow(img, cmap='gray')
         else:
-            self.ax[2].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
+            self.ax[3].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
         rng = np.random.default_rng(0)
         for point0, point1 in zip(self.points[0][:30], self.points[1][:30]):
             color = rng.random(3)
-            self.ax[2].plot((point0[0], point1[0] + offset[0]),
+            self.ax[3].plot((point0[0], point1[0] + offset[0]),
                             (point0[1], point1[1] + offset[1]), '-',
                             color=color)
