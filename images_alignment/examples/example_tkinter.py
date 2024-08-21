@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 from tkinter import Tk
 
-from images_alignment.application.app_tkinter import App
+from images_alignment.application.app import App
 from example import images_generation, UserTempDirectory
 
 
