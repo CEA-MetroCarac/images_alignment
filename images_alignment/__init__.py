@@ -11,12 +11,13 @@ import numpy as np
 import imageio.v3 as iio
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.patches import Rectangle
 from pystackreg import StackReg
-from skimage.transform import resize, warp, AffineTransform, estimate_transform
+from skimage.transform import warp, AffineTransform, estimate_transform
 
 from images_alignment.utils import (Terminal,
                                     gray_conversion, image_normalization,
-                                    padding, sift,
+                                    resizing, cropping, padding, sift,
                                     concatenate_images, recast)
 
 REG_MODELS = ['StackReg', 'SIFT']
@@ -30,7 +31,7 @@ AXES_NAMES = ['Fixed image', 'Moving image', 'Combined/Juxtaposed images']
 COLORS = [(0, 1, 0), (0, 0, 0), (1, 0, 0)]  # Green -> Black -> Red
 CMAP_BINARIZED = LinearSegmentedColormap.from_list('GreenBlackRed', COLORS, N=3)
 
-KEYS = ['cropping_areas', 'thresholds', 'bin_inversions', 'tmat']
+KEYS = ['areas', 'thresholds', 'bin_inversions', 'registration_model']
 
 # plt.rcParams['image.origin'] = 'lower'
 plt.rcParams['axes.titlesize'] = 10
@@ -65,8 +66,7 @@ class ImagesAlign:
 
         self.imgs = [None, None]
         self.dtypes = [None, None]
-        self.cropping_areas = [None, None]
-        self.is_cropped = [False, False]
+        self.areas = [None, None]
         self.imgs_bin = [None, None]
         self.registration_model = 'StackReg'
         self.points = [[], []]
@@ -91,8 +91,7 @@ class ImagesAlign:
     def reinit(self, k):
         """ Reinitialize the k-th image and beyond """
         self.imgs_bin[k] = None
-        self.cropping_areas[k] = None
-        self.is_cropped[k] = False
+        self.areas[k] = None
         self.tmat = None
         self.points = [[], []]
         self.img_reg = None
@@ -113,51 +112,28 @@ class ImagesAlign:
             if reinit:
                 self.reinit(k)
             self.fnames[k] = fname
-            self.imgs[k] = image_normalization(gray_conversion(img))
             self.dtypes[k] = img.dtype
+            self.imgs[k] = image_normalization(gray_conversion(img))
+            self.binarization_k(k)
 
         except Exception as _:
             self.terminal.write(f"Failed to load {fname}\n\n")
 
-    def cropping(self, k, area=None, area_percent=None):
-        """ Crop the k-th image"""
+    def set_cropping_area_k(self, k, area=None, area_percent=None):
+        """ Set areas parameter for the k-th image"""
         if area is not None and area_percent is not None:
             msg = "ERROR: 'area' and 'area_percent' cannot be defined " \
                   "simultaneously "
             self.terminal.write(msg)
 
-        if self.is_cropped[k]:
-            msg = "ERROR: 2 consecutive crops are not allowed. "
-            msg += "Please, REINIT the image\n"
-            self.terminal.write(msg)
-            return
-
         if area is not None:
-            self.cropping_areas[k] = area
+            self.areas[k] = area
         elif area_percent is not None:
             xmin_p, xmax_p, ymin_p, ymax_p = area_percent
             shape = self.imgs[k].shape
             ymin, ymax = ymin_p * shape[0], ymax_p * shape[0]
             xmin, xmax = xmin_p * shape[1], xmax_p * shape[1]
-            self.cropping_areas[k] = xmin, xmax, ymin, ymax
-
-        if self.cropping_areas[k] is None:
-            return
-        else:
-            xmin, xmax, ymin, ymax = self.cropping_areas[k]
-            imin, imax, jmin, jmax = int(ymin), int(ymax), int(xmin), int(xmax)
-            self.imgs[k] = self.imgs[k][imin:imax, jmin:jmax]
-            self.is_cropped[k] = True
-
-    def resizing(self):
-        """ Resize the images to have similar shape (request for pyStackReg) """
-        if self.imgs[0] is None or self.imgs[1] is None:
-            return
-
-        if self.imgs[0].size <= self.imgs[1].size:
-            self.imgs[0] = resize(self.imgs[0], self.imgs[1].shape)
-        else:
-            self.imgs[1] = resize(self.imgs[1], self.imgs[0].shape)
+            self.areas[k] = xmin, xmax, ymin, ymax
 
     def binarization_k(self, k):
         """ Binarize the k-th image """
@@ -185,13 +161,13 @@ class ImagesAlign:
             self.registration_model = registration_model
 
         if self.registration_model == 'StackReg':
-            self.resizing()
-            self.binarization_k(0)  # reinit
-            self.binarization_k(1)  # reinit
-            self.tmat = STREG.register(*self.imgs_bin)
+            imgs = [cropping(self.imgs_bin[k], self.areas[k]) for k in range(2)]
+            imgs = resizing(*imgs)
+            self.tmat = STREG.register(*imgs)
 
         elif self.registration_model == 'SIFT':
-            self.tmat, self.points = sift(*self.imgs)
+            imgs = [cropping(self.imgs[k], self.areas[k]) for k in range(2)]
+            self.tmat, self.points = sift(*imgs)
 
         elif self.registration_model == 'User-Driven':
             src = np.asarray(self.points[0])
@@ -209,21 +185,24 @@ class ImagesAlign:
         if self.tmat is None:
             return
 
-        self.binarization_k(0)  # reinit
-        self.binarization_k(1)  # reinit
+        imgs = [cropping(self.imgs[k], self.areas[k]) for k in range(2)]
+        imgs_bin = [cropping(self.imgs_bin[k], self.areas[k]) for k in range(2)]
+        if self.registration_model == 'StackReg':
+            imgs = resizing(*imgs)
+            imgs_bin = resizing(*imgs_bin)
 
-        output_shape = self.imgs[0].shape
-        self.img_reg = warp(self.imgs[1], self.tmat,
+        output_shape = imgs[0].shape
+        self.img_reg = warp(imgs[1], self.tmat,
                             output_shape=output_shape, preserve_range=True,
                             mode='constant', cval=1, order=None)
-        self.img_reg_bin = warp(self.imgs_bin[1], self.tmat,
+        self.img_reg_bin = warp(imgs_bin[1], self.tmat,
                                 output_shape=output_shape, preserve_range=True,
                                 mode='constant', cval=1, order=None)
 
         # score calculation
         mask = warp(np.ones_like(self.img_reg_bin), self.tmat, mode='constant',
                     cval=0, preserve_range=True, order=None)
-        mismatch = np.logical_xor(self.imgs_bin[0], self.img_reg_bin)
+        mismatch = np.logical_xor(imgs_bin[0], self.img_reg_bin)
         mismatch[~mask] = 0
         self.score = 100 * (1. - np.sum(mismatch) / np.sum(mask))
 
@@ -263,6 +242,7 @@ class ImagesAlign:
         self.registration_apply()
 
     def set_dirname_res(self, dirname_res=None):
+        """ Set dirname results 'dirname_res' """
         if dirname_res is None:
             initialdir = None
             if self.fnames_tot[1] is not None:
@@ -299,7 +279,7 @@ class ImagesAlign:
 
         fnames_fixed = self.fnames_tot[0]
         fnames_moving = self.fnames_tot[1]
-        cropping_areas = self.cropping_areas.copy()
+        areas = self.areas.copy()
 
         for i, fname_moving in enumerate(fnames_moving):
 
@@ -313,14 +293,13 @@ class ImagesAlign:
 
                 self.load_image(0, fname=fname_fixed, reinit=True)
                 self.load_image(1, fname=fname_moving, reinit=True)
-                self.cropping(0, area=cropping_areas[0])
-                self.cropping(1, area=cropping_areas[1])
+                self.areas = areas
                 if not self.fixed_reg:
                     self.registration_calc()
                 self.registration_apply()
 
                 for k, img in enumerate([self.imgs[0], self.img_reg]):
-                    iio.imwrite(self.dirname_res[k] / name[k],
+                    iio.imwrite(self.dirname_res[k] / names[k],
                                 recast(img, self.dtypes[k]))
 
                 score = self.results[self.registration_model]['score']
@@ -347,23 +326,25 @@ class ImagesAlign:
             json.dump(data, fid, ensure_ascii=False, indent=4)
 
     @staticmethod
-    def reload_model(fname_json=None):
+    def reload_model(fname_json=None, obj=None):
         """ Reload model from a .json file and Return an ImagesAlign() object"""
 
         if fname_json is None:
-            fname_json = filedialog.askopenfile(defaultextension='.json')
+            fname_json = filedialog.askopenfilename(defaultextension='.json')
 
-        if isinstance(fname_json, (str, Path)) and os.path.isfile(fname_json):
-            with open(fname_json, 'r', encoding='utf-8') as fid:
-                data = json.load(fid)
+        if not os.path.isfile(fname_json):
+            raise IOError(f"{fname_json} is not a file")
 
-            imgalign = ImagesAlign()
-            for key, value in data.items():
-                setattr(imgalign, key, value)
-            imgalign.tmat = np.asarray(imgalign.tmat)
-            return imgalign
-        else:
-            return None
+        if obj is not None:
+            assert isinstance(obj, ImagesAlign)
+
+        with open(fname_json, 'r', encoding='utf-8') as fid:
+            data = json.load(fid)
+
+        imgalign = obj or ImagesAlign()
+        for key, value in data.items():
+            setattr(imgalign, key, value)
+        return imgalign
 
     def plot_all(self, ax=None):
         """ Plot all the axis """
@@ -377,7 +358,7 @@ class ImagesAlign:
         """ Plot the k-th axis """
         self.ax[k].clear()
 
-        if k == 0 or k == 1:
+        if k in [0, 1]:
             self.plot_fixed_or_moving_image(k)
 
         elif k == 2:
@@ -397,20 +378,20 @@ class ImagesAlign:
         if self.imgs[k] is None:
             return
 
-        title = AXES_NAMES[k]
-        # title += f" - {Path(self.fnames[k]).name}"
-
-        self.ax[k].set_title(title)
+        self.ax[k].set_title(AXES_NAMES[k])
 
         if self.color == 'Binarized':
-            if self.imgs_bin[k] is None:
-                self.binarization_k(k)
             img = np.zeros_like(self.imgs_bin[k], dtype=int)
             img[self.imgs_bin[k]] = 2 * k - 1
             self.ax[k].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
         else:
-            # if k==1 and self.img_reg is not None:
             self.ax[k].imshow(self.imgs[k], cmap='gray')
+
+        if self.areas[k] is not None:
+            xmin, xmax, ymin, ymax = self.areas[k]
+            width, height = xmax - xmin, ymax - ymin
+            self.ax[k].add_patch(Rectangle((xmin, ymin), width, height,
+                                           ec='y', fc='none'))
 
     def plot_combined_images(self):
         """ Plot the combined images """
@@ -421,25 +402,27 @@ class ImagesAlign:
             return
 
         if self.color == "Binarized":
-            if self.imgs_bin[0] is None:
-                self.binarization_k(0)
-            if self.imgs_bin[1] is None:
-                self.binarization_k(1)
-            img_0, img_1 = self.imgs_bin
+            imgs = self.imgs_bin.copy()
+            imgs = [cropping(imgs[k], self.areas[k]) for k in range(2)]
+            if self.registration_model == 'StackReg':
+                imgs = resizing(*imgs)
             if self.img_reg_bin is not None:
-                img_1 = self.img_reg_bin
-            img_0, img_1 = padding(img_0, img_1)
-            img = np.zeros_like(img_0, dtype=int)
-            img[img_1 * ~img_0] = 1
-            img[img_0 * ~img_1] = -1
+                imgs[1] = self.img_reg_bin.copy()
+            imgs = padding(*imgs)
+            img = np.zeros_like(imgs[0], dtype=int)
+            img[imgs[1] * ~imgs[0]] = 1
+            img[imgs[0] * ~imgs[1]] = -1
             self.ax[2].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
         else:
-            img_0, img_1 = self.imgs
-            if self.img_reg is not None:
-                img_1 = self.img_reg
-            img_0, img_1 = padding(img_0, img_1)
-            img = 0.5 * (img_0 + img_1)
+            imgs = self.imgs.copy()
+            imgs = [cropping(imgs[k], self.areas[k]) for k in range(2)]
+            if self.registration_model == 'StackReg':
+                imgs = resizing(*imgs)
+            if self.img_reg_bin is not None:
+                imgs[1] = self.img_reg.copy()
+            imgs = padding(*imgs)
+            img = 0.5 * (imgs[0] + imgs[1])
             self.ax[2].imshow(img, cmap='gray')
 
     def plot_juxtaposed_images(self):

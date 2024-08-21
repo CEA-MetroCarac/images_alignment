@@ -4,7 +4,7 @@ Application for images registration
 import sys
 import numpy as np
 from skimage.color import rgba2rgb, rgb2gray
-from skimage.transform import AffineTransform
+from skimage.transform import AffineTransform, resize
 from skimage.feature import SIFT, match_descriptors
 from skimage.measure import ransac
 from skimage import img_as_ubyte
@@ -40,6 +40,25 @@ def image_normalization(img):
     """ Normalize image in range [0., 1.] """
     vmin, vmax = img.min(), img.max()
     return (img - vmin) / (vmax - vmin)
+
+
+def resizing(img1, img2):
+    """ Resize the images to have similar shape (requested for pyStackReg) """
+    if img1.size <= img2.size:
+        img1 = resize(img1, img2.shape)
+    else:
+        img2 = resize(img2, img1.shape)
+    return img1, img2
+
+
+def cropping(img, area):
+    """ Return cropped image according to the given area """
+    if area is None:
+        return img
+    else:
+        assert np.asarray(area).dtype == int
+        jmin, jmax, imin, imax = area
+        return img[imin:imax, jmin:jmax]
 
 
 def padding(img1, img2):
@@ -99,10 +118,11 @@ def sift(img1, img2, model_class=None):
 
     src = np.asarray(keypoints[0][matches[:, 0]]).reshape(-1, 2)[:, ::-1]
     dst = np.asarray(keypoints[1][matches[:, 1]]).reshape(-1, 2)[:, ::-1]
-    tmat = ransac((src, dst), model_class,
-                  min_samples=4, residual_threshold=2)[0].params
+    model, inliers = ransac((src, dst), model_class,
+                            min_samples=4, residual_threshold=2)
 
-    points = [src, dst]
+    tmat = model.params
+    points = [src[inliers], dst[inliers]]
 
     return tmat, points
 

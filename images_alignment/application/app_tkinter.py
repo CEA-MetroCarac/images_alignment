@@ -7,7 +7,7 @@ import glob
 from pathlib import Path
 from itertools import groupby, count
 from tkinter import (Tk, Frame, LabelFrame, Label, Radiobutton, Scale,
-                     Button, Checkbutton, Listbox, messagebox,
+                     Button, Checkbutton, Listbox, Entry, messagebox,
                      W, E, END, HORIZONTAL, Y, LEFT, RIGHT,
                      DoubleVar, StringVar)
 from tkinter.ttk import Scrollbar
@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.colors import ListedColormap
+from matplotlib.patches import Rectangle
 from imageio.v3 import imwrite
 
 from images_alignment import ImagesAlign
@@ -103,7 +104,7 @@ class View:
     def __init__(self, root, model):
 
         self.model = model
-
+        self.areas_entry = [None, None]
         self.thresholds = [DoubleVar(value=self.model.thresholds[0]),
                            DoubleVar(value=self.model.thresholds[1])]
         self.registration_model = StringVar(value=self.model.registration_model)
@@ -112,6 +113,7 @@ class View:
         self.mode = StringVar(value='Juxtaposed')
         self.k_ref = 2
         self.pair = [None, None]
+        self.rectangle = None
         self.line = None
         self.lines = []
 
@@ -133,6 +135,7 @@ class View:
 
         fig0, ax0 = plt.subplots(1, 4, figsize=(10, 1.8),
                                  gridspec_kw={'width_ratios': [1, 1, 1, 2]})
+        fig0.tight_layout(h_pad=0.1)
         [ax0[i].set_label(i) for i in range(4)]
         [ax0[i].get_xaxis().set_visible(False) for i in range(4)]
         [ax0[i].get_yaxis().set_visible(False) for i in range(4)]
@@ -156,14 +159,17 @@ class View:
         self.canvas0 = FigureCanvasTkAgg(fig0, master=frame_visu)
         add(self.canvas0.get_tk_widget(), 1, 0, padx=0)
         self.canvas0.draw()
-        self.canvas0.mpl_connect('button_press_event', self.on_press)
+        self.canvas0.mpl_connect('button_press_event', self.select_axis)
 
         self.canvas1 = FigureCanvasTkAgg(fig1, master=frame_visu)
         add(self.canvas1.get_tk_widget(), 2, 0, padx=0)
         self.canvas1.draw()
-        self.canvas1.mpl_connect('button_press_event', self.on_press1)
-        self.canvas1.mpl_connect('motion_notify_event', self.on_motion1)
-        self.canvas1.mpl_connect('scroll_event', self.on_scroll1)
+        self.canvas1.mpl_connect('button_press_event', self.init_rectangle)
+        self.canvas1.mpl_connect('motion_notify_event', self.draw_rectangle)
+        self.canvas1.mpl_connect('button_release_event', self.set_area)
+        self.canvas1.mpl_connect('button_press_event', self.init_or_remove_line)
+        self.canvas1.mpl_connect('motion_notify_event', self.draw_line)
+        self.canvas1.mpl_connect('scroll_event', self.zoom)
 
         fr_toolbar = Frame(frame_visu)
         add(fr_toolbar, 3, 0, W)
@@ -188,77 +194,84 @@ class View:
             # fselector.lbox.bind('<<ListboxRemoveAll>>', self.delete_all)
             self.fselectors.append(fselector)
 
+            add(Label(frame, text='Cropping area:'), 1, 0, E)
+            self.areas_entry[k] = Entry(frame)
+            self.areas_entry[k].insert(0, str(self.model.areas[k]))
+            add(self.areas_entry[k], 1, 1, W)
             add(Button(frame, text='REINIT',
-                       command=lambda k=k: self.reinit(k)), 1, 1)
+                       command=lambda k=k: self.reinit(k)), 1, 2)
 
-            add(Label(frame, text='Threshold:'), 2, 0)
+            add(Label(frame, text='Threshold:'), 2, 0, E)
             add(Scale(frame, resolution=0.01, to=1., orient=HORIZONTAL,
                       tickinterval=1, variable=self.thresholds[k],
-                      command=lambda v, k=k: self.update_threshold(v, k)), 2, 1)
+                      command=lambda val, k=k: self.update_threshold(val, k)),
+                2, 1, W)
             add(Button(frame, text='Reverse',
                        command=lambda k=k: self.bin_inversion(k)), 2, 2)
 
         frame = LabelFrame(frame_proc, text='Preprocessing', font=FONT)
         add(frame, 2, 0, W + E)
 
-        add(Button(frame, text='CROPPING', command=self.cropping), 0, 0)
-        add(Button(frame, text='RESIZING', command=self.resizing), 0, 1)
-        add(Button(frame, text='REGISTRATION', command=self.registration), 0, 2)
-
         add(Radiobutton(frame, text=REG_MODELS[0], value=REG_MODELS[0],
-                        variable=self.registration_model), 1, 0)
+                        variable=self.registration_model), 0, 0)
         add(Radiobutton(frame, text=REG_MODELS[1], value=REG_MODELS[1],
-                        variable=self.registration_model), 1, 1)
+                        variable=self.registration_model), 0, 1)
         add(Radiobutton(frame, text=REG_MODELS[2], value=REG_MODELS[2],
-                        variable=self.registration_model), 1, 2)
+                        variable=self.registration_model), 0, 2)
 
-        add(Button(frame, text='SAVE FIXED IMAGE',
-                   command=lambda: self.save_image_k(0)), 2, 1)
-        add(Button(frame, text='SAVE MOVING IMAGE',
-                   command=lambda: self.save_image_k(1)), 3, 1)
+        add(Button(frame, text='REGISTRATION',
+                   command=self.registration), 1, 1)
+
+        add(Button(frame, text='SAVE IMAGES',
+                   command=self.save_images), 2, 0)
+        add(Button(frame, text='SAVE MODEL',
+                   command=self.model.save_model), 2, 1)
+        add(Button(frame, text='LOAD MODEL',
+                   command=self.reload_model), 2, 2)
 
         frame = LabelFrame(frame_proc, text='Application', font=FONT)
         add(frame, 3, 0, W + E)
 
         add(Button(frame, text='SELECT DIR. RESULT',
-                   command=self.model.set_dirname_res), 0, 0, cspan=3)
+                   command=self.model.set_dirname_res), 0, 0, cspan=2)
 
         add(Checkbutton(frame, text='Fixed registration',
-                        variable=self.model.fixed_reg), 1, 0, cspan=2)
-
+                        variable=self.model.fixed_reg), 1, 0, padx=30)
         add(Button(frame, text='APPLY TO ALL',
-                   command=self.apply_to_all), 1, 2)
+                   command=self.apply_to_all), 1, 1, padx=20)
 
-    def on_press(self, event):
+    def select_axis(self, event):
         """ Select the axis to be displayed in 'fig1' """
-        if self.toolbar.mode != '' or \
-                event.inaxes not in self.model.ax:
+        if self.toolbar.mode != '' or event.inaxes not in self.model.ax:
             return
 
         self.k_ref = int(event.inaxes.axes.get_label())
         self.update_plot_1()
         self.canvas1.draw()
 
-    def remove_line(self):
-        """ Remove the current line """
-        self.pair = [None, None]
-        if self.line is not None:
-            self.line.remove()
-        self.line = None
-        self.canvas1.draw_idle()
+    def init_rectangle(self, event):
+        if self.toolbar.mode != '' or event.inaxes != self.ax1:
+            return
 
-    def on_press1(self, event):
-        """ Select the 'User-Driven' points in 'fig1' """
-        if self.toolbar.mode != '' or \
-                event.inaxes != self.ax1 or \
-                self.registration_model.get() != 'User-Driven':
+        if self.k_ref not in [0, 1]:
+            return
+
+        x, y = event.xdata, event.ydata
+        self.pair = [[x, y], [None, None]]
+        self.rectangle = Rectangle((x, y), 0, 0, ec='y', fc='none')
+        self.ax1.add_patch(self.rectangle)
+
+    def init_or_remove_line(self, event):
+        if self.toolbar.mode != '' or event.inaxes != self.ax1:
+            return
+
+        if self.k_ref != 3 or self.registration_model.get() != 'User-Driven':
             return
 
         x, y = event.xdata, event.ydata
         x12 = self.model.imgs[0].shape[1]
 
         if event.button == 1:
-
             if x > x12:
                 if self.pair[1] is None:
                     self.pair[1] = [x, y]
@@ -270,11 +283,11 @@ class View:
                 self.lines.append(self.ax1.plot((x1, x2), (y1, y2), 'r-')[0])
                 self.model.points[0].append([x1, y1])
                 self.model.points[1].append([x2 - x12, y2])
-                self.remove_line()
+                self.remove_moving_line()
 
         elif event.button == 3:
             if self.pair != [None, None]:  # remove the current line
-                self.remove_line()
+                self.remove_moving_line()
             elif len(self.lines) > 0:  # remove the closest line
                 pts = self.model.points
                 d0 = [(xp - x) ** 2 + (yp - y) ** 2 for xp, yp in pts[0]]
@@ -287,12 +300,21 @@ class View:
                 del self.model.points[1][ind]
                 self.canvas1.draw_idle()
 
-    def on_motion1(self, event):
-        """ Draw the line (dynamically) in 'User-Driven' mode  in 'fig1' """
-        if self.toolbar.mode != '' or \
-                event.inaxes != self.ax1 or \
-                self.registration_model.get() != 'User-Driven' or \
-                self.pair == [None, None]:
+    def remove_moving_line(self):
+        """ Remove the moving line """
+        self.pair = [None, None]
+        if self.line is not None:
+            self.line.remove()
+        self.line = None
+        self.canvas1.draw_idle()
+
+    def draw_line(self, event):
+        """ Draw the line in 'fig1' (with 'User-Driven' mode activated) """
+
+        if self.toolbar.mode != '' or event.inaxes != self.ax1:
+            return
+
+        if self.k_ref != 3 or self.pair == [None, None]:
             return
 
         if self.line is not None:
@@ -307,7 +329,33 @@ class View:
             self.line, = self.ax1.plot((x, x2), (y, y2), 'r-')
         self.canvas1.draw_idle()
 
-    def on_scroll1(self, event):
+    def draw_rectangle(self, event, set_area=False):
+
+        if self.toolbar.mode != '' or event.inaxes != self.ax1:
+            return
+
+        if self.k_ref not in [0, 1] or self.pair[0] is None:
+            return
+
+        x, y = event.xdata, event.ydata
+        x0, y0 = self.pair[0]
+        self.rectangle.set_width(x - x0)
+        self.rectangle.set_height(y - y0)
+        self.canvas1.draw_idle()
+
+        if set_area:
+            area = [int(min(x0, x)), int(max(x0, x)),
+                    int(min(y0, y)), int(max(y0, y))]
+            self.model.set_area_k(self.k_ref, area=area)
+            self.areas_entry[self.k_ref].delete(0, END)
+            self.areas_entry[self.k_ref].insert(0, str(area))
+            self.update_plots(self.k_ref)
+            self.pair = [None, None]
+
+    def set_area(self, event):
+        self.draw_rectangle(event, set_area=True)
+
+    def zoom(self, event):
         """ Zoom/Unzoom the 'fig1' """
         base_scale = 1.1
 
@@ -409,22 +457,8 @@ class View:
         ind = self.fselectors[k].lbox.curselection()[0]
         fname = self.fselectors[k].fnames[ind]
         self.model.load_image(k, fname=fname, reinit=True)
-        self.update_plots()
-
-    def cropping(self):
-        """ Crop the images """
-        k = self.k_ref
-        if k not in [0, 1]:
-            return
-        x, y = self.ax1.get_xlim(), self.ax1.get_ylim()
-        area = [x[0], x[1], y[1], y[0]]  # origin='upper' -> y inversion
-        self.model.cropping(k, area=area)
+        self.areas_entry[k].delete(0, END)
         self.update_plots(k)
-
-    def resizing(self):
-        """ Resize the images """
-        self.model.resizing()
-        self.update_plots()
 
     def registration(self):
         """ Apply registration """
@@ -432,8 +466,13 @@ class View:
         self.model.registration(registration_model=registration_model)
         self.update_plots()
 
+    def save_images(self):
+        """ Save all the images """
+        self.save_image_k(0)
+        self.save_image_k(1)
+
     def save_image_k(self, k):
-        """ Save the the k-th image """
+        """ Save the k-th image """
         ind = self.fselectors[k].lbox.curselection()[0]
         fname = Path(self.fselectors[k].fnames[ind])
         initialdir = fname.parent
@@ -445,11 +484,23 @@ class View:
         if fname_reg == "":
             return
 
+        # TODO revisit
         img = self.model.imgs[k]
         if k == 1 and self.model.img_reg is not None:
             img = self.model.img_reg
 
         imwrite(fname_reg, img)
+
+    def reload_model(self):
+        """ Reload model """
+        fname_json = r"C:\Users\PQ177701\Desktop\model.json"
+        self.model.reload_model(fname_json, obj=self.model)
+        self.registration_model.set(self.model.registration_model)
+        for k in range(2):
+            self.thresholds[k].set(self.model.thresholds[k])
+            self.areas_entry[k].delete(0, END)
+            self.areas_entry[k].insert(0, str(self.model.areas[k]))
+        self.update_plots()
 
     def apply_to_all(self, dirname_res=None):
         """ Apply the alignment processing to all the images """
@@ -625,7 +676,7 @@ class App:
     """
 
     def __init__(self,
-                 root, size="1400x800", force_terminal_exit=True,
+                 root, size="1350x800", force_terminal_exit=True,
                  fnames_fixed=None,
                  fnames_moving=None,
                  thresholds=None,
@@ -660,14 +711,6 @@ def launcher(fname_json=None):
 
     if fname_json is not None:
         appli.reload(fname_json=fname_json)
-
-    # dirname = Path(r"C:\Users\PQ177701\AppData\Local\Temp\images_alignement")
-    # fnames = [dirname / "img2_1.tif",
-    #           dirname / "img2_2.tif",
-    #           dirname / "img2_3.tif"]
-    #
-    # appli.fselectors[0].add_items(fnames=[dirname / "img2_2.tif"])
-    # appli.fselectors[1].add_items(fnames=fnames)
 
     root.mainloop()
 
