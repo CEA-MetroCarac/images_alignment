@@ -10,7 +10,7 @@ import panel as pn
 import numpy as np
 import imageio.v3 as iio
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import ListedColormap
 from matplotlib.patches import Rectangle
 from pystackreg import StackReg
 from skimage.transform import warp, AffineTransform, estimate_transform
@@ -20,20 +20,11 @@ from images_alignment.utils import (Terminal,
                                     resizing, cropping, padding, sift,
                                     concatenate_images, recast)
 
-REG_MODELS = ['StackReg', 'SIFT']
+REG_MODELS = ['StackReg', 'SIFT', 'User-Driven']
 STREG = StackReg(StackReg.AFFINE)
-
-STEP = 1  # default translation increment
-ANGLE = np.deg2rad(0.5)  # default rotation angular increment
-COEF = 1.01  # default scaling coefficient
-
-AXES_NAMES = ['Fixed image', 'Moving image', 'Combined/Juxtaposed images']
-COLORS = [(0, 1, 0), (0, 0, 0), (1, 0, 0)]  # Green -> Black -> Red
-CMAP_BINARIZED = LinearSegmentedColormap.from_list('GreenBlackRed', COLORS, N=3)
-
+CMAP_BINARIZED = ListedColormap(["#00FF00", "black", "red"])
 KEYS = ['areas', 'thresholds', 'bin_inversions', 'registration_model']
 
-# plt.rcParams['image.origin'] = 'lower'
 plt.rcParams['axes.titlesize'] = 10
 
 
@@ -209,38 +200,6 @@ class ImagesAlign:
         self.results[self.registration_model] = {'score': self.score,
                                                  'tmat': self.tmat}
 
-    def translate(self, mode, step=STEP):
-        """ Apply translation step in 'tmat' """
-        if mode == 'up':
-            self.tmat[1, 2] -= step
-        elif mode == 'down':
-            self.tmat[1, 2] += step
-        elif mode == 'left':
-            self.tmat[0, 2] += step
-        elif mode == 'right':
-            self.tmat[0, 2] -= step
-        self.registration_apply()
-
-    def rotate(self, angle=ANGLE, xc_rel=0.5, yc_rel=0.5):
-        """ Apply rotation coefficients in 'tmat' """
-
-        rotation_mat = np.array([[np.cos(angle), np.sin(angle), 0],
-                                 [-np.sin(angle), np.cos(angle), 0],
-                                 [0, 0, 1]])
-
-        shape = self.imgs_bin[0].shape
-        transl_x, transl_y = int(xc_rel * shape[1]), int(yc_rel * shape[0])
-
-        transl = np.array([[1, 0, -transl_x],
-                           [0, 1, -transl_y],
-                           [0, 0, 1]])
-        inv_transl = np.array([[1, 0, transl_x],
-                               [0, 1, transl_y],
-                               [0, 0, 1]])
-
-        self.tmat = self.tmat @ inv_transl @ rotation_mat @ transl
-        self.registration_apply()
-
     def set_dirname_res(self, dirname_res=None):
         """ Set dirname results 'dirname_res' """
         if dirname_res is None:
@@ -378,7 +337,7 @@ class ImagesAlign:
         if self.imgs[k] is None:
             return
 
-        self.ax[k].set_title(AXES_NAMES[k])
+        self.ax[k].set_title(['Fixed image', 'Moving image'][k])
 
         if self.color == 'Binarized':
             img = np.zeros_like(self.imgs_bin[k], dtype=int)

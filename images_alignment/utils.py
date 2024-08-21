@@ -48,7 +48,7 @@ def resizing(img1, img2):
         img1 = resize(img1, img2.shape)
     else:
         img2 = resize(img2, img1.shape)
-    return img1, img2
+    return [img1, img2]
 
 
 def cropping(img, area):

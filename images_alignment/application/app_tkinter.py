@@ -15,17 +15,13 @@ from tkinter import filedialog as fd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
-from matplotlib.colors import ListedColormap
 from matplotlib.patches import Rectangle
 from imageio.v3 import imwrite
 
 from images_alignment import ImagesAlign
-from images_alignment import REG_MODELS
+from images_alignment import REG_MODELS, CMAP_BINARIZED
 
-REG_MODELS += ['User-Driven']
-VIEW_MODES = ['Gray', 'Binarized', 'Juxtaposed']
 FONT = ('Helvetica', 8, 'bold')
-CMAP_BINARIZED = ListedColormap(["#00FF00", "black", "red"])
 
 
 def add(obj, row, col, sticky='', padx=5, pady=3, rspan=1, cspan=1, **kwargs):
@@ -187,7 +183,7 @@ class View:
             add(fr, 0, 0, W + E, cspan=3)
             fselector = FilesSelector(root=fr, lbox_size=[45, 3])
             fselector.lbox.bind('<<ListboxSelect>>',
-                                lambda _, k=k: self.update(k))
+                                lambda _, k=k: self.update_file(k))
             # fselector.lbox.bind('<<ListboxAdd>>',
             #                     lambda _, k=k: self.add_items)
             # fselector.lbox.bind('<<ListboxRemove>>', self.delete)
@@ -196,7 +192,6 @@ class View:
 
             add(Label(frame, text='Cropping area:'), 1, 0, E)
             self.areas_entry[k] = Entry(frame)
-            self.areas_entry[k].insert(0, str(self.model.areas[k]))
             add(self.areas_entry[k], 1, 1, W)
             add(Button(frame, text='REINIT',
                        command=lambda k=k: self.reinit(k)), 1, 2)
@@ -347,12 +342,12 @@ class View:
             area = [int(min(x0, x)), int(max(x0, x)),
                     int(min(y0, y)), int(max(y0, y))]
             self.model.set_area_k(self.k_ref, area=area)
-            self.areas_entry[self.k_ref].delete(0, END)
-            self.areas_entry[self.k_ref].insert(0, str(area))
             self.update_plots(self.k_ref)
             self.pair = [None, None]
+            self.set_areas()
 
     def set_area(self, event):
+        """ Set area from the view to the model """
         self.draw_rectangle(event, set_area=True)
 
     def zoom(self, event):
@@ -383,7 +378,15 @@ class View:
         self.ax1.figure.canvas.toolbar.push_current()
         self.canvas1.draw_idle()
 
-    def update(self, k):
+    def update(self):
+        """ Update the view parameters from the model and the plots """
+        for k in range(2):
+            self.areas_entry[k].delete(0, END)
+            self.areas_entry[k].insert(0, str(self.model.areas[k]))
+        self.registration_model.set(self.model.registration_model)
+        self.update_plots()
+
+    def update_file(self, k):
         """ Update the k-th image from the fileselector and its related one """
         fsel = self.fselectors
 
@@ -509,7 +512,7 @@ class View:
         for k in range(2):
             self.fselectors[k].fnames = [model.dirname_res[k] / Path(x).name
                                          for x in model.fnames_tot[k]]
-        self.update(0)
+        self.update_file(0)
 
 
 class FilesSelector:
