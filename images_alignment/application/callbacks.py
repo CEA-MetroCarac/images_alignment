@@ -189,16 +189,37 @@ class Callbacks:
         """ Update the k-th image from the fileselector and its related one """
         fsel = self.fselectors
 
+        # synchronize fnames_tot
+        self.model.fnames_tot = [fsel[0].fnames, fsel[1].fnames]
+
+        if len(fsel[k].fnames) == 0:
+            self.model.fnames[k] = None
+            self.model.imgs[k] = None
+            self.clear_plots()
+            return
+
         ind = fsel[k].lbox.curselection()[0]
-        self.model.load_image(k, fname=fsel[k].fnames[ind])
+        fname = fsel[k].fnames[ind]
+        if fname != self.model.fnames[k]:
+            self.model.load_image(k, fname=fname)
 
-        if k == 0:
-            fsel[1].select_item(ind)
-            self.model.load_image(1, fname=fsel[1].fnames[ind])
+        if len(fsel[0].fnames) == len(fsel[1].fnames):
+            fsel[1 - k].select_item(ind)
+            fname = fsel[k].fnames[ind]
+            if fname != self.model.fnames[1 - k]:
+                self.model.load_image(1 - k, fname=fname)
 
-        elif len(self.fselectors[0].fnames) > 1:
-            fsel[0].select_item(ind)
-            self.model.load_image(0, fname=fsel[0].fnames[ind])
+        elif len(fsel[0].fnames) == 1:
+            fsel[0].select_item(0)
+            fname = fsel[0].fnames[0]
+            if fname != self.model.fnames[0]:
+                self.model.load_image(0, fname=fname)
+
+        else:
+            self.model.fnames[1 - k] = None
+            self.model.imgs[1 - k] = None
+            self.clear_plots()
+            return
 
         self.update_plots()
 
@@ -213,6 +234,13 @@ class Callbacks:
             self.model.plot_k(2)
             self.model.plot_k(3)
         self.update_fig1()
+        self.canvas0.draw()
+        self.canvas1.draw()
+
+    def clear_plots(self):
+        """ Clear points """
+        [self.model.ax[k].clear() for k in range(4)]
+        self.ax1.clear()
         self.canvas0.draw()
         self.canvas1.draw()
 

@@ -158,12 +158,9 @@ class View(Callbacks):
             fr = Frame(frame)
             add(fr, 0, 0, W + E, cspan=3)
             fselector = FilesSelector(root=fr, lbox_size=[45, 3])
-            fselector.lbox.bind('<<ListboxSelect>>',
-                                lambda _, k=k: self.update_file(k))
-            # fselector.lbox.bind('<<ListboxAdd>>',
-            #                     lambda _, k=k: self.add_items)
-            # fselector.lbox.bind('<<ListboxRemove>>', self.delete)
-            # fselector.lbox.bind('<<ListboxRemoveAll>>', self.delete_all)
+            for event in ['<<ListboxSelect>>', '<<ListboxAdd>>',
+                          '<<ListboxRemove>>', '<<ListboxRemoveAll>>']:
+                fselector.lbox.bind(event, lambda _, k=k: self.update_file(k))
             self.fselectors.append(fselector)
 
             add(Label(frame, text='Cropping area:'), 1, 0, E, pady=0)
