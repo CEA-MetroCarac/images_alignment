@@ -11,20 +11,12 @@ from skimage import img_as_ubyte
 
 
 class Terminal:
-    """ Class to 'write' in the console """
+    """ Class to 'write' into the console """
 
     def write(self, message):
-        """ Write message in the console """
+        """ Write message into the console """
         sys.stdout.write(message)
         sys.stdout.flush()
-
-
-def recast(img, dtype):
-    """ Recast 'img' according to 'dtype' """
-    if dtype == np.uint8:
-        return img_as_ubyte(img)
-    else:
-        return img
 
 
 def gray_conversion(img):
@@ -45,9 +37,9 @@ def image_normalization(img):
 def resizing(img1, img2):
     """ Resize the images to have similar shape (requested for pyStackReg) """
     if img1.size <= img2.size:
-        img1 = resize(img1, img2.shape)
+        img1 = resize(img1, img2.shape, preserve_range=True)
     else:
-        img2 = resize(img2, img1.shape)
+        img2 = resize(img2, img1.shape, preserve_range=True)
     return [img1, img2]
 
 
@@ -66,11 +58,18 @@ def padding(img1, img2):
     shape1 = img1.shape
     shape2 = img2.shape
 
-    hmax = max(img1.shape[0], img2.shape[0])
-    wmax = max(img1.shape[1], img2.shape[1])
+    hmax = max(shape1[0], shape2[0])
+    wmax = max(shape1[1], shape2[1])
 
-    img1_pad = np.pad(img1, ((0, hmax - shape1[0]), (0, wmax - shape1[1])))
-    img2_pad = np.pad(img2, ((0, hmax - shape2[0]), (0, wmax - shape2[1])))
+    if len(shape1) == 2:
+        pad_width1 = ((0, hmax - shape1[0]), (0, wmax - shape1[1]))
+        pad_width2 = ((0, hmax - shape2[0]), (0, wmax - shape2[1]))
+    else:
+        pad_width1 = ((0, hmax - shape1[0]), (0, wmax - shape1[1]), (0, 0))
+        pad_width2 = ((0, hmax - shape2[0]), (0, wmax - shape2[1]), (0, 0))
+
+    img1_pad = np.pad(img1, pad_width1)
+    img2_pad = np.pad(img2, pad_width2)
 
     return img1_pad, img2_pad
 

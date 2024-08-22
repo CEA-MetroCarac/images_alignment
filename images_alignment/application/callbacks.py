@@ -10,7 +10,6 @@ from matplotlib.patches import Rectangle
 from imageio.v3 import imwrite
 
 from images_alignment import CMAP_BINARIZED
-from images_alignment.utils import recast
 
 
 class Callbacks:
@@ -292,8 +291,9 @@ class Callbacks:
     def update_threshold(self, value, k):
         """ Update the threshold value associated with the k-th image """
         self.model.thresholds[k] = float(value)
-        self.model.registration_apply()
-        self.update_plots(k)
+        self.model.binarization_k(k)
+        self.model.registration()
+        self.update_plots()
 
     def update_registration_model(self):
         """ Update the threshold value associated with the k-th image """
@@ -328,7 +328,7 @@ class Callbacks:
             fname_reg = fd.asksaveasfilename(initialfile=initialfile,
                                              initialdir=initialdir)
             if fname_reg != "":
-                imwrite(fname_reg, recast(imgs[k], self.model.dtypes[k]))
+                imwrite(fname_reg, imgs[k].astype(self.model.dtypes[k]))
 
     def reload_model(self):
         """ Reload model """

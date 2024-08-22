@@ -18,7 +18,7 @@ from skimage.transform import warp, AffineTransform, estimate_transform
 from images_alignment.utils import (Terminal,
                                     gray_conversion, image_normalization,
                                     resizing, cropping, padding, sift,
-                                    concatenate_images, recast)
+                                    concatenate_images)
 
 REG_MODELS = ['StackReg', 'SIFT', 'User-Driven']
 STREG = StackReg(StackReg.AFFINE)
@@ -99,9 +99,9 @@ class ImagesAlign:
         try:
             img = iio.imread(fname)
             self.reinit()
-            self.fnames[k] = fname
+            self.imgs[k] = img
             self.dtypes[k] = img.dtype
-            self.imgs[k] = image_normalization(gray_conversion(img))
+            self.fnames[k] = fname
             self.binarization_k(k)
 
         except Exception as _:
@@ -128,7 +128,8 @@ class ImagesAlign:
         if self.imgs[k] is None:
             return
 
-        self.imgs_bin[k] = self.imgs[k] > self.thresholds[k]
+        img = image_normalization(gray_conversion(self.imgs[k]))
+        self.imgs_bin[k] = img > self.thresholds[k]
 
         if self.bin_inversions[k]:
             self.imgs_bin[k] = ~self.imgs_bin[k]
@@ -161,6 +162,7 @@ class ImagesAlign:
 
         elif self.registration_model == 'SIFT':
             imgs = self.crop_and_resize(self.imgs)
+            imgs = [gray_conversion(img) for img in imgs]
             self.tmat, self.points = sift(*imgs)
 
         elif self.registration_model == 'User-Driven':
@@ -184,10 +186,12 @@ class ImagesAlign:
 
         output_shape = imgs[0].shape
         self.img_reg = warp(imgs[1], self.tmat,
-                            output_shape=output_shape, preserve_range=True,
+                            output_shape=output_shape,
+                            preserve_range=True,
                             mode='constant', cval=1, order=None)
         self.img_reg_bin = warp(imgs_bin[1], self.tmat,
-                                output_shape=output_shape, preserve_range=True,
+                                output_shape=output_shape[:2],
+                                preserve_range=True,
                                 mode='constant', cval=1, order=None)
 
         # score calculation
@@ -256,10 +260,9 @@ class ImagesAlign:
                 if not self.fixed_reg:
                     self.registration_calc()
                 imgs = self.registration_apply()
-
-                for k, img in enumerate(imgs):
+                for k in range(2):
                     iio.imwrite(self.dirname_res[k] / names[k],
-                                recast(img, self.dtypes[k]))
+                                imgs[k].astype(self.model.dtypes[k]))
 
             except:
                 self.terminal.write("FAILED\n")
@@ -372,6 +375,7 @@ class ImagesAlign:
             if self.img_reg is not None:
                 imgs[1] = self.img_reg.copy()
             imgs = padding(*imgs)
+            imgs = [image_normalization(gray_conversion(img)) for img in imgs]
             img = 0.5 * (imgs[0] + imgs[1])
             self.ax[2].imshow(img, cmap='gray')
 

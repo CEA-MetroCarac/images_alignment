@@ -18,16 +18,12 @@ def example_tkinter(dirname, registration_model=None):
     app = App(root,
               fnames_fixed=fnames_fixed,
               fnames_moving=fnames_moving,
-              thresholds=[0.4, 0.4],
+              thresholds=[0.5, 0.5],
               bin_inversions=[False, False]
               )
 
-    if registration_model == 'StackReg':
-        app.model.areas = [[130, 330, 50, 220], [120, 190, 40, 140]]
-        app.model.registration(registration_model='StackReg')
-
-    elif registration_model == 'SIFT':
-        app.model.registration(registration_model='SIFT')
+    app.model.areas = [[130, 330, 50, 220], [120, 190, 40, 140]]
+    app.model.registration(registration_model=registration_model)
 
     # apply the transformation to the set of images
     # app.view.apply_to_all(dirname_res=dirname / 'results')
@@ -45,7 +41,6 @@ if __name__ == '__main__':
         dirname = Path(tmpdir) / "images_alignement"
     dirname.mkdir(exist_ok=True)
 
-    # example_tkinter(dirname)
     example_tkinter(dirname, registration_model='StackReg')
     # example_tkinter(dirname, registration_model='SIFT')
     # example_tkinter(dirname, registration_model='User-Driven')
