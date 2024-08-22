@@ -30,7 +30,7 @@ class Terminal(Text):
 
     def __init__(self, root):
         font = Font(family="Helvetica", size=10)
-        super().__init__(root, height=7, width=25, font=font)
+        super().__init__(root, height=8, width=25, font=font)
 
     def write(self, value):
         """ Write 'value' in the related Tkinter.Text object """

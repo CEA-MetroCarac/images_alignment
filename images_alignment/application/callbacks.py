@@ -4,7 +4,7 @@ Class Callbacks attached to the application
 from pathlib import Path
 from tkinter import END
 from tkinter import filedialog as fd
-from tkinter.messagebox import showerror
+from tkinter.messagebox import showerror, askyesno
 
 from matplotlib.patches import Rectangle
 from imageio.v3 import imwrite
@@ -140,10 +140,12 @@ class Callbacks:
             area = [max(0, int(min(x0, x))), min(shape[1], int(max(x0, x))),
                     max(0, int(min(y0, y))), min(shape[0], int(max(y0, y)))]
             self.model.set_area_k(self.k_ref, area=area)
-            self.update_plots(self.k_ref)
-            self.pair = [None, None]
             self.areas_entry[self.k_ref].delete(0, END)
             self.areas_entry[self.k_ref].insert(0, str(area))
+            self.model.points = [[], []]
+            self.model.img_reg = None
+            self.model.img_reg_bin = None
+            self.update_plots(self.k_ref)
 
     def set_area(self, event):
         """ Set area from the view to the model """
@@ -205,7 +207,7 @@ class Callbacks:
 
         if len(fsel[0].fnames) == len(fsel[1].fnames):
             fsel[1 - k].select_item(ind)
-            fname = fsel[k].fnames[ind]
+            fname = fsel[1 - k].fnames[ind]
             if fname != self.model.fnames[1 - k]:
                 self.model.load_image(1 - k, fname=fname)
 
@@ -282,6 +284,9 @@ class Callbacks:
                 msg += " as '[xmin, xmax, ymin, ymax]'"
                 showerror(message=msg)
                 return
+        self.model.points = [[], []]
+        self.model.img_reg = None
+        self.model.img_reg_bin = None
         self.update_plots(k)
 
     def update_threshold(self, value, k):
@@ -327,8 +332,7 @@ class Callbacks:
 
     def reload_model(self):
         """ Reload model """
-        fname_json = r"C:\Users\PQ177701\Desktop\model.json"
-        self.model.reload_model(fname_json, obj=self.model)
+        self.model.reload_model(obj=self.model)
         self.registration_model.set(self.model.registration_model)
         for k in range(2):
             self.thresholds[k].set(self.model.thresholds[k])
@@ -338,6 +342,18 @@ class Callbacks:
 
     def apply_to_all(self, dirname_res=None):
         """ Apply the alignment processing to all the images """
+        dirnames_res = [dirname_res]
+        if self.model.dirname_res[0] is not None:
+            dirnames_res.append(self.model.dirname_res[0].parent)
+        if self.model.fnames[0].parents[1] in dirnames_res:
+            msg = 'You are about to re-align images located in the RESULT dir.'
+            if self.show_results.get():
+                msg += '\nTo go back to the raw data files, select "No" ' \
+                       'and uncheck the "Show results" button.'
+            msg += '\nContinue ?'
+            if not askyesno(message=msg):
+                return
+
         self.model.apply_to_all(dirname_res=dirname_res)
         self.areas = self.model.areas
         self.fnames_tot = self.model.fnames_tot
@@ -359,4 +375,5 @@ class Callbacks:
                 self.model.areas = self.areas
                 self.fselectors[k].fnames = self.fnames_tot[k]
 
-        self.update_file(0)
+        self.model.fnames = [None, None]  # To force the updating
+        self.update_file(1)
