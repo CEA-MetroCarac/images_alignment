@@ -200,6 +200,9 @@ class ImagesAlign:
         self.results[self.registration_model] = {'score': self.score,
                                                  'tmat': self.tmat}
 
+        score = self.results[self.registration_model]['score']
+        self.terminal.write(f"score : {score:.1f} %\n")
+
         return imgs[0], self.img_reg
 
     def set_dirname_res(self, dirname_res=None):
@@ -223,18 +226,20 @@ class ImagesAlign:
     def apply_to_all(self, dirname_res=None):
         """ Apply the transformations to a set of images """
         if self.fnames_tot[0] is None:
-            self.terminal.write("ERROR: fixed images are not defined\n\n")
+            self.terminal.write("\nERROR: fixed images are not defined\n\n")
             return
         if self.fnames_tot[1] is None:
-            self.terminal.write("ERROR: moving images are not defined\n\n")
+            self.terminal.write("\nERROR: moving images are not defined\n\n")
             return
 
         n0, n1 = len(self.fnames_tot[0]), len(self.fnames_tot[1])
         if not (n0 == 1 or n0 != n1):
-            msg = f"ERROR: fixed images should be 1 or {n1} files.\n"
+            msg = f"\nERROR: fixed images should be 1 or {n1} files.\n"
             msg += f"{n0} has been given\n\n"
             self.terminal.write(msg)
             return
+
+        self.terminal.write("\n")
 
         self.set_dirname_res(dirname_res=dirname_res)
 
@@ -246,7 +251,6 @@ class ImagesAlign:
             self.terminal.write(f"{i + 1}/{n1} {names[0]} - {names[1]}: ")
 
             try:
-
                 self.load_image(0, fname=fname_fixed)
                 self.load_image(1, fname=fname_moving)
                 if not self.fixed_reg:
@@ -256,9 +260,6 @@ class ImagesAlign:
                 for k, img in enumerate(imgs):
                     iio.imwrite(self.dirname_res[k] / names[k],
                                 recast(img, self.dtypes[k]))
-
-                score = self.results[self.registration_model]['score']
-                self.terminal.write(f"OK - score : {score:.1f} %\n")
 
             except:
                 self.terminal.write("FAILED\n")
