@@ -5,9 +5,10 @@ import os
 import re
 import glob
 from itertools import groupby, count
-from tkinter import Frame, Button, Listbox, W, E, END, Y, LEFT, RIGHT
+from tkinter import Frame, Button, Listbox, Text, W, E, END, Y, LEFT, RIGHT
 from tkinter import filedialog as fd
 from tkinter.ttk import Scrollbar
+from tkinter.font import Font
 
 
 def add(obj, row, col, sticky='', padx=5, pady=3, rspan=1, cspan=1, **kwargs):
@@ -22,6 +23,20 @@ def hsorted(list_):
     convert = lambda text: int(text) if text.isdigit() else text
     alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
     return sorted(list_, key=alphanum_key)
+
+
+class Terminal(Text):
+    """ Class inherited from Tkinter.Text with a write() function """
+
+    def __init__(self, root):
+        font = Font(family="Helvetica", size=10)
+        super().__init__(root, height=7, width=25, font=font)
+
+    def write(self, value):
+        """ Write 'value' in the related Tkinter.Text object """
+        self.insert(END, value)
+        self.see(END)
+        self.update_idletasks()
 
 
 class FilesSelector:

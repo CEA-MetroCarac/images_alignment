@@ -79,13 +79,11 @@ class ImagesAlign:
             self.fnames[1] = self.fnames_tot[1]
             self.load_files(1, self.fnames[1])
 
-    def reinit(self, k):
-        """ Reinitialize the k-th image and beyond """
-        self.imgs_bin[k] = None
-        self.areas[k] = None
-        self.tmat = None
+    def reinit(self):
+        """ Reinitialize 'points', 'img_reg', 'img_reg_bin' and 'results' """
         self.points = [[], []]
         self.img_reg = None
+        self.img_reg_bin = None
         self.results = {}
 
     def load_files(self, k, fnames):
@@ -94,14 +92,13 @@ class ImagesAlign:
             fnames = [fnames]
 
         self.fnames_tot[k] = fnames
-        self.load_image(k, fnames[0], reinit=True)
+        self.load_image(k, fnames[0])
 
-    def load_image(self, k, fname, reinit=False):
+    def load_image(self, k, fname):
         """ Load the k-th image """
         try:
             img = iio.imread(fname)
-            if reinit:
-                self.reinit(k)
+            self.reinit()
             self.fnames[k] = fname
             self.dtypes[k] = img.dtype
             self.imgs[k] = image_normalization(gray_conversion(img))
@@ -110,8 +107,8 @@ class ImagesAlign:
         except Exception as _:
             self.terminal.write(f"Failed to load {fname}\n\n")
 
-    def set_cropping_area_k(self, k, area=None, area_percent=None):
-        """ Set areas parameter for the k-th image"""
+    def set_area_k(self, k, area=None, area_percent=None):
+        """ Set area parameter for the k-th image"""
         if area is not None and area_percent is not None:
             msg = "ERROR: 'area' and 'area_percent' cannot be defined " \
                   "simultaneously "
@@ -141,6 +138,13 @@ class ImagesAlign:
         self.binarization_k(0)
         self.binarization_k(1)
 
+    def crop_and_resize(self, imgs):
+        """ Crop and Resize the images"""
+        imgs = [cropping(imgs[k], self.areas[k]) for k in range(2)]
+        if self.registration_model == 'StackReg':
+            imgs = resizing(*imgs)
+        return imgs
+
     def registration(self, registration_model=None):
         """ Calculate the transformation matrix 'tmat' and apply it """
         self.registration_calc(registration_model=registration_model)
@@ -152,12 +156,11 @@ class ImagesAlign:
             self.registration_model = registration_model
 
         if self.registration_model == 'StackReg':
-            imgs = [cropping(self.imgs_bin[k], self.areas[k]) for k in range(2)]
-            imgs = resizing(*imgs)
-            self.tmat = STREG.register(*imgs)
+            imgs_bin = self.crop_and_resize(self.imgs_bin)
+            self.tmat = STREG.register(*imgs_bin)
 
         elif self.registration_model == 'SIFT':
-            imgs = [cropping(self.imgs[k], self.areas[k]) for k in range(2)]
+            imgs = self.crop_and_resize(self.imgs)
             self.tmat, self.points = sift(*imgs)
 
         elif self.registration_model == 'User-Driven':
@@ -176,11 +179,8 @@ class ImagesAlign:
         if self.tmat is None:
             return
 
-        imgs = [cropping(self.imgs[k], self.areas[k]) for k in range(2)]
-        imgs_bin = [cropping(self.imgs_bin[k], self.areas[k]) for k in range(2)]
-        if self.registration_model == 'StackReg':
-            imgs = resizing(*imgs)
-            imgs_bin = resizing(*imgs_bin)
+        imgs = self.crop_and_resize(self.imgs)
+        imgs_bin = self.crop_and_resize(self.imgs_bin)
 
         output_shape = imgs[0].shape
         self.img_reg = warp(imgs[1], self.tmat,
@@ -199,6 +199,8 @@ class ImagesAlign:
 
         self.results[self.registration_model] = {'score': self.score,
                                                  'tmat': self.tmat}
+
+        return imgs[0], self.img_reg
 
     def set_dirname_res(self, dirname_res=None):
         """ Set dirname results 'dirname_res' """
@@ -229,7 +231,7 @@ class ImagesAlign:
 
         n0, n1 = len(self.fnames_tot[0]), len(self.fnames_tot[1])
         if not (n0 == 1 or n0 != n1):
-            msg = f"ERROR: fixed images should consist in 1 or {n1} files.\n"
+            msg = f"ERROR: fixed images should be 1 or {n1} files.\n"
             msg += f"{n0} has been given\n\n"
             self.terminal.write(msg)
             return
@@ -238,26 +240,20 @@ class ImagesAlign:
 
         fnames_fixed = self.fnames_tot[0]
         fnames_moving = self.fnames_tot[1]
-        areas = self.areas.copy()
-
         for i, fname_moving in enumerate(fnames_moving):
-
             fname_fixed = fnames_fixed[0] if n0 == 1 else fnames_fixed[i]
-
             names = [Path(fname_fixed).name, Path(fname_moving).name]
-
             self.terminal.write(f"{i + 1}/{n1} {names[0]} - {names[1]}: ")
 
             try:
 
-                self.load_image(0, fname=fname_fixed, reinit=True)
-                self.load_image(1, fname=fname_moving, reinit=True)
-                self.areas = areas
+                self.load_image(0, fname=fname_fixed)
+                self.load_image(1, fname=fname_moving)
                 if not self.fixed_reg:
                     self.registration_calc()
-                self.registration_apply()
+                imgs = self.registration_apply()
 
-                for k, img in enumerate([self.imgs[0], self.img_reg]):
+                for k, img in enumerate(imgs):
                     iio.imwrite(self.dirname_res[k] / names[k],
                                 recast(img, self.dtypes[k]))
 
@@ -361,10 +357,7 @@ class ImagesAlign:
             return
 
         if self.color == "Binarized":
-            imgs = self.imgs_bin.copy()
-            imgs = [cropping(imgs[k], self.areas[k]) for k in range(2)]
-            if self.registration_model == 'StackReg':
-                imgs = resizing(*imgs)
+            imgs = self.crop_and_resize(self.imgs_bin)
             if self.img_reg_bin is not None:
                 imgs[1] = self.img_reg_bin.copy()
             imgs = padding(*imgs)
@@ -374,11 +367,8 @@ class ImagesAlign:
             self.ax[2].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
         else:
-            imgs = self.imgs.copy()
-            imgs = [cropping(imgs[k], self.areas[k]) for k in range(2)]
-            if self.registration_model == 'StackReg':
-                imgs = resizing(*imgs)
-            if self.img_reg_bin is not None:
+            imgs = self.crop_and_resize(self.imgs)
+            if self.img_reg is not None:
                 imgs[1] = self.img_reg.copy()
             imgs = padding(*imgs)
             img = 0.5 * (imgs[0] + imgs[1])
@@ -404,9 +394,15 @@ class ImagesAlign:
         else:
             self.ax[3].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
+        x0 = y0 = x1 = y1 = 0
+        if self.areas[0] is not None:
+            x0, _, y0, _ = self.areas[0]
+        if self.areas[1] is not None:
+            x1, _, y1, _ = self.areas[1]
+
         rng = np.random.default_rng(0)
         for point0, point1 in zip(self.points[0][:30], self.points[1][:30]):
             color = rng.random(3)
-            self.ax[3].plot((point0[0], point1[0] + offset[0]),
-                            (point0[1], point1[1] + offset[1]), '-',
+            self.ax[3].plot((point0[0] + x0, point1[0] + x1 + offset[0]),
+                            (point0[1] + y0, point1[1] + y1 + offset[1]), '-',
                             color=color)

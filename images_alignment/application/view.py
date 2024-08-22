@@ -3,13 +3,13 @@ Class View attached to the application
 """
 from tkinter import (Frame, LabelFrame, Label, Radiobutton, Scale,
                      Button, Checkbutton, Entry,
-                     W, E, HORIZONTAL, DoubleVar, StringVar)
+                     W, E, HORIZONTAL, DoubleVar, StringVar, BooleanVar)
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 
 from images_alignment.application.callbacks import Callbacks
-from images_alignment.application.utils import add, FilesSelector
+from images_alignment.application.utils import add, FilesSelector, Terminal
 from images_alignment import REG_MODELS
 
 FONT = ('Helvetica', 8, 'bold')
@@ -83,9 +83,9 @@ class View(Callbacks):
         self.thresholds = [DoubleVar(value=self.model.thresholds[0]),
                            DoubleVar(value=self.model.thresholds[1])]
         self.registration_model = StringVar(value=self.model.registration_model)
-
         self.color = StringVar(value='Gray')
         self.mode = StringVar(value='Juxtaposed')
+        self.show_results = BooleanVar(value=True)
 
         # Frames creation
         #################
@@ -103,16 +103,17 @@ class View(Callbacks):
         # VISU frame
         ############
 
-        fig0, ax0 = plt.subplots(1, 4, figsize=(10, 1.8),
+        fig0, ax0 = plt.subplots(1, 4, figsize=(11, 1.5),
                                  gridspec_kw={'width_ratios': [1, 1, 1, 2]})
-        fig0.tight_layout(h_pad=0.1)
+        fig0.tight_layout(h_pad=0)
+        fig0.subplots_adjust(bottom=0.02)
         for i in range(4):
             ax0[i].set_label(i)
             ax0[i].get_xaxis().set_visible(False)
             ax0[i].get_yaxis().set_visible(False)
         self.model.ax = [ax0[i] for i in range(4)]
 
-        fig1, self.ax1 = plt.subplots(1, 1, figsize=(10, 5))
+        fig1, self.ax1 = plt.subplots(1, 1, figsize=(11, 6))
         plt.tight_layout()
 
         frame = Frame(frame_visu)
@@ -165,47 +166,52 @@ class View(Callbacks):
             # fselector.lbox.bind('<<ListboxRemoveAll>>', self.delete_all)
             self.fselectors.append(fselector)
 
-            add(Label(frame, text='Cropping area:'), 1, 0, E)
+            add(Label(frame, text='Cropping area:'), 1, 0, E, pady=0)
             self.areas_entry[k] = Entry(frame)
-            add(self.areas_entry[k], 1, 1, W)
-            add(Button(frame, text='REINIT',
-                       command=lambda k=k: self.reinit(k)), 1, 2)
+            self.areas_entry[k].bind("<Return>",
+                                     lambda _, k=k: self.update_areas(k))
+            add(self.areas_entry[k], 1, 1, W, pady=0)
 
-            add(Label(frame, text='Threshold:'), 2, 0, E)
+            add(Label(frame, text='Threshold:'), 2, 0, E, pady=0)
             add(Scale(frame, resolution=0.01, to=1., orient=HORIZONTAL,
-                      tickinterval=1, variable=self.thresholds[k],
+                      length=120, tickinterval=1, variable=self.thresholds[k],
                       command=lambda val, k=k: self.update_threshold(val, k)),
-                2, 1, W)
+                2, 1, W, pady=0)
             add(Button(frame, text='Reverse',
-                       command=lambda k=k: self.bin_inversion(k)), 2, 2)
+                       command=lambda k=k: self.bin_inversion(k)), 2, 2, pady=0)
 
-        frame = LabelFrame(frame_proc, text='Preprocessing', font=FONT)
-        add(frame, 2, 0, W + E)
+            frame = LabelFrame(frame_proc, text='Preprocessing', font=FONT)
+            add(frame, 2, 0, W + E)
 
-        add(Radiobutton(frame, text=REG_MODELS[0], value=REG_MODELS[0],
-                        variable=self.registration_model), 0, 0)
-        add(Radiobutton(frame, text=REG_MODELS[1], value=REG_MODELS[1],
-                        variable=self.registration_model), 0, 1)
-        add(Radiobutton(frame, text=REG_MODELS[2], value=REG_MODELS[2],
-                        variable=self.registration_model), 0, 2)
+            for i, reg_model in enumerate(REG_MODELS):
+                add(Radiobutton(frame, text=reg_model, value=reg_model,
+                                variable=self.registration_model,
+                                command=self.update_registration_model), 0, i)
 
-        add(Button(frame, text='REGISTRATION',
-                   command=self.registration), 1, 1)
+            add(Button(frame, text='REGISTRATION',
+                       command=self.registration), 1, 1)
 
-        add(Button(frame, text='SAVE IMAGES',
-                   command=self.save_images), 2, 0)
-        add(Button(frame, text='SAVE MODEL',
-                   command=self.model.save_model), 2, 1)
-        add(Button(frame, text='LOAD MODEL',
-                   command=self.reload_model), 2, 2)
+            add(Button(frame, text='SAVE IMAGES',
+                       command=self.save_images), 2, 0)
+            add(Button(frame, text='SAVE MODEL',
+                       command=self.model.save_model), 2, 1)
+            add(Button(frame, text='LOAD MODEL',
+                       command=self.reload_model), 2, 2)
 
-        frame = LabelFrame(frame_proc, text='Application', font=FONT)
-        add(frame, 3, 0, W + E)
+            frame = LabelFrame(frame_proc, text='Application', font=FONT)
+            add(frame, 3, 0, W + E)
 
-        add(Button(frame, text='SELECT DIR. RESULT',
-                   command=self.model.set_dirname_res), 0, 0, cspan=2)
+            add(Button(frame, text='SELECT DIR. RESULT',
+                       command=self.model.set_dirname_res), 0, 0, cspan=2)
 
-        add(Checkbutton(frame, text='Fixed registration',
-                        variable=self.model.fixed_reg), 1, 0, padx=30)
-        add(Button(frame, text='APPLY TO ALL',
-                   command=self.apply_to_all), 1, 1, padx=20)
+            add(Checkbutton(frame, text='Fixed registration',
+                            variable=self.model.fixed_reg), 1, 0, padx=30)
+            add(Button(frame, text='APPLY TO ALL',
+                       command=self.apply_to_all), 1, 1, padx=20)
+
+            add(Checkbutton(frame, text='Show results',
+                            variable=self.show_results,
+                            command=self.plot_results), 2, 0, cspan=2)
+
+            self.model.terminal = Terminal(frame_proc)
+            add(self.model.terminal, 4, 0, W + E, cspan=3)

@@ -4,11 +4,13 @@ Class Callbacks attached to the application
 from pathlib import Path
 from tkinter import END
 from tkinter import filedialog as fd
+from tkinter.messagebox import showerror
 
 from matplotlib.patches import Rectangle
 from imageio.v3 import imwrite
 
 from images_alignment import CMAP_BINARIZED
+from images_alignment.utils import recast
 
 
 class Callbacks:
@@ -24,13 +26,16 @@ class Callbacks:
         self.line = None
         self.lines = []
 
+        self.areas = [None, None]
+        self.fnames_tot = [None, None]
+
     def select_axis(self, event):
         """ Select the axis to be displayed in 'fig1' """
         if self.toolbar.mode != '' or event.inaxes not in self.model.ax:
             return
 
         self.k_ref = int(event.inaxes.axes.get_label())
-        self.update_plot_1()
+        self.update_fig1()
         self.canvas1.draw()
 
     def init_rectangle(self, event):
@@ -131,12 +136,14 @@ class Callbacks:
         self.canvas1.draw_idle()
 
         if set_area:
-            area = [int(min(x0, x)), int(max(x0, x)),
-                    int(min(y0, y)), int(max(y0, y))]
+            shape = self.model.imgs[self.k_ref].shape
+            area = [max(0, int(min(x0, x))), min(shape[1], int(max(x0, x))),
+                    max(0, int(min(y0, y))), min(shape[0], int(max(y0, y)))]
             self.model.set_area_k(self.k_ref, area=area)
             self.update_plots(self.k_ref)
             self.pair = [None, None]
-            self.set_areas()
+            self.areas_entry[self.k_ref].delete(0, END)
+            self.areas_entry[self.k_ref].insert(0, str(area))
 
     def set_area(self, event):
         """ Set area from the view to the model """
@@ -183,15 +190,15 @@ class Callbacks:
         fsel = self.fselectors
 
         ind = fsel[k].lbox.curselection()[0]
-        self.model.load_image(k, fname=fsel[k].fnames[ind], reinit=True)
+        self.model.load_image(k, fname=fsel[k].fnames[ind])
 
         if k == 0:
             fsel[1].select_item(ind)
-            self.model.load_image(1, fname=fsel[1].fnames[ind], reinit=True)
+            self.model.load_image(1, fname=fsel[1].fnames[ind])
 
         elif len(self.fselectors[0].fnames) > 1:
             fsel[0].select_item(ind)
-            self.model.load_image(0, fname=fsel[0].fnames[ind], reinit=True)
+            self.model.load_image(0, fname=fsel[0].fnames[ind])
 
         self.update_plots()
 
@@ -205,11 +212,11 @@ class Callbacks:
             self.model.plot_k(k)
             self.model.plot_k(2)
             self.model.plot_k(3)
-        self.update_plot_1()
+        self.update_fig1()
         self.canvas0.draw()
         self.canvas1.draw()
 
-    def update_plot_1(self):
+    def update_fig1(self):
         """ Update the fig1 """
 
         self.ax1.clear()
@@ -234,25 +241,38 @@ class Callbacks:
             self.ax1.axvline(self.model.imgs[0].shape[1],
                              c='w', ls='dashed', lw=0.5)
 
+    def update_areas(self, k):
+        """ Update areas of the k-th image from the Tkinter.Entry """
+        area_entry = self.areas_entry[k].get()
+        if area_entry == '':
+            self.model.areas[k] = None
+        else:
+            try:
+                self.model.areas[k] = eval(area_entry)
+            except:
+                msg = f"{self.areas_entry[k].get()}  cannot be interpreted"
+                msg += " as '[xmin, xmax, ymin, ymax]'"
+                showerror(message=msg)
+                return
+        self.update_plots(k)
+
     def update_threshold(self, value, k):
         """ Update the threshold value associated with the k-th image """
         self.model.thresholds[k] = float(value)
         self.model.registration_apply()
         self.update_plots(k)
 
+    def update_registration_model(self):
+        """ Update the threshold value associated with the k-th image """
+        self.model.registration_model = self.registration_model.get()
+        self.model.reinit()
+        self.update_plots()
+
     def bin_inversion(self, k):
         """ Invert the binarized k-th image """
         self.model.bin_inversions[k] = not self.model.bin_inversions[k]
         if self.model.imgs_bin[k] is not None:
             self.model.imgs_bin[k] = ~self.model.imgs_bin[k]
-        self.update_plots(k)
-
-    def reinit(self, k):
-        """ Reinit the k-th image """
-        ind = self.fselectors[k].lbox.curselection()[0]
-        fname = self.fselectors[k].fnames[ind]
-        self.model.load_image(k, fname=fname, reinit=True)
-        self.areas_entry[k].delete(0, END)
         self.update_plots(k)
 
     def registration(self):
@@ -262,29 +282,20 @@ class Callbacks:
         self.update_plots()
 
     def save_images(self):
-        """ Save all the images """
-        self.save_image_k(0)
-        self.save_image_k(1)
+        """ Save the fixed and moving images in their final state """
+        imgs = self.model.crop_and_resize(self.model.imgs)
+        if self.model.img_reg is not None:
+            imgs[1] = self.model.img_reg
 
-    def save_image_k(self, k):
-        """ Save the k-th image """
-        ind = self.fselectors[k].lbox.curselection()[0]
-        fname = Path(self.fselectors[k].fnames[ind])
-        initialdir = fname.parent
-        initialfile = fname.stem + "_aligned" + fname.suffix
-
-        fname_reg = fd.asksaveasfilename(initialfile=initialfile,
-                                         initialdir=initialdir)
-
-        if fname_reg == "":
-            return
-
-        # TODO revisit
-        img = self.model.imgs[k]
-        if k == 1 and self.model.img_reg is not None:
-            img = self.model.img_reg
-
-        imwrite(fname_reg, img)
+        for k in range(2):
+            ind = self.fselectors[k].lbox.curselection()[0]
+            fname = Path(self.fselectors[k].fnames[ind])
+            initialdir = fname.parent
+            initialfile = fname.stem + "_aligned" + fname.suffix
+            fname_reg = fd.asksaveasfilename(initialfile=initialfile,
+                                             initialdir=initialdir)
+            if fname_reg != "":
+                imwrite(fname_reg, recast(imgs[k], self.model.dtypes[k]))
 
     def reload_model(self):
         """ Reload model """
@@ -299,9 +310,25 @@ class Callbacks:
 
     def apply_to_all(self, dirname_res=None):
         """ Apply the alignment processing to all the images """
-        model = self.model
-        model.apply_to_all(dirname_res=dirname_res)
-        for k in range(2):
-            self.fselectors[k].fnames = [model.dirname_res[k] / Path(x).name
-                                         for x in model.fnames_tot[k]]
+        self.model.apply_to_all(dirname_res=dirname_res)
+        self.areas = self.model.areas
+        self.fnames_tot = self.model.fnames_tot
+        self.plot_results()
+
+    def plot_results(self):
+        """ Display the figures related to the 'dirname_res' """
+        if self.model.dirname_res == [None, None]:
+            return
+
+        if self.show_results.get():
+            model = self.model
+            for k in range(2):
+                self.model.areas = [None, None]
+                self.fselectors[k].fnames = [model.dirname_res[k] / Path(x).name
+                                             for x in self.fnames_tot[k]]
+        else:
+            for k in range(2):
+                self.model.areas = self.areas
+                self.fselectors[k].fnames = self.fnames_tot[k]
+
         self.update_file(0)
