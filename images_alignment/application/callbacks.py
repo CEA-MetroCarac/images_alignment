@@ -25,7 +25,7 @@ class Callbacks:
         self.line = None
         self.lines = []
 
-        self.areas = [None, None]
+        self.rois = [None, None]
         self.fnames_tot = [None, None]
 
     def select_axis(self, event):
@@ -116,7 +116,7 @@ class Callbacks:
                 self.line, = self.ax1.plot((x, x2), (y, y2), 'r-')
             self.canvas1.draw_idle()
 
-    def draw_rectangle(self, event, set_area=False):
+    def draw_rectangle(self, event, set_roi=False):
         """ Draw a rectangle """
         if self.toolbar.mode == '' and \
                 event.inaxes == self.ax1 and \
@@ -129,21 +129,21 @@ class Callbacks:
             self.rectangle.set_height(y - y0)
             self.canvas1.draw_idle()
 
-            if set_area:
+            if set_roi:
                 shape = self.model.imgs[self.k_ref].shape
-                area = [max(0, int(min(x0, x))), min(shape[1], int(max(x0, x))),
-                        max(0, int(min(y0, y))), min(shape[0], int(max(y0, y)))]
-                self.model.set_area_k(self.k_ref, area=area)
-                self.areas_entry[self.k_ref].delete(0, END)
-                self.areas_entry[self.k_ref].insert(0, str(area))
+                roi = [max(0, int(min(x0, x))), min(shape[1], int(max(x0, x))),
+                       max(0, int(min(y0, y))), min(shape[0], int(max(y0, y)))]
+                self.model.set_roi_k(self.k_ref, roi=roi)
+                self.rois_entry[self.k_ref].delete(0, END)
+                self.rois_entry[self.k_ref].insert(0, str(roi))
                 self.model.points = [[], []]
                 self.model.img_reg = None
                 self.model.img_reg_bin = None
                 self.update_plots(self.k_ref)
 
-    def set_area(self, event):
-        """ Set area from the view to the model """
-        self.draw_rectangle(event, set_area=True)
+    def set_roi(self, event):
+        """ Set ROI from the view to the model """
+        self.draw_rectangle(event, set_roi=True)
 
     def zoom(self, event):
         """ Zoom/Unzoom the 'fig1' """
@@ -176,8 +176,8 @@ class Callbacks:
     def update(self):
         """ Update the view parameters from the model and the plots """
         for k in range(2):
-            self.areas_entry[k].delete(0, END)
-            self.areas_entry[k].insert(0, str(self.model.areas[k]))
+            self.rois_entry[k].delete(0, END)
+            self.rois_entry[k].insert(0, str(self.model.rois[k]))
         self.registration_model.set(self.model.registration_model)
         self.update_plots()
 
@@ -266,16 +266,16 @@ class Callbacks:
             self.ax1.axvline(self.model.imgs[0].shape[1],
                              c='w', ls='dashed', lw=0.5)
 
-    def update_areas(self, k):
-        """ Update areas of the k-th image from the Tkinter.Entry """
-        area_entry = self.areas_entry[k].get()
-        if area_entry == '':
-            self.model.areas[k] = None
+    def update_rois(self, k):
+        """ Update ROIs of the k-th image from the Tkinter.Entry """
+        roi_entry = self.rois_entry[k].get()
+        if roi_entry == '':
+            self.model.rois[k] = None
         else:
             try:
-                self.model.areas[k] = eval(area_entry)
+                self.model.rois[k] = eval(roi_entry)
             except:
-                msg = f"{self.areas_entry[k].get()}  cannot be interpreted"
+                msg = f"{self.rois_entry[k].get()}  cannot be interpreted"
                 msg += " as '[xmin, xmax, ymin, ymax]'"
                 showerror(message=msg)
                 return
@@ -336,8 +336,8 @@ class Callbacks:
         self.registration_model.set(self.model.registration_model)
         for k in range(2):
             self.thresholds[k].set(self.model.thresholds[k])
-            self.areas_entry[k].delete(0, END)
-            self.areas_entry[k].insert(0, str(self.model.areas[k]))
+            self.rois_entry[k].delete(0, END)
+            self.rois_entry[k].insert(0, str(self.model.rois[k]))
         self.update_plots()
 
     def apply_to_all(self, dirname_res=None):
@@ -355,7 +355,7 @@ class Callbacks:
                 return
 
         self.model.apply_to_all(dirname_res=dirname_res)
-        self.areas = self.model.areas
+        self.rois = self.model.rois
         self.fnames_tot = self.model.fnames_tot
         self.plot_results()
 
@@ -367,12 +367,12 @@ class Callbacks:
         if self.show_results.get():
             model = self.model
             for k in range(2):
-                self.model.areas = [None, None]
+                self.model.rois = [None, None]
                 self.fselectors[k].fnames = [model.dirname_res[k] / Path(x).name
                                              for x in self.fnames_tot[k]]
         else:
             for k in range(2):
-                self.model.areas = self.areas
+                self.model.rois = self.rois
                 self.fselectors[k].fnames = self.fnames_tot[k]
 
         self.model.fnames = [None, None]  # To force the updating

@@ -6,102 +6,55 @@ import tempfile
 
 import numpy as np
 import matplotlib.pyplot as plt
-from skimage import data
-from skimage.transform import AffineTransform, warp
-from skimage.io import imsave
-from skimage import img_as_ubyte
 
 from images_alignment import ImagesAlign
+from images_alignment.examples.utils import UserTempDirectory, images_generation
+from images_alignment.examples.utils import ROIS
 
 
-class UserTempDirectory:
-    """ Class to call user temp via the 'with' statement """
+def example(dirname, img_name, registration_model):
+    """ Example """
 
-    def __enter__(self):
-        return tempfile.gettempdir()
-
-    def __exit__(self, exc, value, tb):
-        pass
-
-
-def moving_image_generation(img0, rotation=0.5):
-    """Low resolution image generation with an additional rectangular pattern"""
-    img = img0.copy()
-    img = img[::2, ::2]  # low image resolution
-    tform = AffineTransform(scale=(1.5, 0.8),
-                            rotation=rotation,
-                            translation=(-50, -100))
-    img = warp(img, tform)
-
-    if img0.dtype == np.uint8:
-        img = img_as_ubyte(img)
-
-    return img
-
-
-def images_generation(dirname):
-    """ Generate the set of images to handle """
-
-    # # fixed image (high resolution squared image)
-    # img1 = data.shepp_logan_phantom()
-    # img1 = data.astronaut()
-    img1 = data.camera()
-
-    fname_fixed = dirname / 'img1.tif'
-    imsave(fname_fixed, img1)
-    fnames_fixed = [fname_fixed]
-
-    # moving images (low resolution rectangular images)
-    img2 = moving_image_generation(img1)
-    imsave(dirname / 'img2.tif', img2)
-    fnames_moving = []
-    for k in range(3):
-        img2 = moving_image_generation(img1, rotation=0.5 + 0.1 * k)
-        fname_moving = dirname / f'img2_{k + 1}.tif'
-        imsave(fname_moving, img2)
-        fnames_moving.append(fname_moving)
-
-    return fnames_fixed, fnames_moving
-
-
-def example(dirname):
-    """ Example based on 3 duplicated moving images with additional patterns """
-
-    fnames_fixed, fnames_moving = images_generation(dirname)
+    fnames_fixed, fnames_moving = images_generation(dirname, img_name)
 
     imgalign = ImagesAlign(fnames_fixed=fnames_fixed,
                            fnames_moving=fnames_moving,
-                           thresholds=[0.15, 0.15],
+                           thresholds=[0.5, 0.5],
                            bin_inversions=[False, False])
 
+    imgalign.rois = ROIS[img_name]
+
     plt.close()  # to close the default figure
+
     fig0, ax0 = plt.subplots(1, 3, figsize=(12, 4))
-    fig0.suptitle("Original images")
-    imgalign.plot(ax=ax0, mode="Gray")
+    fig0.tight_layout()
+    fig0.canvas.manager.set_window_title("Original images")
+    imgalign.plot_all(ax=ax0)
 
-    imgalign.cropping(1, area_percent=[0.40, 0.95, 0.25, 1.00])
-    imgalign.resizing()
-    imgalign.binarization()
-    imgalign.registration(registration_model='StackReg')
-
-    # apply the transformation to the set of images
-    imgalign.apply_to_all(dirname_res=dirname / 'results')
+    imgalign.registration(registration_model=registration_model)
 
     fig1, ax1 = plt.subplots(1, 3, figsize=(12, 4))
+    fig1.tight_layout()
+    fig1.canvas.manager.set_window_title("Processed images")
+    imgalign.plot_all(ax=ax1)
+
     fig2, ax2 = plt.subplots(1, 3, figsize=(12, 4))
-    fig1.suptitle("Processed images (Gray mode)")
-    fig2.suptitle("Processed images (Binarized mode)")
-    imgalign.plot(ax=ax1, mode="Gray")
-    imgalign.plot(ax=ax2, mode="Binarized")
-    plt.show()
+    fig2.tight_layout()
+    fig2.canvas.manager.set_window_title("Processed images (Binarized)")
+    imgalign.binarized = True
+    imgalign.plot_all(ax=ax2)
 
 
 if __name__ == '__main__':
-    # dirfunc = UserTempDirectory  # use the user temp location
-    dirfunc = tempfile.TemporaryDirectory  # use a TemporaryDirectory
+    DIRFUNC = UserTempDirectory  # use the user temp location
+    # DIRFUNC = tempfile.TemporaryDirectory  # use a TemporaryDirectory
+    IMG_NAMES = ['camera', 'astronaut']
+    REGISTRATION_MODELS = ['StackReg', 'SIFT', 'User-Driven']
 
-    with dirfunc() as tmpdir:
+    with DIRFUNC() as tmpdir:
         dirname = Path(tmpdir) / "images_alignement"
         dirname.mkdir(exist_ok=True)
 
-        example(dirname)
+        example(dirname, IMG_NAMES[0], REGISTRATION_MODELS[0])
+
+    plt.show()

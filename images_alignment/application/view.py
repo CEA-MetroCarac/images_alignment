@@ -79,7 +79,7 @@ class View(Callbacks):
         super().__init__()
 
         self.model = model
-        self.areas_entry = [None, None]
+        self.rois_entry = [None, None]
         self.thresholds = [DoubleVar(value=self.model.thresholds[0]),
                            DoubleVar(value=self.model.thresholds[1])]
         self.registration_model = StringVar(value=self.model.registration_model)
@@ -135,7 +135,7 @@ class View(Callbacks):
         self.canvas1.draw()
         self.canvas1.mpl_connect('button_press_event', self.init_rectangle)
         self.canvas1.mpl_connect('motion_notify_event', self.draw_rectangle)
-        self.canvas1.mpl_connect('button_release_event', self.set_area)
+        self.canvas1.mpl_connect('button_release_event', self.set_roi)
         self.canvas1.mpl_connect('button_press_event', self.init_or_remove_line)
         self.canvas1.mpl_connect('motion_notify_event', self.draw_line)
         self.canvas1.mpl_connect('scroll_event', self.zoom)
@@ -160,11 +160,11 @@ class View(Callbacks):
                 fselector.lbox.bind(event, lambda _, k=k: self.update_file(k))
             self.fselectors.append(fselector)
 
-            add(Label(frame, text='Cropping area:'), 1, 0, E, pady=0)
-            self.areas_entry[k] = Entry(frame)
-            self.areas_entry[k].bind("<Return>",
-                                     lambda _, k=k: self.update_areas(k))
-            add(self.areas_entry[k], 1, 1, W, pady=0)
+            add(Label(frame, text='ROI:'), 1, 0, E, pady=0)
+            self.rois_entry[k] = Entry(frame)
+            self.rois_entry[k].bind("<Return>",
+                                    lambda _, k=k: self.update_rois(k))
+            add(self.rois_entry[k], 1, 1, W, pady=0)
 
             add(Label(frame, text='Threshold:'), 2, 0, E, pady=0)
             add(Scale(frame, resolution=0.01, to=1., orient=HORIZONTAL,

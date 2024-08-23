@@ -23,7 +23,7 @@ from images_alignment.utils import (Terminal,
 REG_MODELS = ['StackReg', 'SIFT', 'User-Driven']
 STREG = StackReg(StackReg.AFFINE)
 CMAP_BINARIZED = ListedColormap(["#00FF00", "black", "red"])
-KEYS = ['areas', 'thresholds', 'bin_inversions', 'registration_model']
+KEYS = ['rois', 'thresholds', 'bin_inversions', 'registration_model']
 
 plt.rcParams['axes.titlesize'] = 10
 
@@ -57,7 +57,7 @@ class ImagesAlign:
 
         self.imgs = [None, None]
         self.dtypes = [None, None]
-        self.areas = [None, None]
+        self.rois = [None, None]
         self.imgs_bin = [None, None]
         self.registration_model = 'StackReg'
         self.points = [[], []]
@@ -69,8 +69,8 @@ class ImagesAlign:
         self.dirname_res = [None, None]
         self.fixed_reg = False
 
-        _, ax = plt.subplots(2, 2, figsize=(8, 8))
-        self.ax = ax.flatten()
+        _, self.ax = plt.subplots(1, 4, figsize=(10, 4),
+                                  gridspec_kw={'width_ratios': [1, 1, 1, 2]})
 
         if self.fnames_tot[0] is not None:
             self.fnames[0] = self.fnames_tot[0]
@@ -107,21 +107,21 @@ class ImagesAlign:
         except Exception as _:
             self.terminal.write(f"Failed to load {fname}\n\n")
 
-    def set_area_k(self, k, area=None, area_percent=None):
-        """ Set area parameter for the k-th image"""
-        if area is not None and area_percent is not None:
-            msg = "ERROR: 'area' and 'area_percent' cannot be defined " \
+    def set_roi_k(self, k, roi=None, roi_percent=None):
+        """ Set ROI parameter for the k-th image"""
+        if roi is not None and roi_percent is not None:
+            msg = "ERROR: 'roi' and 'roi_percent' cannot be defined " \
                   "simultaneously "
             self.terminal.write(msg)
 
-        if area is not None:
-            self.areas[k] = area
-        elif area_percent is not None:
-            xmin_p, xmax_p, ymin_p, ymax_p = area_percent
+        if roi is not None:
+            self.rois[k] = roi
+        elif roi_percent is not None:
+            xmin_p, xmax_p, ymin_p, ymax_p = roi_percent
             shape = self.imgs[k].shape
             ymin, ymax = ymin_p * shape[0], ymax_p * shape[0]
             xmin, xmax = xmin_p * shape[1], xmax_p * shape[1]
-            self.areas[k] = xmin, xmax, ymin, ymax
+            self.rois[k] = xmin, xmax, ymin, ymax
 
     def binarization_k(self, k):
         """ Binarize the k-th image """
@@ -141,7 +141,7 @@ class ImagesAlign:
 
     def crop_and_resize(self, imgs):
         """ Crop and Resize the images"""
-        imgs = [cropping(imgs[k], self.areas[k]) for k in range(2)]
+        imgs = [cropping(imgs[k], self.rois[k]) for k in range(2)]
         if self.registration_model == 'StackReg':
             imgs = resizing(*imgs)
         return imgs
@@ -310,7 +310,7 @@ class ImagesAlign:
         if ax is not None:
             self.ax = ax
 
-        for k in range(4):
+        for k in range(len(self.ax)):
             self.plot_k(k)
 
     def plot_k(self, k):
@@ -346,8 +346,8 @@ class ImagesAlign:
         else:
             self.ax[k].imshow(self.imgs[k], cmap='gray')
 
-        if self.areas[k] is not None:
-            xmin, xmax, ymin, ymax = self.areas[k]
+        if self.rois[k] is not None:
+            xmin, xmax, ymin, ymax = self.rois[k]
             width, height = xmax - xmin, ymax - ymin
             self.ax[k].add_patch(Rectangle((xmin, ymin), width, height,
                                            ec='y', fc='none'))
@@ -400,10 +400,10 @@ class ImagesAlign:
             self.ax[3].imshow(img, cmap='gray')
 
         x0 = y0 = x1 = y1 = 0
-        if self.areas[0] is not None:
-            x0, _, y0, _ = self.areas[0]
-        if self.areas[1] is not None:
-            x1, _, y1, _ = self.areas[1]
+        if self.rois[0] is not None:
+            x0, _, y0, _ = self.rois[0]
+        if self.rois[1] is not None:
+            x1, _, y1, _ = self.rois[1]
 
         rng = np.random.default_rng(0)
         for point0, point1 in zip(self.points[0][:30], self.points[1][:30]):
