@@ -292,10 +292,14 @@ class Callbacks:
         self.update_plots()
 
     def update_registration_model(self):
-        """ Update the threshold value associated with the k-th image """
+        """ Update the threshold value """
         self.model.registration_model = self.registration_model.get()
         self.model.reinit()
         self.update_plots()
+
+    def update_fixed_reg(self):
+        """ Update the 'fixed_reg' value """
+        self.model.fixed_reg = self.fixed_reg.get()
 
     def bin_inversion(self, k):
         """ Invert the binarized k-th image """

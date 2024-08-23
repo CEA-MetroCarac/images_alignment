@@ -83,7 +83,8 @@ class View(Callbacks):
         self.thresholds = [DoubleVar(value=self.model.thresholds[0]),
                            DoubleVar(value=self.model.thresholds[1])]
         self.registration_model = StringVar(value=self.model.registration_model)
-        self.binarized = BooleanVar(value=False)
+        self.fixed_reg = BooleanVar(value=self.model.fixed_reg)
+        self.binarized = BooleanVar(value=self.model.binarized)
         self.mode = StringVar(value='Juxtaposed')
         self.show_results = BooleanVar(value=True)
 
@@ -198,7 +199,8 @@ class View(Callbacks):
                        command=self.model.set_dirname_res), 0, 0, cspan=2)
 
             add(Checkbutton(frame, text='Fixed registration',
-                            variable=self.model.fixed_reg), 1, 0, padx=30)
+                            variable=self.fixed_reg,
+                            command=self.update_fixed_reg), 1, 0, padx=30)
             add(Button(frame, text='APPLY TO ALL',
                        command=self.apply_to_all), 1, 1, padx=20)
 
