@@ -52,7 +52,7 @@ class ImagesAlign:
         self.bin_inversions = bin_inversions or [False, False]
         self.terminal = terminal or Terminal()
 
-        self.color = 'Gray'
+        self.binarized = False
         self.mode = 'Juxtaposed'
 
         self.imgs = [None, None]
@@ -339,7 +339,7 @@ class ImagesAlign:
 
         self.ax[k].set_title(['Fixed image', 'Moving image'][k])
 
-        if self.color == 'Binarized':
+        if self.binarized:
             img = np.zeros_like(self.imgs_bin[k], dtype=int)
             img[self.imgs_bin[k]] = 2 * k - 1
             self.ax[k].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
@@ -360,7 +360,7 @@ class ImagesAlign:
         if self.imgs[0] is None or self.imgs[1] is None:
             return
 
-        if self.color == "Binarized":
+        if self.binarized:
             imgs = self.crop_and_resize(self.imgs_bin)
             if self.img_reg_bin is not None:
                 imgs[1] = self.img_reg_bin.copy()
@@ -375,7 +375,7 @@ class ImagesAlign:
             if self.img_reg is not None:
                 imgs[1] = self.img_reg.copy()
             imgs = padding(*imgs)
-            imgs = [image_normalization(gray_conversion(img)) for img in imgs]
+            imgs = [image_normalization(img) for img in imgs]
             img = 0.5 * (imgs[0] + imgs[1])
             self.ax[2].imshow(img, cmap='gray')
 
@@ -394,10 +394,10 @@ class ImagesAlign:
 
         img, offset = concatenate_images(arr_0, arr_1, 'horizontal')
 
-        if self.color == 'Gray':
-            self.ax[3].imshow(img, cmap='gray')
-        else:
+        if self.binarized:
             self.ax[3].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
+        else:
+            self.ax[3].imshow(img, cmap='gray')
 
         x0 = y0 = x1 = y1 = 0
         if self.areas[0] is not None:

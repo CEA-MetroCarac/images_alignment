@@ -83,7 +83,7 @@ class View(Callbacks):
         self.thresholds = [DoubleVar(value=self.model.thresholds[0]),
                            DoubleVar(value=self.model.thresholds[1])]
         self.registration_model = StringVar(value=self.model.registration_model)
-        self.color = StringVar(value='Gray')
+        self.binarized = BooleanVar(value=False)
         self.mode = StringVar(value='Juxtaposed')
         self.show_results = BooleanVar(value=True)
 
@@ -121,12 +121,8 @@ class View(Callbacks):
 
         fr = LabelFrame(frame)
         add(fr, 0, 0)
-        add(Radiobutton(fr, text='Gray', value='Gray',
-                        variable=self.color,
+        add(Checkbutton(fr, text='Binarized', variable=self.binarized,
                         command=self.update_plots), 0, 0, pady=0)
-        add(Radiobutton(fr, text='Binarized', value='Binarized',
-                        variable=self.color,
-                        command=self.update_plots), 0, 1, pady=0)
 
         self.canvas0 = FigureCanvasTkAgg(fig0, master=frame_visu)
         add(self.canvas0.get_tk_widget(), 1, 0, padx=0)

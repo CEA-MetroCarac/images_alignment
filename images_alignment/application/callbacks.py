@@ -30,65 +30,63 @@ class Callbacks:
 
     def select_axis(self, event):
         """ Select the axis to be displayed in 'fig1' """
-        if self.toolbar.mode != '' or event.inaxes not in self.model.ax:
-            return
-
-        self.k_ref = int(event.inaxes.axes.get_label())
-        self.update_fig1()
-        self.canvas1.draw()
+        if event.inaxes in self.model.ax:
+            self.k_ref = int(event.inaxes.axes.get_label())
+            self.update_fig1()
+            self.canvas1.draw()
 
     def init_rectangle(self, event):
         """ Initialize rectangle """
-        if self.toolbar.mode != '' or event.inaxes != self.ax1:
-            return
-
-        if self.k_ref not in [0, 1]:
-            return
-
-        x, y = event.xdata, event.ydata
-        self.pair = [[x, y], [None, None]]
-        self.rectangle = Rectangle((x, y), 0, 0, ec='y', fc='none')
-        self.ax1.add_patch(self.rectangle)
+        if self.toolbar.mode == '' and \
+                event.inaxes == self.ax1 and \
+                self.k_ref in [0, 1]:
+            x, y = event.xdata, event.ydata
+            self.pair = [[x, y], [None, None]]
+            self.rectangle = Rectangle((x, y), 0, 0, ec='y', fc='none')
+            self.ax1.add_patch(self.rectangle)
 
     def init_or_remove_line(self, event):
         """ Initialize or Remove a line """
-        if self.toolbar.mode != '' or event.inaxes != self.ax1:
-            return
 
-        if self.k_ref != 3 or self.registration_model.get() != 'User-Driven':
-            return
+        if self.toolbar.mode == '' and \
+                event.inaxes == self.ax1 and \
+                self.k_ref == 3 and \
+                self.registration_model.get() == 'User-Driven':
 
-        x, y = event.xdata, event.ydata
-        x12 = self.model.imgs[0].shape[1]
+            x, y = event.xdata, event.ydata
+            x12 = self.model.imgs[0].shape[1]
 
-        if event.button == 1:
-            if x > x12:
-                if self.pair[1] is None:
-                    self.pair[1] = [x, y]
-            else:
-                if self.pair[0] is None:
-                    self.pair[0] = [x, y]
-            if None not in self.pair:
-                (x1, y1), (x2, y2) = self.pair
-                self.lines.append(self.ax1.plot((x1, x2), (y1, y2), 'r-')[0])
-                self.model.points[0].append([x1, y1])
-                self.model.points[1].append([x2 - x12, y2])
-                self.remove_moving_line()
+            if event.button == 1:
+                if x > x12:
+                    if self.pair[1] is None:
+                        self.pair[1] = [x, y]
+                else:
+                    if self.pair[0] is None:
+                        self.pair[0] = [x, y]
+                if None not in self.pair:
+                    (x1, y1), (x2, y2) = self.pair
+                    line = self.ax1.plot((x1, x2), (y1, y2), 'r-')[0]
+                    self.lines.append(line)
+                    self.model.points[0].append([x1, y1])
+                    self.model.points[1].append([x2 - x12, y2])
+                    self.remove_moving_line()
 
-        elif event.button == 3:
-            if self.pair != [None, None]:  # remove the current line
-                self.remove_moving_line()
-            elif len(self.lines) > 0:  # remove the closest line
-                pts = self.model.points
-                d0 = [(xp - x) ** 2 + (yp - y) ** 2 for xp, yp in pts[0]]
-                d1 = [(xp + x12 - x) ** 2 + (yp - y) ** 2 for xp, yp in pts[1]]
-                d0_min, d1_min = min(d0), min(d1)
-                ind = d0.index(d0_min) if d0_min < d1_min else d1.index(d1_min)
-                self.lines[ind].remove()
-                del self.lines[ind]
-                del self.model.points[0][ind]
-                del self.model.points[1][ind]
-                self.canvas1.draw_idle()
+            elif event.button == 3:
+                if self.pair != [None, None]:  # remove the current line
+                    self.remove_moving_line()
+                elif len(self.lines) > 0:  # remove the closest line
+                    pts = self.model.points
+                    x1, y1 = x, y
+                    x2, y2 = x - x12, y
+                    d1 = [(xp - x1) ** 2 + (yp - y1) ** 2 for xp, yp in pts[0]]
+                    d2 = [(xp + x2) ** 2 + (yp - y2) ** 2 for xp, yp in pts[1]]
+                    d1min, d2min = min(d1), min(d2)
+                    ind = d1.index(d1min) if d1min < d2min else d2.index(d2min)
+                    self.lines[ind].remove()
+                    del self.lines[ind]
+                    del self.model.points[0][ind]
+                    del self.model.points[1][ind]
+                    self.canvas1.draw_idle()
 
     def remove_moving_line(self):
         """ Remove the moving line """
@@ -100,51 +98,48 @@ class Callbacks:
 
     def draw_line(self, event):
         """ Draw the line in 'fig1' (with 'User-Driven' mode activated) """
+        if self.toolbar.mode == '' and \
+                event.inaxes == self.ax1 and \
+                self.k_ref == 3 and \
+                self.pair != [None, None] and \
+                self.registration_model.get() == 'User-Driven':
 
-        if self.toolbar.mode != '' or event.inaxes != self.ax1:
-            return
+            if self.line is not None:
+                self.line.remove()
 
-        if self.k_ref != 3 or self.pair == [None, None]:
-            return
-
-        if self.line is not None:
-            self.line.remove()
-
-        x, y = event.xdata, event.ydata
-        if self.pair[1] is None:
-            x1, y1 = self.pair[0]
-            self.line, = self.ax1.plot((x1, x), (y1, y), 'r-')
-        else:
-            x2, y2 = self.pair[1]
-            self.line, = self.ax1.plot((x, x2), (y, y2), 'r-')
-        self.canvas1.draw_idle()
+            x, y = event.xdata, event.ydata
+            if self.pair[1] is None:
+                x1, y1 = self.pair[0]
+                self.line, = self.ax1.plot((x1, x), (y1, y), 'r-')
+            else:
+                x2, y2 = self.pair[1]
+                self.line, = self.ax1.plot((x, x2), (y, y2), 'r-')
+            self.canvas1.draw_idle()
 
     def draw_rectangle(self, event, set_area=False):
         """ Draw a rectangle """
+        if self.toolbar.mode == '' and \
+                event.inaxes == self.ax1 and \
+                self.k_ref in [0, 1] and \
+                self.pair[0] is not None:
 
-        if self.toolbar.mode != '' or event.inaxes != self.ax1:
-            return
+            x, y = event.xdata, event.ydata
+            x0, y0 = self.pair[0]
+            self.rectangle.set_width(x - x0)
+            self.rectangle.set_height(y - y0)
+            self.canvas1.draw_idle()
 
-        if self.k_ref not in [0, 1] or self.pair[0] is None:
-            return
-
-        x, y = event.xdata, event.ydata
-        x0, y0 = self.pair[0]
-        self.rectangle.set_width(x - x0)
-        self.rectangle.set_height(y - y0)
-        self.canvas1.draw_idle()
-
-        if set_area:
-            shape = self.model.imgs[self.k_ref].shape
-            area = [max(0, int(min(x0, x))), min(shape[1], int(max(x0, x))),
-                    max(0, int(min(y0, y))), min(shape[0], int(max(y0, y)))]
-            self.model.set_area_k(self.k_ref, area=area)
-            self.areas_entry[self.k_ref].delete(0, END)
-            self.areas_entry[self.k_ref].insert(0, str(area))
-            self.model.points = [[], []]
-            self.model.img_reg = None
-            self.model.img_reg_bin = None
-            self.update_plots(self.k_ref)
+            if set_area:
+                shape = self.model.imgs[self.k_ref].shape
+                area = [max(0, int(min(x0, x))), min(shape[1], int(max(x0, x))),
+                        max(0, int(min(y0, y))), min(shape[0], int(max(y0, y)))]
+                self.model.set_area_k(self.k_ref, area=area)
+                self.areas_entry[self.k_ref].delete(0, END)
+                self.areas_entry[self.k_ref].insert(0, str(area))
+                self.model.points = [[], []]
+                self.model.img_reg = None
+                self.model.img_reg_bin = None
+                self.update_plots(self.k_ref)
 
     def set_area(self, event):
         """ Set area from the view to the model """
@@ -226,7 +221,7 @@ class Callbacks:
 
     def update_plots(self, k=None):
         """ Update the plots """
-        self.model.color = self.color.get()
+        self.model.binarized = self.binarized.get()
         self.model.mode = self.mode.get()
         if k is None:
             self.model.plot_all()
@@ -251,13 +246,14 @@ class Callbacks:
         self.ax1.clear()
         ax_ref = self.model.ax[self.k_ref]
 
+        if self.binarized.get():
+            cmap, vmin, vmax = CMAP_BINARIZED, -1, 1
+        else:
+            cmap, vmin, vmax = 'gray', None, None
+
         imgs = ax_ref.get_images()
         if len(imgs) > 0:
             arr = imgs[0].get_array()
-            if self.color.get() == 'Binarized':
-                cmap, vmin, vmax = CMAP_BINARIZED, -1, 1
-            else:
-                cmap, vmin, vmax = 'gray', None, None
             self.ax1.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax)
 
         lines = ax_ref.get_lines()
