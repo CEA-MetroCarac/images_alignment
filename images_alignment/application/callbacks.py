@@ -330,9 +330,9 @@ class Callbacks:
             if fname_reg != "":
                 imwrite(fname_reg, imgs[k].astype(self.model.dtypes[k]))
 
-    def reload_model(self):
-        """ Reload model """
-        self.model.reload_model(obj=self.model)
+    def reload_params(self):
+        """ Reload parameters """
+        self.model.reload_params(obj=self.model)
         self.registration_model.set(self.model.registration_model)
         for k in range(2):
             self.thresholds[k].set(self.model.thresholds[k])

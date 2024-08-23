@@ -187,10 +187,10 @@ class View(Callbacks):
 
             add(Button(frame, text='SAVE IMAGES',
                        command=self.save_images), 2, 0)
-            add(Button(frame, text='SAVE MODEL',
-                       command=self.model.save_model), 2, 1)
-            add(Button(frame, text='LOAD MODEL',
-                       command=self.reload_model), 2, 2)
+            add(Button(frame, text='SAVE PARAMS',
+                       command=self.model.save_params), 2, 1)
+            add(Button(frame, text='RELOAD PARAMS',
+                       command=self.reload_params), 2, 2)
 
             frame = LabelFrame(frame_proc, text='Application', font=FONT)
             add(frame, 3, 0, W + E)

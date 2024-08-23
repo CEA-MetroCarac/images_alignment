@@ -269,24 +269,24 @@ class ImagesAlign:
 
         self.terminal.write("\n")
 
-    def save_model(self, fname_json=None):
-        """ Save model in a .json file """
+    def save_params(self, fname_json=None):
+        """ Save parameters in a .json file """
         if fname_json is None:
             fname_json = filedialog.asksaveasfilename(defaultextension='.json')
             if fname_json is None:
                 return
 
-        data = {}
+        params = {}
         for key in KEYS:
-            data.update({key: eval(f"self.{key}")})
-        data.update({'tmat': self.tmat.tolist()})
+            params.update({key: eval(f"self.{key}")})
 
         with open(fname_json, 'w', encoding='utf-8') as fid:
-            json.dump(data, fid, ensure_ascii=False, indent=4)
+            json.dump(params, fid, ensure_ascii=False, indent=4)
 
     @staticmethod
-    def reload_model(fname_json=None, obj=None):
-        """ Reload model from a .json file and Return an ImagesAlign() object"""
+    def reload_params(fname_json=None, obj=None):
+        """ Reload parameters from a .json file and
+            Return an ImagesAlign() object"""
 
         if fname_json is None:
             fname_json = filedialog.askopenfilename(defaultextension='.json')
@@ -298,10 +298,10 @@ class ImagesAlign:
             assert isinstance(obj, ImagesAlign)
 
         with open(fname_json, 'r', encoding='utf-8') as fid:
-            data = json.load(fid)
+            params = json.load(fid)
 
         imgalign = obj or ImagesAlign()
-        for key, value in data.items():
+        for key, value in params.items():
             setattr(imgalign, key, value)
         return imgalign
 
