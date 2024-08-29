@@ -54,7 +54,7 @@ class ImagesAlign:
 
         self.binarized = False
         self.mode = 'Juxtaposed'
-        self.resizing_factor = 0.25
+        self.resizing_factor = 1
 
         self.imgs = [None, None]
         self.dtypes = [None, None]
