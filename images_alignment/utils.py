@@ -49,7 +49,10 @@ def cropping(img, area):
         return img
     else:
         assert np.asarray(area).dtype == int
-        jmin, jmax, imin, imax = area
+        shape = img.shape
+        xmin, xmax, ymin, ymax = area
+        imin, imax = shape[0] - ymax, shape[0] - ymin
+        jmin, jmax = xmin, xmax
         return img[imin:imax, jmin:jmax]
 
 
@@ -126,56 +129,65 @@ def sift(img1, img2, model_class=None):
     return tmat, points
 
 
-def concatenate_images(image1, image2, alignment):
+def concatenate_images(img1, img2, alignment='horizontal'):
     """
-    concatenate image1 and image2
+    concatenate img1 and img2
 
     Parameters
     ----------
     ax : matplotlib.axes.Axes
         Pairs and image are drawn in this ax.
-    image1 : (N, M [, 3]) array
+    img1 : (N, M [, 3]) array
         First grayscale or color image.
-    image2 : (N, M [, 3]) array
+    img2 : (N, M [, 3]) array
         Second grayscale or color image.
-    points1 : (n, 2) array
-        Points coordinates as ``(row, col)`` related to image1.
-    points2 : (n, 2) array
-        Points coordinates as ``(row, col)`` related to image2.
     alignment : {'horizontal', 'vertical'}, optional
         Whether to show images side by side, ``'horizontal'``, or one above
         the other, ``'vertical'``.
     """
-    new_shape1 = list(image1.shape)
-    new_shape2 = list(image2.shape)
+    new_shape1 = list(img1.shape)
+    new_shape2 = list(img2.shape)
 
-    if image1.shape[0] < image2.shape[0]:
-        new_shape1[0] = image2.shape[0]
-    elif image1.shape[0] > image2.shape[0]:
-        new_shape2[0] = image1.shape[0]
+    if img1.shape[0] < img2.shape[0]:
+        new_shape1[0] = img2.shape[0]
+    elif img1.shape[0] > img2.shape[0]:
+        new_shape2[0] = img1.shape[0]
 
-    if image1.shape[1] < image2.shape[1]:
-        new_shape1[1] = image2.shape[1]
-    elif image1.shape[1] > image2.shape[1]:
-        new_shape2[1] = image1.shape[1]
+    if img1.shape[1] < img2.shape[1]:
+        new_shape1[1] = img2.shape[1]
+    elif img1.shape[1] > img2.shape[1]:
+        new_shape2[1] = img1.shape[1]
 
-    if new_shape1 != image1.shape:
-        new_image1 = np.zeros(new_shape1, dtype=image1.dtype)
-        new_image1[:image1.shape[0], :image1.shape[1]] = image1
-        image1 = new_image1
+    if new_shape1 != img1.shape:
+        new_img1 = np.zeros(new_shape1, dtype=img1.dtype)
+        new_img1[:img1.shape[0], :img1.shape[1]] = img1
+        img1 = new_img1
 
-    if new_shape2 != image2.shape:
-        new_image2 = np.zeros(new_shape2, dtype=image2.dtype)
-        new_image2[:image2.shape[0], :image2.shape[1]] = image2
-        image2 = new_image2
+    if new_shape2 != img2.shape:
+        new_img2 = np.zeros(new_shape2, dtype=img2.dtype)
+        offset_y = new_shape2[0] - img2.shape[0]
+        new_img2[offset_y:offset_y + img2.shape[0], :img2.shape[1]] = img2
+        img2 = new_img2
 
-    shape = image1.shape
+    shape = img1.shape
     offset = np.array([shape[1], shape[0]])
     if alignment == 'horizontal':
-        image = np.concatenate([image1, image2], axis=1)
+        image = np.concatenate([img1, img2], axis=1)
         offset[1] = 0
     elif alignment == 'vertical':
-        image = np.concatenate([image1, image2], axis=0)
+        image = np.concatenate([img1, img2], axis=0)
         offset[0] = 0
 
     return image, offset
+
+
+def resizing_for_plotting(img, resizing_factor=0.25):
+    """ Return image with 'resizing_factor' applied in the 2 dimensions """
+    if resizing_factor == 1.:
+        return img
+    else:
+        shape = img.shape
+        shape2 = (int(shape[0] * resizing_factor),
+                  int(shape[1] * resizing_factor))
+        img2 = resize(img, shape2, order=0)
+        return img2

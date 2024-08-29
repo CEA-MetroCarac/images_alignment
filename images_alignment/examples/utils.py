@@ -12,8 +12,8 @@ from skimage import img_as_ubyte
 
 from images_alignment.utils import gray_conversion
 
-ROIS = {'astronaut': [[130, 320, 10, 200], [0, 70, 0, 100]],
-        'camera': [[130, 330, 50, 220], [5, 100, 15, 115]]}
+ROIS = {'astronaut': [[130, 320, 310, 500], [5, 70, 150, 200]],
+        'camera': [[130, 330, 290, 460], [5, 100, 120, 210]]}
 
 
 class UserTempDirectory:

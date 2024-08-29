@@ -18,7 +18,7 @@ from skimage.transform import warp, AffineTransform, estimate_transform
 from images_alignment.utils import (Terminal,
                                     gray_conversion, image_normalization,
                                     resizing, cropping, padding, sift,
-                                    concatenate_images)
+                                    concatenate_images, resizing_for_plotting)
 
 REG_MODELS = ['StackReg', 'SIFT', 'User-Driven']
 STREG = StackReg(StackReg.AFFINE)
@@ -54,6 +54,7 @@ class ImagesAlign:
 
         self.binarized = False
         self.mode = 'Juxtaposed'
+        self.resizing_factor = 0.25
 
         self.imgs = [None, None]
         self.dtypes = [None, None]
@@ -338,13 +339,18 @@ class ImagesAlign:
             return
 
         self.ax[k].set_title(['Fixed image', 'Moving image'][k])
+        extent = [0, self.imgs[k].shape[1], 0, self.imgs[k].shape[0]]
 
         if self.binarized:
             img = np.zeros_like(self.imgs_bin[k], dtype=int)
             img[self.imgs_bin[k]] = 2 * k - 1
-            self.ax[k].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
+            img = resizing_for_plotting(img, self.resizing_factor)
+            self.ax[k].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1,
+                              extent=extent)
         else:
-            self.ax[k].imshow(self.imgs[k], cmap='gray')
+            img = self.imgs[k].copy()
+            img = resizing_for_plotting(img, self.resizing_factor)
+            self.ax[k].imshow(img, cmap='gray', extent=extent)
 
         if self.rois[k] is not None:
             xmin, xmax, ymin, ymax = self.rois[k]
@@ -368,6 +374,7 @@ class ImagesAlign:
             img = np.zeros_like(imgs[0], dtype=int)
             img[imgs[1] * ~imgs[0]] = 1
             img[imgs[0] * ~imgs[1]] = -1
+            img = resizing_for_plotting(img, self.resizing_factor)
             self.ax[2].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
         else:
@@ -377,6 +384,7 @@ class ImagesAlign:
             imgs = padding(*imgs)
             imgs = [image_normalization(img) for img in imgs]
             img = 0.5 * (imgs[0] + imgs[1])
+            img = resizing_for_plotting(img, self.resizing_factor)
             self.ax[2].imshow(img, cmap='gray')
 
     def plot_juxtaposed_images(self):
@@ -393,21 +401,27 @@ class ImagesAlign:
         arr_1 = img_1[0].get_array()
 
         img, offset = concatenate_images(arr_0, arr_1, 'horizontal')
+        extent = [0, img.shape[1], 0, img.shape[0]]
 
         if self.binarized:
-            self.ax[3].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
+            self.ax[3].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1,
+                              extent=extent)
         else:
-            self.ax[3].imshow(img, cmap='gray')
+            self.ax[3].imshow(img, cmap='gray', extent=extent)
 
         x0 = y0 = x1 = y1 = 0
         if self.rois[0] is not None:
-            x0, _, y0, _ = self.rois[0]
+            x0, _, y0, y0_max = self.rois[0]
         if self.rois[1] is not None:
-            x1, _, y1, _ = self.rois[1]
+            x1, _, y1, y1_max = self.rois[1]
 
         rng = np.random.default_rng(0)
-        for point0, point1 in zip(self.points[0][:30], self.points[1][:30]):
-            color = rng.random(3)
-            self.ax[3].plot((point0[0] + x0, point1[0] + x1 + offset[0]),
-                            (point0[1] + y0, point1[1] + y1 + offset[1]), '-',
-                            color=color)
+        rfac = self.resizing_factor
+        for point0, point1 in zip(self.points[0][:10], self.points[1][:10]):
+            point0[1] = (y0_max - y0) - point0[1]
+            point1[1] = (y1_max - y1) - point1[1]
+
+            x = [(point0[0] + x0) * rfac, (point1[0] + x1) * rfac + offset[0]]
+            y = [(point0[1] + y0) * rfac, (point1[1] + y1) * rfac + offset[1]]
+
+            self.ax[3].plot(x, y, '-', color=rng.random(3))

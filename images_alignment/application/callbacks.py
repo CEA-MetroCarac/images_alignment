@@ -245,6 +245,7 @@ class Callbacks:
 
         self.ax1.clear()
         ax_ref = self.model.ax[self.k_ref]
+        rfac = self.model.resizing_factor
 
         if self.binarized.get():
             cmap, vmin, vmax = CMAP_BINARIZED, -1, 1
@@ -254,13 +255,16 @@ class Callbacks:
         imgs = ax_ref.get_images()
         if len(imgs) > 0:
             arr = imgs[0].get_array()
-            self.ax1.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax)
+            shape = arr.shape
+            extent = [0, shape[1] / rfac, 0, shape[0] / rfac]
+            self.ax1.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent)
 
         lines = ax_ref.get_lines()
         for line in lines:
             color = (255 * line.get_color()).astype(int)
             hex_color = '#{:02x}{:02x}{:02x}'.format(*color)
-            self.ax1.plot(line.get_xdata(), line.get_ydata(), c=hex_color, lw=2)
+            self.ax1.plot(line.get_xdata() / rfac, line.get_ydata() / rfac,
+                          c=hex_color, lw=2)
 
         if self.k_ref == 3:
             self.ax1.axvline(self.model.imgs[0].shape[1],
