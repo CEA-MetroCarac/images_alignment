@@ -411,17 +411,14 @@ class ImagesAlign:
 
         x0 = y0 = x1 = y1 = 0
         if self.rois[0] is not None:
-            x0, _, y0, y0_max = self.rois[0]
+            x0, _, _, y0 = self.rois[0]
         if self.rois[1] is not None:
-            x1, _, y1, y1_max = self.rois[1]
+            x1, _, _, y1 = self.rois[1]
 
         rng = np.random.default_rng(0)
         rfac = self.resizing_factor
         for point0, point1 in zip(self.points[0][:10], self.points[1][:10]):
-            point0[1] = (y0_max - y0) - point0[1]
-            point1[1] = (y1_max - y1) - point1[1]
-
             x = [(point0[0] + x0) * rfac, (point1[0] + x1) * rfac + offset[0]]
-            y = [(point0[1] + y0) * rfac, (point1[1] + y1) * rfac + offset[1]]
+            y = [(y0 - point0[1]) * rfac, (y1 - point1[1]) * rfac + offset[1]]
 
             self.ax[3].plot(x, y, '-', color=rng.random(3))
