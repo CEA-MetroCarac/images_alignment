@@ -86,6 +86,7 @@ class View(Callbacks):
         self.fixed_reg = BooleanVar(value=self.model.fixed_reg)
         self.binarized = BooleanVar(value=self.model.binarized)
         self.resizing_factor = StringVar(value=str(self.model.resizing_factor))
+        self.juxt_alignment = StringVar(value=str(self.model.juxt_alignment))
         self.mode = StringVar(value='Juxtaposed')
         self.show_results = BooleanVar(value=True)
 
@@ -132,6 +133,14 @@ class View(Callbacks):
             add(Radiobutton(fr, text=resizing_factor, value=resizing_factor,
                             variable=self.resizing_factor,
                             command=self.update_resizing_factor), 0, i + 1)
+
+        fr = LabelFrame(frame)
+        add(fr, 0, 2)
+        add(Label(fr, text='Alignment:'), 0, 0, pady=0)
+        for i, juxt_alignment in enumerate(['horizontal', 'vertical']):
+            add(Radiobutton(fr, text=juxt_alignment, value=juxt_alignment,
+                            variable=self.juxt_alignment,
+                            command=self.update_juxt_alignment), 0, i + 1)
 
         self.canvas0 = FigureCanvasTkAgg(fig0, master=frame_visu)
         add(self.canvas0.get_tk_widget(), 1, 0, padx=0)

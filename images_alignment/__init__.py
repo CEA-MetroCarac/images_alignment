@@ -16,7 +16,8 @@ from pystackreg import StackReg
 from skimage.transform import warp, AffineTransform, estimate_transform
 
 from images_alignment.utils import (Terminal,
-                                    gray_conversion, image_normalization,
+                                    gray_conversion, imgs_conversion,
+                                    image_normalization,
                                     resizing, cropping, padding, sift,
                                     concatenate_images, resizing_for_plotting)
 
@@ -55,6 +56,7 @@ class ImagesAlign:
         self.binarized = False
         self.mode = 'Juxtaposed'
         self.resizing_factor = 1
+        self.juxt_alignment = 'horizontal'
 
         self.imgs = [None, None]
         self.dtypes = [None, None]
@@ -383,6 +385,7 @@ class ImagesAlign:
                 imgs[1] = self.img_reg.copy()
             imgs = padding(*imgs)
             imgs = [image_normalization(img) for img in imgs]
+            imgs = imgs_conversion(imgs)
             img = 0.5 * (imgs[0] + imgs[1])
             img = resizing_for_plotting(img, self.resizing_factor)
             self.ax[2].imshow(img, cmap='gray')
@@ -397,10 +400,15 @@ class ImagesAlign:
         if len(img_0) == 0 or len(img_1) == 0:
             return
 
+        alignment = self.juxt_alignment
+        rfac = self.resizing_factor
+
         arr_0 = img_0[0].get_array()
         arr_1 = img_1[0].get_array()
 
-        img, offset = concatenate_images(arr_0, arr_1, 'horizontal')
+        arr_0, arr_1 = imgs_conversion([arr_0, arr_1])
+
+        img, offset = concatenate_images(arr_0, arr_1, alignment=alignment)
         extent = [0, img.shape[1], 0, img.shape[0]]
 
         if self.binarized:
@@ -416,9 +424,7 @@ class ImagesAlign:
             x1, _, _, y1 = self.rois[1]
 
         rng = np.random.default_rng(0)
-        rfac = self.resizing_factor
         for point0, point1 in zip(self.points[0][:10], self.points[1][:10]):
             x = [(point0[0] + x0) * rfac, (point1[0] + x1) * rfac + offset[0]]
             y = [(y0 - point0[1]) * rfac, (y1 - point1[1]) * rfac + offset[1]]
-
             self.ax[3].plot(x, y, '-', color=rng.random(3))

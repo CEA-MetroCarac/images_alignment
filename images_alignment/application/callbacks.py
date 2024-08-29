@@ -225,10 +225,10 @@ class Callbacks:
         self.model.mode = self.mode.get()
         if k is None:
             self.model.plot_all()
-        elif k in range(2):
+        else:
             self.model.plot_k(k)
+        if k in range(2):
             self.model.plot_k(2)
-            self.model.plot_k(3)
         self.update_fig1()
         self.canvas0.draw()
         self.canvas1.draw()
@@ -309,6 +309,11 @@ class Callbacks:
         """ Update the 'resizing_factor' value """
         self.model.resizing_factor = eval(self.resizing_factor.get())
         self.update_plots()
+
+    def update_juxt_alignment(self):
+        """ Update the 'juxt_alignment' value """
+        self.model.juxt_alignment = self.juxt_alignment.get()
+        self.update_plots(k=3)
 
     def bin_inversion(self, k):
         """ Invert the binarized k-th image """
