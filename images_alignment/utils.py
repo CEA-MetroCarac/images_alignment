@@ -41,10 +41,15 @@ def imgs_conversion(imgs):
             img = np.dstack([img, alpha_channel])
         return img
 
-    if imgs[0].ndim > imgs[1].ndim or imgs[0].shape[2] > imgs[1].shape[2]:
+    shape0 = imgs[0].shape
+    shape1 = imgs[1].shape
+
+    if imgs[0].ndim > imgs[1].ndim or \
+            (len(shape0) == len(shape1) == 3 and shape0[2] > shape1[2]):
         imgs[1] = convert(imgs[1], imgs[0])
 
-    elif imgs[0].ndim < imgs[1].ndim or imgs[0].shape[2] < imgs[1].shape[2]:
+    elif imgs[0].ndim < imgs[1].ndim or \
+            (len(shape0) == len(shape1) == 3 and shape0[2] < shape1[2]):
         imgs[0] = convert(imgs[0], imgs[1])
 
     return imgs
@@ -54,6 +59,20 @@ def image_normalization(img):
     """ Normalize image in range [0., 1.] """
     vmin, vmax = img.min(), img.max()
     return (img - vmin) / (vmax - vmin)
+
+
+def get_absolute_threshold(img, relative_threshold):
+    """ Return the absolute threshold to use when binarizing a 'img' """
+    hist, edges = np.histogram(img.flatten(), bins=256)
+    cdf = np.cumsum(hist)
+    cdf = cdf / cdf[-1]
+
+    delta = np.abs(cdf - relative_threshold)
+    ind = np.where(delta == delta.min())[0][-1]  # keep the last 'min. item'
+
+    absolute_threshold = 0.5 * (edges[ind] + edges[ind + 1])
+
+    return absolute_threshold
 
 
 def resizing(img1, img2):
