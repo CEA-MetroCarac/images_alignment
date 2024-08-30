@@ -19,7 +19,7 @@ from images_alignment.utils import (Terminal,
                                     gray_conversion, imgs_conversion,
                                     image_normalization, get_absolute_threshold,
                                     resizing, cropping, padding, sift,
-                                    concatenate_images, resizing_for_plotting)
+                                    concatenate_images, rescaling)
 
 REG_MODELS = ['StackReg', 'SIFT', 'User-Driven']
 STREG = StackReg(StackReg.AFFINE)
@@ -55,7 +55,7 @@ class ImagesAlign:
 
         self.binarized = False
         self.mode = 'Juxtaposed'
-        self.resizing_factor = 1
+        self.rescaling_factor = 1
         self.juxt_alignment = 'horizontal'
 
         self.imgs = [None, None]
@@ -347,12 +347,12 @@ class ImagesAlign:
         if self.binarized:
             img = np.zeros_like(self.imgs_bin[k], dtype=int)
             img[self.imgs_bin[k]] = 2 * k - 1
-            img = resizing_for_plotting(img, self.resizing_factor)
+            img = rescaling(img, self.rescaling_factor)
             self.ax[k].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1,
                               extent=extent)
         else:
             img = self.imgs[k].copy()
-            img = resizing_for_plotting(img, self.resizing_factor)
+            img = rescaling(img, self.rescaling_factor)
             self.ax[k].imshow(img, cmap='gray', extent=extent)
 
         if self.rois[k] is not None:
@@ -373,22 +373,24 @@ class ImagesAlign:
             imgs = self.crop_and_resize(self.imgs_bin)
             if self.img_reg_bin is not None:
                 imgs[1] = self.img_reg_bin.copy()
+            imgs[0] = rescaling(imgs[0], self.rescaling_factor)
+            imgs[1] = rescaling(imgs[1], self.rescaling_factor)
             imgs = padding(*imgs)
             img = np.zeros_like(imgs[0], dtype=int)
             img[imgs[1] * ~imgs[0]] = 1
             img[imgs[0] * ~imgs[1]] = -1
-            img = resizing_for_plotting(img, self.resizing_factor)
             self.ax[2].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
         else:
             imgs = self.crop_and_resize(self.imgs)
             if self.img_reg is not None:
                 imgs[1] = self.img_reg.copy()
+            imgs[0] = rescaling(imgs[0], self.rescaling_factor)
+            imgs[1] = rescaling(imgs[1], self.rescaling_factor)
             imgs = padding(*imgs)
             imgs = [image_normalization(img) for img in imgs]
             imgs = imgs_conversion(imgs)
             img = 0.5 * (imgs[0] + imgs[1])
-            img = resizing_for_plotting(img, self.resizing_factor)
             self.ax[2].imshow(img, cmap='gray')
 
     def plot_juxtaposed_images(self):
@@ -402,7 +404,7 @@ class ImagesAlign:
             return
 
         alignment = self.juxt_alignment
-        rfac = self.resizing_factor
+        rfac = self.rescaling_factor
 
         arr_0 = img_0[0].get_array()
         arr_1 = img_1[0].get_array()

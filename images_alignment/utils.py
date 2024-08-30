@@ -4,7 +4,7 @@ Application for images registration
 import sys
 import numpy as np
 from skimage.color import rgba2rgb, rgb2gray, gray2rgb
-from skimage.transform import AffineTransform, resize
+from skimage.transform import AffineTransform, resize, rescale
 from skimage.feature import SIFT, match_descriptors
 from skimage.measure import ransac
 
@@ -217,13 +217,13 @@ def concatenate_images(img1, img2, alignment='horizontal'):
     return img, offset
 
 
-def resizing_for_plotting(img, resizing_factor=0.25):
-    """ Return image with 'resizing_factor' applied in the 2 dimensions """
-    if resizing_factor == 1.:
+def rescaling(img, rescaling_factor=0.25):
+    """ Return image with 'rescaling_factor' applied in the 2 dimensions """
+    if rescaling_factor == 1.:
         return img
     else:
         shape = img.shape
-        shape2 = (int(shape[0] * resizing_factor),
-                  int(shape[1] * resizing_factor))
-        img2 = resize(img, shape2, order=0)
+        shape2 = (int(shape[0] * rescaling_factor),
+                  int(shape[1] * rescaling_factor))
+        img2 = resize(img, shape2, order=0)  # rescale not working with rgb img
         return img2

@@ -245,7 +245,7 @@ class Callbacks:
 
         self.ax1.clear()
         ax_ref = self.model.ax[self.k_ref]
-        rfac = self.model.resizing_factor
+        rfac = self.model.rescaling_factor
 
         if self.binarized.get():
             cmap, vmin, vmax = CMAP_BINARIZED, -1, 1
@@ -305,9 +305,9 @@ class Callbacks:
         """ Update the 'fixed_reg' value """
         self.model.fixed_reg = self.fixed_reg.get()
 
-    def update_resizing_factor(self):
-        """ Update the 'resizing_factor' value """
-        self.model.resizing_factor = eval(self.resizing_factor.get())
+    def update_rescaling_factor(self):
+        """ Update the 'rescaling_factor' value """
+        self.model.rescaling_factor = eval(self.rescaling_factor.get())
         self.update_plots()
 
     def update_juxt_alignment(self):

@@ -85,7 +85,7 @@ class View(Callbacks):
         self.registration_model = StringVar(value=self.model.registration_model)
         self.fixed_reg = BooleanVar(value=self.model.fixed_reg)
         self.binarized = BooleanVar(value=self.model.binarized)
-        self.resizing_factor = StringVar(value=str(self.model.resizing_factor))
+        self.rescaling_factor = StringVar(value=self.model.rescaling_factor)
         self.juxt_alignment = StringVar(value=str(self.model.juxt_alignment))
         self.mode = StringVar(value='Juxtaposed')
         self.show_results = BooleanVar(value=True)
@@ -129,10 +129,10 @@ class View(Callbacks):
         fr = LabelFrame(frame)
         add(fr, 0, 1)
         add(Label(fr, text='Scaling:'), 0, 0, pady=0)
-        for i, resizing_factor in enumerate(['1', '1/4', '1/8']):
-            add(Radiobutton(fr, text=resizing_factor, value=resizing_factor,
-                            variable=self.resizing_factor,
-                            command=self.update_resizing_factor), 0, i + 1)
+        for i, rescaling_factor in enumerate(['1', '1/4', '1/8']):
+            add(Radiobutton(fr, text=rescaling_factor, value=rescaling_factor,
+                            variable=self.rescaling_factor,
+                            command=self.update_rescaling_factor), 0, i + 1)
 
         fr = LabelFrame(frame)
         add(fr, 0, 2)
