@@ -266,9 +266,22 @@ class Callbacks:
             self.ax1.plot(line.get_xdata() / rfac, line.get_ydata() / rfac,
                           c=hex_color, lw=2)
 
+        if self.k_ref in [0, 1, 3]:
+            for rect in ax_ref.patches:
+                rect2 = Rectangle(rect.get_xy(), rect.get_width(),
+                                  rect.get_height(),
+                                  lw=rect.get_linewidth(),
+                                  ec=rect.get_edgecolor(),
+                                  fc=rect.get_facecolor())
+                self.ax1.add_patch(rect2)
+
         if self.k_ref == 3:
-            self.ax1.axvline(self.model.imgs[0].shape[1],
-                             c='w', ls='dashed', lw=0.5)
+            if self.model.juxt_alignment == 'horizontal':
+                self.ax1.axvline(self.model.imgs[0].shape[1],
+                                 c='w', ls='dashed', lw=0.5)
+            elif self.model.juxt_alignment == 'vertical':
+                self.ax1.axhline(self.model.imgs[0].shape[0],
+                                 c='w', ls='dashed', lw=0.5)
 
     def update_rois(self, k):
         """ Update ROIs of the k-th image from the Tkinter.Entry """
@@ -286,7 +299,7 @@ class Callbacks:
         self.model.points = [[], []]
         self.model.img_reg = None
         self.model.img_reg_bin = None
-        self.update_plots(k)
+        self.update_plots()
 
     def update_threshold(self, value, k):
         """ Update the threshold value associated with the k-th image """

@@ -2,7 +2,6 @@
 Application for images registration
 """
 import os
-from copy import deepcopy
 from pathlib import Path
 import json
 from tkinter import filedialog
@@ -419,6 +418,16 @@ class ImagesAlign:
                               extent=extent)
         else:
             self.ax[3].imshow(img, cmap='gray', extent=extent)
+
+        for k in range(2):
+            if self.rois[k] is not None:
+                xmin, xmax, ymin, ymax = self.rois[k]
+                width, height = xmax - xmin, ymax - ymin
+                if k == 1:
+                    xmin += offset[0]
+                    ymin += offset[1]
+                self.ax[3].add_patch(Rectangle((xmin, ymin), width, height,
+                                               ec='y', fc='none'))
 
         x0 = y0 = x1 = y1 = 0
         if self.rois[0] is not None:
