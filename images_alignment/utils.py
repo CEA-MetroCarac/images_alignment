@@ -197,9 +197,10 @@ def concatenate_images(img1, img2, alignment='horizontal'):
         new_shape2[0] = new_height
         new_img1 = np.zeros(new_shape1, dtype=img1.dtype)
         new_img2 = np.zeros(new_shape2, dtype=img2.dtype)
-        new_img1[:img1.shape[0], :img1.shape[1]] = img1
-        offset_y = new_height - img2.shape[0]
-        new_img2[offset_y:offset_y + img2.shape[0], :img2.shape[1]] = img2
+        offset1_y = new_height - img1.shape[0]
+        offset2_y = new_height - img2.shape[0]
+        new_img1[offset1_y:offset1_y + img1.shape[0], :img1.shape[1]] = img1
+        new_img2[offset2_y:offset2_y + img2.shape[0], :img2.shape[1]] = img2
         img = np.concatenate([new_img1, new_img2], axis=1)
         offset[1] = 0
 
