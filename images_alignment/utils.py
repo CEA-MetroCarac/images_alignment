@@ -61,7 +61,7 @@ def image_normalization(img):
     return (img - vmin) / (vmax - vmin)
 
 
-def get_absolute_threshold(img, relative_threshold):
+def absolute_threshold(img, relative_threshold):
     """ Return the absolute threshold to use when binarizing a 'img' """
     hist, edges = np.histogram(img.flatten(), bins=256)
     cdf = np.cumsum(hist)
@@ -70,9 +70,9 @@ def get_absolute_threshold(img, relative_threshold):
     delta = np.abs(cdf - relative_threshold)
     ind = np.where(delta == delta.min())[0][-1]  # keep the last 'min. item'
 
-    absolute_threshold = 0.5 * (edges[ind] + edges[ind + 1])
+    abs_threshold = 0.5 * (edges[ind] + edges[ind + 1])
 
-    return absolute_threshold
+    return abs_threshold
 
 
 def resizing(img1, img2):

@@ -16,7 +16,7 @@ from skimage.transform import warp, AffineTransform, estimate_transform
 
 from images_alignment.utils import (Terminal,
                                     gray_conversion, imgs_conversion,
-                                    image_normalization, get_absolute_threshold,
+                                    image_normalization, absolute_threshold,
                                     resizing, cropping, padding, sift,
                                     concatenate_images, rescaling)
 
@@ -131,7 +131,8 @@ class ImagesAlign:
             return
 
         img = image_normalization(gray_conversion(self.imgs[k]))
-        abs_threshold = get_absolute_threshold(img, self.thresholds[k])
+        abs_threshold = absolute_threshold(cropping(img, self.rois[k]),
+                                           self.thresholds[k])
         self.imgs_bin[k] = img > abs_threshold
 
         if self.bin_inversions[k]:

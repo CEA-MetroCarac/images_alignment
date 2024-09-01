@@ -134,6 +134,7 @@ class Callbacks:
                 roi = [max(0, int(min(x0, x))), min(shape[1], int(max(x0, x))),
                        max(0, int(min(y0, y))), min(shape[0], int(max(y0, y)))]
                 self.model.set_roi_k(self.k_ref, roi=roi)
+                self.model.binarization_k(self.k_ref)
                 self.rois_entry[self.k_ref].delete(0, END)
                 self.rois_entry[self.k_ref].insert(0, str(roi))
                 self.model.points = [[], []]
@@ -296,6 +297,7 @@ class Callbacks:
                 msg += " as '[xmin, xmax, ymin, ymax]'"
                 showerror(message=msg)
                 return
+        self.model.binarization_k(k)
         self.model.points = [[], []]
         self.model.img_reg = None
         self.model.img_reg_bin = None
