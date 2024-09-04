@@ -27,6 +27,32 @@ def gray_conversion(img):
     return img
 
 
+def rescaling_factor(imgs, max_size=1048):
+    """ Return a 'global' rescaling factor satisfying 'max_size' """
+    rfac = 1.
+    size_max = max(max(imgs[0].shape), max(imgs[1].shape))
+    if size_max > max_size:
+        rfac = max_size / size_max
+    return rfac
+
+
+def rescaling_factors(imgs, max_size=1048):
+    """Return the rescaling factors satisfying max_size for both item of imgs"""
+    return (min(1., max_size / max(imgs[0].shape)),
+            min(1., max_size / max(imgs[1].shape)))
+
+
+def imgs_rescaling(imgs, rfacs=None, max_size=1048):
+    """Rescale images according to the resizing factors 'rfacs' or 'max_size'"""
+    if rfacs is None:
+        rfacs = rescaling_factors(imgs, max_size=max_size)
+    if rfacs[0] < 1:
+        imgs[0] = rescaling(imgs[0], rfacs[0])
+    if rfacs[1] < 1:
+        imgs[1] = rescaling(imgs[1], rfacs[1])
+    return imgs, rfacs
+
+
 def imgs_conversion(imgs):
     """ Uniformize the number of dimension/channels (for images composition) """
 
@@ -136,14 +162,8 @@ def sift(img1, img2, model_class=None):
     -------
     tmat: numpy.ndarrays((3, 3))
         The related transformation matrix
-    keypoints: list of 2 numpy.ndarray((n, 2)
+    points: array of 2 numpy.ndarray((n, 2)
         Keypoints coordinates as (row, col) related to the 2 input images.
-    descriptors: list of 2 numpy.ndarray((n, p)
-        Descriptors associated with the keypoints.
-    matches: numpy.ndarray((q, 2))
-        Indices of corresponding matches returned by
-        skimage.feature.match_descriptors.
-
     """
     if model_class is None:
         model_class = AffineTransform
@@ -166,7 +186,7 @@ def sift(img1, img2, model_class=None):
                             min_samples=4, residual_threshold=2)
 
     tmat = model.params
-    points = [src[inliers], dst[inliers]]
+    points = np.asarray([src[inliers], dst[inliers]])
 
     return tmat, points
 

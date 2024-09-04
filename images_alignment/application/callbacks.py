@@ -320,11 +320,6 @@ class Callbacks:
         """ Update the 'fixed_reg' value """
         self.model.fixed_reg = self.fixed_reg.get()
 
-    def update_rescaling_factor(self):
-        """ Update the 'rescaling_factor' value """
-        self.model.rescaling_factor = eval(self.rescaling_factor.get())
-        self.update_plots()
-
     def update_juxt_alignment(self):
         """ Update the 'juxt_alignment' value """
         self.model.juxt_alignment = self.juxt_alignment.get()

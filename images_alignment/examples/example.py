@@ -19,10 +19,7 @@ def example(dirname, img_name, registration_model):
 
     imgalign = ImagesAlign(fnames_fixed=fnames_fixed,
                            fnames_moving=fnames_moving,
-                           thresholds=[0.5, 0.5],
-                           bin_inversions=[False, False])
-
-    imgalign.rois = ROIS[img_name]
+                           rois=ROIS[img_name])
 
     plt.close()  # to close the default figure
 
@@ -48,6 +45,7 @@ def example(dirname, img_name, registration_model):
 if __name__ == '__main__':
     DIRFUNC = UserTempDirectory  # use the user temp location
     # DIRFUNC = tempfile.TemporaryDirectory  # use a TemporaryDirectory
+
     IMG_NAMES = ['camera', 'astronaut']
     REGISTRATION_MODELS = ['StackReg', 'SIFT', 'User-Driven']
 

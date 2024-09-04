@@ -12,17 +12,13 @@ from images_alignment.examples.utils import ROIS
 def ex_appli(dirname, img_name, registration_model):
     """ Example based on 3 duplicated moving images using the application """
 
-    fnames_fixed, fnames_moving = images_generation(dirname, img_name, nimg=3)
+    fnames_fixed, fnames_moving = images_generation(dirname, img_name, nimg=2)
 
     root = Tk()
     app = App(root,
               fnames_fixed=fnames_fixed,
               fnames_moving=fnames_moving,
-              thresholds=[0.5, 0.5],
-              bin_inversions=[False, False]
-              )
-
-    app.model.rois = ROIS[img_name]
+              rois=ROIS[img_name])
 
     if registration_model in ["StackReg", "SIFT"]:
         app.model.registration(registration_model=registration_model)
@@ -38,6 +34,7 @@ def ex_appli(dirname, img_name, registration_model):
 if __name__ == '__main__':
     DIRFUNC = UserTempDirectory  # use the user temp location
     # DIRFUNC = tempfile.TemporaryDirectory  # use a TemporaryDirectory
+
     IMG_NAMES = ['camera', 'astronaut']
     REGISTRATION_MODELS = ['StackReg', 'SIFT', 'User-Driven']
 

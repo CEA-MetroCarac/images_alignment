@@ -23,6 +23,7 @@ class App:
                  root, size="1450x850", force_terminal_exit=True,
                  fnames_fixed=None,
                  fnames_moving=None,
+                 rois=None,
                  thresholds=None,
                  bin_inversions=None):
         root.title("images_alignment")
@@ -33,6 +34,7 @@ class App:
 
         self.model = ImagesAlign(fnames_fixed=fnames_fixed,
                                  fnames_moving=fnames_moving,
+                                 rois=rois,
                                  thresholds=thresholds,
                                  bin_inversions=bin_inversions)
 

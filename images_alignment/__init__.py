@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import json
 from tkinter import filedialog
-import panel as pn
+import random
 import numpy as np
 import imageio.v3 as iio
 import matplotlib.pyplot as plt
@@ -16,6 +16,8 @@ from skimage.transform import warp, AffineTransform, estimate_transform
 
 from images_alignment.utils import (Terminal,
                                     gray_conversion, imgs_conversion,
+                                    rescaling_factor, rescaling_factors,
+                                    imgs_rescaling,
                                     image_normalization, absolute_threshold,
                                     resizing, cropping, padding, sift,
                                     concatenate_images, rescaling)
@@ -42,12 +44,12 @@ class ImagesAlign:
         Activation keywords to reverse the image binarization
     """
 
-    def __init__(self, fnames_fixed=None, fnames_moving=None,
+    def __init__(self, fnames_fixed=None, fnames_moving=None, rois=None,
                  thresholds=None, bin_inversions=None, terminal=None):
 
         self.fnames_tot = [fnames_fixed, fnames_moving]
         self.fnames = [None, None]
-
+        self.rois = rois or [None, None]
         self.thresholds = thresholds or [0.5, 0.5]
         self.bin_inversions = bin_inversions or [False, False]
         self.terminal = terminal or Terminal()
@@ -59,7 +61,6 @@ class ImagesAlign:
 
         self.imgs = [None, None]
         self.dtypes = [None, None]
-        self.rois = [None, None]
         self.imgs_bin = [None, None]
         self.registration_model = 'StackReg'
         self.points = [[], []]
@@ -100,14 +101,20 @@ class ImagesAlign:
         """ Load the k-th image """
         try:
             img = iio.imread(fname)
+            success = True
+        except Exception as _:
+            self.terminal.write(f"Failed to load {fname}\n\n")
+            success = False
+
+        if success:
             self.reinit()
             self.imgs[k] = img
             self.dtypes[k] = img.dtype
             self.fnames[k] = fname
             self.binarization_k(k)
-
-        except Exception as _:
-            self.terminal.write(f"Failed to load {fname}\n\n")
+            if self.imgs[0] is not None and self.imgs[1] is not None:
+                self.rescaling_factor = rescaling_factor(self.imgs,
+                                                         max_size=1024)
 
     def set_roi_k(self, k, roi=None, roi_percent=None):
         """ Set ROI parameter for the k-th image"""
@@ -162,12 +169,20 @@ class ImagesAlign:
 
         if self.registration_model == 'StackReg':
             imgs_bin = self.crop_and_resize(self.imgs_bin)
+            imgs_bin, rfacs = imgs_rescaling(imgs_bin, max_size=512)
             self.tmat = STREG.register(*imgs_bin)
+            self.tmat[:2, :2] *= rfacs[0] / rfacs[1]
+            self.tmat[:2, 2] *= 1. / rfacs[1]
 
         elif self.registration_model == 'SIFT':
             imgs = self.crop_and_resize(self.imgs)
             imgs = [gray_conversion(img) for img in imgs]
+            imgs, rfacs = imgs_rescaling(imgs, max_size=512)
             self.tmat, self.points = sift(*imgs)
+            self.tmat[:2, :2] *= rfacs[0] / rfacs[1]
+            self.tmat[:2, 2] *= 1. / rfacs[1]
+            self.points[0] = self.points[0] / rfacs[0]
+            self.points[1] = self.points[1] / rfacs[1]
 
         elif self.registration_model == 'User-Driven':
             src = np.asarray(self.points[0])
@@ -403,14 +418,12 @@ class ImagesAlign:
         if len(img_0) == 0 or len(img_1) == 0:
             return
 
-        alignment = self.juxt_alignment
-        rfac = self.rescaling_factor
-
         arr_0 = img_0[0].get_array()
         arr_1 = img_1[0].get_array()
 
         arr_0, arr_1 = imgs_conversion([arr_0, arr_1])
 
+        alignment = self.juxt_alignment
         img, offset = concatenate_images(arr_0, arr_1, alignment=alignment)
         extent = [0, img.shape[1], 0, img.shape[0]]
 
@@ -430,14 +443,23 @@ class ImagesAlign:
                 self.ax[3].add_patch(Rectangle((xmin, ymin), width, height,
                                                ec='y', fc='none'))
 
-        x0 = y0 = x1 = y1 = 0
-        if self.rois[0] is not None:
-            x0, _, _, y0 = self.rois[0]
-        if self.rois[1] is not None:
-            x1, _, _, y1 = self.rois[1]
+        npoints = len(self.points[0])
+        if npoints > 0:
 
-        rng = np.random.default_rng(0)
-        for point0, point1 in zip(self.points[0][:10], self.points[1][:10]):
-            x = [(point0[0] + x0) * rfac, (point1[0] + x1) * rfac + offset[0]]
-            y = [(y0 - point0[1]) * rfac, (y1 - point1[1]) * rfac + offset[1]]
-            self.ax[3].plot(x, y, '-', color=rng.random(3))
+            x0 = y0 = x1 = y1 = 0
+            if self.rois[0] is not None:
+                x0, _, _, y0 = self.rois[0]
+                y0 -= arr_0.shape[0]
+            if self.rois[1] is not None:
+                x1, _, _, y1 = self.rois[1]
+                y1 -= arr_1.shape[0]
+
+            rfac = self.rescaling_factor
+            rng = np.random.default_rng(0)
+            inds = random.sample(range(0, npoints), min(10, npoints))
+            for src, dst in zip(self.points[0][inds], self.points[1][inds]):
+                xp0, yp0 = src[0] * rfac, arr_0.shape[0] - src[1] * rfac
+                xp1, yp1 = dst[0] * rfac, arr_1.shape[0] - dst[1] * rfac
+                x = [xp0 + x0, xp1 + x1 + offset[0]]
+                y = [yp0 + y0, yp1 + y1 + offset[1]]
+                self.ax[3].plot(x, y, '-', color=rng.random(3))
