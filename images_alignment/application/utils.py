@@ -5,7 +5,8 @@ import os
 import re
 import glob
 from itertools import groupby, count
-from tkinter import Frame, Button, Listbox, Text, W, E, END, Y, LEFT, RIGHT
+from tkinter import (Frame, Button, Listbox, Text, Label, Entry,
+                     W, E, END, Y, LEFT, RIGHT)
 from tkinter import filedialog as fd
 from tkinter.ttk import Scrollbar
 from tkinter.font import Font
@@ -15,6 +16,16 @@ def add(obj, row, col, sticky='', padx=5, pady=3, rspan=1, cspan=1, **kwargs):
     """ Add tkinter object at the (row, col)-position of a grid """
     obj.grid(row=row, column=col, sticky=sticky, padx=padx, pady=pady,
              rowspan=rspan, columnspan=cspan, **kwargs)
+
+
+def add_entry(frame, row, label, val, width=5, bind_fun=None):
+    """ Add 2 columns : 'label' and 'val' associated to a binding function
+        'bind_fun' at 'row' (int) position in a 'frame' (Tk.Frame) """
+    add(Label(frame, text=label), row, 0, E)
+    entry = Entry(frame, textvariable=val, width=width)
+    add(entry, row, 1, W)
+    if bind_fun is not None:
+        entry.bind('<Return>', lambda event: bind_fun())
 
 
 def hsorted(list_):

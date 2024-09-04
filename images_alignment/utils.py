@@ -27,7 +27,7 @@ def gray_conversion(img):
     return img
 
 
-def rescaling_factor(imgs, max_size=1048):
+def rescaling_factor(imgs, max_size):
     """ Return a 'global' rescaling factor satisfying 'max_size' """
     rfac = 1.
     size_max = max(max(imgs[0].shape), max(imgs[1].shape))
@@ -36,16 +36,15 @@ def rescaling_factor(imgs, max_size=1048):
     return rfac
 
 
-def rescaling_factors(imgs, max_size=1048):
+def rescaling_factors(imgs, max_size):
     """Return the rescaling factors satisfying max_size for both item of imgs"""
     return (min(1., max_size / max(imgs[0].shape)),
             min(1., max_size / max(imgs[1].shape)))
 
 
-def imgs_rescaling(imgs, rfacs=None, max_size=1048):
-    """Rescale images according to the resizing factors 'rfacs' or 'max_size'"""
-    if rfacs is None:
-        rfacs = rescaling_factors(imgs, max_size=max_size)
+def imgs_rescaling(imgs, max_size):
+    """Rescale images according to 'max_size'"""
+    rfacs = rescaling_factors(imgs, max_size)
     if rfacs[0] < 1:
         imgs[0] = rescaling(imgs[0], rfacs[0])
     if rfacs[1] < 1:

@@ -6,6 +6,7 @@ from tkinter import END
 from tkinter import filedialog as fd
 from tkinter.messagebox import showerror, askyesno
 
+import numpy as np
 from matplotlib.patches import Rectangle
 from imageio.v3 import imwrite
 
@@ -246,7 +247,7 @@ class Callbacks:
 
         self.ax1.clear()
         ax_ref = self.model.ax[self.k_ref]
-        rfac = self.model.rescaling_factor
+        rfac = self.model.rfactor_plotting
 
         if self.binarized.get():
             cmap, vmin, vmax = CMAP_BINARIZED, -1, 1
@@ -269,19 +270,18 @@ class Callbacks:
 
         if self.k_ref in [0, 1, 3]:
             for rect in ax_ref.patches:
-                rect2 = Rectangle(rect.get_xy(), rect.get_width(),
-                                  rect.get_height(),
-                                  lw=rect.get_linewidth(),
-                                  ec=rect.get_edgecolor(),
-                                  fc=rect.get_facecolor())
+                rect2 = Rectangle(np.asarray(rect.get_xy()) / rfac,
+                                  rect.get_width() / rfac,
+                                  rect.get_height() / rfac,
+                                  ec='y', fc='none')
                 self.ax1.add_patch(rect2)
 
         if self.k_ref == 3:
             if self.model.juxt_alignment == 'horizontal':
-                self.ax1.axvline(self.model.imgs[0].shape[1],
+                self.ax1.axvline(self.model.imgs[0].shape[1] - 0.5,
                                  c='w', ls='dashed', lw=0.5)
             elif self.model.juxt_alignment == 'vertical':
-                self.ax1.axhline(self.model.imgs[0].shape[0],
+                self.ax1.axhline(self.model.imgs[0].shape[0] - 0.5,
                                  c='w', ls='dashed', lw=0.5)
 
     def update_rois(self, k):
@@ -324,6 +324,12 @@ class Callbacks:
         """ Update the 'juxt_alignment' value """
         self.model.juxt_alignment = self.juxt_alignment.get()
         self.update_plots(k=3)
+
+    def update_max_size_plotting(self):
+        """ Update the 'max_size_plotting' value """
+        self.model.max_size_plotting = int(self.max_size_plotting.get())
+        self.model.set_rfactor_plotting()
+        self.update_plots()
 
     def bin_inversion(self, k):
         """ Invert the binarized k-th image """

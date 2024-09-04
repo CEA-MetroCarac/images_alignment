@@ -4,12 +4,14 @@ Class View attached to the application
 from tkinter import (Frame, LabelFrame, Label, Radiobutton, Scale,
                      Button, Checkbutton, Entry,
                      W, E, HORIZONTAL, DoubleVar, StringVar, BooleanVar)
+from tkinter.ttk import Notebook
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 
 from images_alignment.application.callbacks import Callbacks
-from images_alignment.application.utils import add, FilesSelector, Terminal
+from images_alignment.application.utils import add, add_entry
+from images_alignment.application.utils import FilesSelector, Terminal
 from images_alignment import REG_MODELS
 
 FONT = ('Helvetica', 8, 'bold')
@@ -88,11 +90,16 @@ class View(Callbacks):
         self.juxt_alignment = StringVar(value=str(self.model.juxt_alignment))
         self.mode = StringVar(value='Juxtaposed')
         self.show_results = BooleanVar(value=True)
+        self.max_size_plotting = StringVar(value=self.model.max_size_plotting)
+        self.max_size_reg = StringVar(value=self.model.max_size_reg)
 
         # Frames creation
         #################
 
-        frame = Frame(root)
+        notebook = Notebook(root)
+
+        frame = Frame(notebook)
+        notebook.add(frame, text='Main')
 
         frame_proc = Frame(frame)
         frame_proc.grid(row=0, column=0, padx=0, sticky=W + E)
@@ -100,7 +107,21 @@ class View(Callbacks):
         frame_visu = Frame(frame)
         frame_visu.grid(row=0, column=1, sticky=W + E)
 
-        frame.pack()
+        frame_options = Frame(notebook)
+        notebook.add(frame_options, text="Options")
+        for k, label in enumerate(['Fixed image', 'Moving image']):
+            frame = LabelFrame(frame_options, text=label, font=FONT)
+            add(frame, k, 0)
+            add(Label(frame, text='Threshold:'), 2, 0, E, pady=0)
+            add(Scale(frame, resolution=0.01, to=1., orient=HORIZONTAL,
+                      length=120, tickinterval=1, variable=self.thresholds[k],
+                      command=lambda val, k=k: self.update_threshold(val, k)),
+                2, 1, W, pady=0)
+        fr = LabelFrame(frame_options, text='Registration', font=FONT)
+        add(fr, 3, 0, W + E)
+        add_entry(fr, 0, 'Max. image size:', self.max_size_reg)
+
+        notebook.pack(expand=True, fill='both')
 
         # VISU frame
         ############
@@ -128,6 +149,11 @@ class View(Callbacks):
 
         fr = LabelFrame(frame)
         add(fr, 0, 1)
+        add_entry(fr, 0, 'Resolution max.:', self.max_size_plotting,
+                  bind_fun=self.update_max_size_plotting)
+
+        fr = LabelFrame(frame)
+        add(fr, 0, 2)
         add(Label(fr, text='Juxtaposition:'), 0, 0, pady=0)
         for i, juxt_alignment in enumerate(['horizontal', 'vertical']):
             add(Radiobutton(fr, text=juxt_alignment, value=juxt_alignment,
@@ -159,7 +185,7 @@ class View(Callbacks):
         self.fselectors = []
         for k, label in enumerate(['Fixed image', 'Moving image']):
             frame = LabelFrame(frame_proc, text=label, font=FONT)
-            add(frame, k, 0)
+            add(frame, k, 0, pady=10)
 
             fr = Frame(frame)
             add(fr, 0, 0, W + E, cspan=3)
@@ -169,53 +195,47 @@ class View(Callbacks):
                 fselector.lbox.bind(event, lambda _, k=k: self.update_file(k))
             self.fselectors.append(fselector)
 
-            add(Label(frame, text='ROI:'), 1, 0, E, pady=0)
-            self.rois_entry[k] = Entry(frame)
+            add(Label(frame, text='ROI:'), 1, 0, E)
+            self.rois_entry[k] = Entry(frame, width=25)
             self.rois_entry[k].bind("<Return>",
                                     lambda _, k=k: self.update_rois(k))
-            add(self.rois_entry[k], 1, 1, W, pady=0)
+            add(self.rois_entry[k], 1, 1, W)
+            add(Button(frame, text='Bin. inversion',
+                       command=lambda k=k: self.bin_inversion(k)), 1, 2)
 
-            add(Label(frame, text='Threshold:'), 2, 0, E, pady=0)
-            add(Scale(frame, resolution=0.01, to=1., orient=HORIZONTAL,
-                      length=120, tickinterval=1, variable=self.thresholds[k],
-                      command=lambda val, k=k: self.update_threshold(val, k)),
-                2, 1, W, pady=0)
-            add(Button(frame, text='Reverse',
-                       command=lambda k=k: self.bin_inversion(k)), 2, 2, pady=0)
+        frame = LabelFrame(frame_proc, text='Preprocessing', font=FONT)
+        add(frame, 2, 0, W + E, pady=10)
 
-            frame = LabelFrame(frame_proc, text='Preprocessing', font=FONT)
-            add(frame, 2, 0, W + E)
+        for i, reg_model in enumerate(REG_MODELS):
+            add(Radiobutton(frame, text=reg_model, value=reg_model,
+                            variable=self.registration_model,
+                            command=self.update_registration_model), 0, i)
 
-            for i, reg_model in enumerate(REG_MODELS):
-                add(Radiobutton(frame, text=reg_model, value=reg_model,
-                                variable=self.registration_model,
-                                command=self.update_registration_model), 0, i)
+        add(Button(frame, text='REGISTRATION',
+                   command=self.registration), 1, 1)
 
-            add(Button(frame, text='REGISTRATION',
-                       command=self.registration), 1, 1)
+        add(Button(frame, text='SAVE IMAGES',
+                   command=self.save_images), 2, 0)
+        add(Button(frame, text='SAVE PARAMS',
+                   command=self.model.save_params), 2, 1)
+        add(Button(frame, text='RELOAD PARAMS',
+                   command=self.reload_params), 2, 2)
 
-            add(Button(frame, text='SAVE IMAGES',
-                       command=self.save_images), 2, 0)
-            add(Button(frame, text='SAVE PARAMS',
-                       command=self.model.save_params), 2, 1)
-            add(Button(frame, text='RELOAD PARAMS',
-                       command=self.reload_params), 2, 2)
+        frame = LabelFrame(frame_proc, text='Application', font=FONT)
+        add(frame, 3, 0, W + E, pady=10)
 
-            frame = LabelFrame(frame_proc, text='Application', font=FONT)
-            add(frame, 3, 0, W + E)
+        add(Button(frame, text='SELECT DIR. RESULT',
+                   command=self.model.set_dirname_res), 0, 0, cspan=2)
 
-            add(Button(frame, text='SELECT DIR. RESULT',
-                       command=self.model.set_dirname_res), 0, 0, cspan=2)
+        add(Checkbutton(frame, text='Fixed registration',
+                        variable=self.fixed_reg,
+                        command=self.update_fixed_reg), 1, 0, padx=30)
+        add(Button(frame, text='APPLY TO ALL',
+                   command=self.apply_to_all), 1, 1, padx=20)
 
-            add(Checkbutton(frame, text='Fixed registration',
-                            variable=self.fixed_reg,
-                            command=self.update_fixed_reg), 1, 0, padx=30)
-            add(Button(frame, text='APPLY TO ALL',
-                       command=self.apply_to_all), 1, 1, padx=20)
+        add(Checkbutton(frame, text='Show results',
+                        variable=self.show_results,
+                        command=self.plot_results), 2, 0, cspan=2)
 
-            add(Checkbutton(frame, text='Show results',
-                            variable=self.show_results,
-                            command=self.plot_results), 2, 0, cspan=2)
-
-            self.model.terminal = Terminal(frame_proc)
-            add(self.model.terminal, 4, 0, W + E, cspan=3)
+        self.model.terminal = Terminal(frame_proc)
+        add(self.model.terminal, 4, 0, W + E, cspan=3)

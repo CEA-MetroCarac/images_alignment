@@ -56,7 +56,8 @@ class ImagesAlign:
 
         self.binarized = False
         self.mode = 'Juxtaposed'
-        self.rescaling_factor = 1
+        self.rfactor_plotting = 1
+        self.max_size_plotting = 1024
         self.juxt_alignment = 'horizontal'
 
         self.imgs = [None, None]
@@ -64,6 +65,7 @@ class ImagesAlign:
         self.imgs_bin = [None, None]
         self.registration_model = 'StackReg'
         self.points = [[], []]
+        self.max_size_reg = 512
         self.tmat = np.identity(3)
         self.score = 0
         self.img_reg = None
@@ -112,9 +114,14 @@ class ImagesAlign:
             self.dtypes[k] = img.dtype
             self.fnames[k] = fname
             self.binarization_k(k)
-            if self.imgs[0] is not None and self.imgs[1] is not None:
-                self.rescaling_factor = rescaling_factor(self.imgs,
-                                                         max_size=1024)
+            self.set_rfactor_plotting()
+
+    def set_rfactor_plotting(self):
+        """ Set 'rfactor-plotting'
+            according to 'max_size_plotting' and 'imgs' sizes """
+        if self.imgs[0] is not None and self.imgs[1] is not None:
+            max_size = self.max_size_plotting
+            self.rfactor_plotting = rescaling_factor(self.imgs, max_size)
 
     def set_roi_k(self, k, roi=None, roi_percent=None):
         """ Set ROI parameter for the k-th image"""
@@ -169,7 +176,7 @@ class ImagesAlign:
 
         if self.registration_model == 'StackReg':
             imgs_bin = self.crop_and_resize(self.imgs_bin)
-            imgs_bin, rfacs = imgs_rescaling(imgs_bin, max_size=512)
+            imgs_bin, rfacs = imgs_rescaling(imgs_bin, self.max_size_reg)
             self.tmat = STREG.register(*imgs_bin)
             self.tmat[:2, :2] *= rfacs[0] / rfacs[1]
             self.tmat[:2, 2] *= 1. / rfacs[1]
@@ -177,7 +184,7 @@ class ImagesAlign:
         elif self.registration_model == 'SIFT':
             imgs = self.crop_and_resize(self.imgs)
             imgs = [gray_conversion(img) for img in imgs]
-            imgs, rfacs = imgs_rescaling(imgs, max_size=512)
+            imgs, rfacs = imgs_rescaling(imgs, self.max_size_reg)
             self.tmat, self.points = sift(*imgs)
             self.tmat[:2, :2] *= rfacs[0] / rfacs[1]
             self.tmat[:2, 2] *= 1. / rfacs[1]
@@ -362,12 +369,12 @@ class ImagesAlign:
         if self.binarized:
             img = np.zeros_like(self.imgs_bin[k], dtype=int)
             img[self.imgs_bin[k]] = 2 * k - 1
-            img = rescaling(img, self.rescaling_factor)
+            img = rescaling(img, self.rfactor_plotting)
             self.ax[k].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1,
                               extent=extent)
         else:
             img = self.imgs[k].copy()
-            img = rescaling(img, self.rescaling_factor)
+            img = rescaling(img, self.rfactor_plotting)
             self.ax[k].imshow(img, cmap='gray', extent=extent)
 
         if self.rois[k] is not None:
@@ -388,8 +395,8 @@ class ImagesAlign:
             imgs = self.crop_and_resize(self.imgs_bin)
             if self.img_reg_bin is not None:
                 imgs[1] = self.img_reg_bin.copy()
-            imgs[0] = rescaling(imgs[0], self.rescaling_factor)
-            imgs[1] = rescaling(imgs[1], self.rescaling_factor)
+            imgs[0] = rescaling(imgs[0], self.rfactor_plotting)
+            imgs[1] = rescaling(imgs[1], self.rfactor_plotting)
             imgs = padding(*imgs)
             img = np.zeros_like(imgs[0], dtype=int)
             img[imgs[1] * ~imgs[0]] = 1
@@ -400,8 +407,8 @@ class ImagesAlign:
             imgs = self.crop_and_resize(self.imgs)
             if self.img_reg is not None:
                 imgs[1] = self.img_reg.copy()
-            imgs[0] = rescaling(imgs[0], self.rescaling_factor)
-            imgs[1] = rescaling(imgs[1], self.rescaling_factor)
+            imgs[0] = rescaling(imgs[0], self.rfactor_plotting)
+            imgs[1] = rescaling(imgs[1], self.rfactor_plotting)
             imgs = padding(*imgs)
             imgs = [image_normalization(img) for img in imgs]
             imgs = imgs_conversion(imgs)
@@ -418,12 +425,14 @@ class ImagesAlign:
         if len(img_0) == 0 or len(img_1) == 0:
             return
 
+        alignment = self.juxt_alignment
+        rfac = self.rfactor_plotting
+
         arr_0 = img_0[0].get_array()
         arr_1 = img_1[0].get_array()
 
         arr_0, arr_1 = imgs_conversion([arr_0, arr_1])
 
-        alignment = self.juxt_alignment
         img, offset = concatenate_images(arr_0, arr_1, alignment=alignment)
         extent = [0, img.shape[1], 0, img.shape[0]]
 
@@ -435,7 +444,7 @@ class ImagesAlign:
 
         for k in range(2):
             if self.rois[k] is not None:
-                xmin, xmax, ymin, ymax = self.rois[k]
+                xmin, xmax, ymin, ymax = np.asarray(self.rois[k]) * rfac
                 width, height = xmax - xmin, ymax - ymin
                 if k == 1:
                     xmin += offset[0]
@@ -454,12 +463,13 @@ class ImagesAlign:
                 x1, _, _, y1 = self.rois[1]
                 y1 -= arr_1.shape[0]
 
-            rfac = self.rescaling_factor
+            np.random.seed(0)
+            random.seed(0)
             rng = np.random.default_rng(0)
             inds = random.sample(range(0, npoints), min(10, npoints))
             for src, dst in zip(self.points[0][inds], self.points[1][inds]):
                 xp0, yp0 = src[0] * rfac, arr_0.shape[0] - src[1] * rfac
                 xp1, yp1 = dst[0] * rfac, arr_1.shape[0] - dst[1] * rfac
-                x = [xp0 + x0, xp1 + x1 + offset[0]]
-                y = [yp0 + y0, yp1 + y1 + offset[1]]
+                x = [xp0 + x0 * rfac, xp1 + x1 * rfac + offset[0]]
+                y = [yp0 + y0 * rfac, yp1 + y1 * rfac + offset[1]]
                 self.ax[3].plot(x, y, '-', color=rng.random(3))
