@@ -161,7 +161,7 @@ def sift(img1, img2, model_class=None):
     -------
     tmat: numpy.ndarrays((3, 3))
         The related transformation matrix
-    points: array of 2 numpy.ndarray((n, 2)
+    points: list of 2 numpy.ndarray((n, 2)
         Keypoints coordinates as (row, col) related to the 2 input images.
     """
     if model_class is None:
@@ -185,7 +185,7 @@ def sift(img1, img2, model_class=None):
                             min_samples=4, residual_threshold=2)
 
     tmat = model.params
-    points = np.asarray([src[inliers], dst[inliers]])
+    points = [src[inliers], dst[inliers]]
 
     return tmat, points
 

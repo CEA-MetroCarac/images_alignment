@@ -56,7 +56,7 @@ class ImagesAlign:
 
         self.binarized = False
         self.mode = 'Juxtaposed'
-        self.rfactor_plotting = 1
+        self.rfactors_plotting = [1., 1.]
         self.max_size_plotting = 1024
         self.juxt_alignment = 'horizontal'
 
@@ -114,14 +114,20 @@ class ImagesAlign:
             self.dtypes[k] = img.dtype
             self.fnames[k] = fname
             self.binarization_k(k)
-            self.set_rfactor_plotting()
+            self.set_max_size_plotting()
+            self.set_rfactors_plotting()
 
-    def set_rfactor_plotting(self):
-        """ Set 'rfactor-plotting'
-            according to 'max_size_plotting' and 'imgs' sizes """
+    def set_max_size_plotting(self):
+        """ Set 'max_size_plotting' wrt maximum 'imgs' sizes """
+        if self.imgs[0] is not None and self.imgs[1] is not None:
+            self._max_size_plotting = max(max(self.imgs[0].shape),
+                                          max(self.imgs[1].shape))
+
+    def set_rfactors_plotting(self):
+        """ Set 'rfactor-plotting' wrt 'max_size_plotting' and 'imgs' sizes """
         if self.imgs[0] is not None and self.imgs[1] is not None:
             max_size = self.max_size_plotting
-            self.rfactor_plotting = rescaling_factor(self.imgs, max_size)
+            self.rfactors_plotting = rescaling_factors(self.imgs, max_size)
 
     def set_roi_k(self, k, roi=None, roi_percent=None):
         """ Set ROI parameter for the k-th image"""
@@ -369,12 +375,12 @@ class ImagesAlign:
         if self.binarized:
             img = np.zeros_like(self.imgs_bin[k], dtype=int)
             img[self.imgs_bin[k]] = 2 * k - 1
-            img = rescaling(img, self.rfactor_plotting)
+            img = rescaling(img, self.rfactors_plotting[k])
             self.ax[k].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1,
                               extent=extent)
         else:
             img = self.imgs[k].copy()
-            img = rescaling(img, self.rfactor_plotting)
+            img = rescaling(img, self.rfactors_plotting[k])
             self.ax[k].imshow(img, cmap='gray', extent=extent)
 
         if self.rois[k] is not None:
@@ -395,8 +401,8 @@ class ImagesAlign:
             imgs = self.crop_and_resize(self.imgs_bin)
             if self.img_reg_bin is not None:
                 imgs[1] = self.img_reg_bin.copy()
-            imgs[0] = rescaling(imgs[0], self.rfactor_plotting)
-            imgs[1] = rescaling(imgs[1], self.rfactor_plotting)
+            imgs[0] = rescaling(imgs[0], self.rfactors_plotting[0])
+            imgs[1] = rescaling(imgs[1], self.rfactors_plotting[0])
             imgs = padding(*imgs)
             img = np.zeros_like(imgs[0], dtype=int)
             img[imgs[1] * ~imgs[0]] = 1
@@ -407,8 +413,8 @@ class ImagesAlign:
             imgs = self.crop_and_resize(self.imgs)
             if self.img_reg is not None:
                 imgs[1] = self.img_reg.copy()
-            imgs[0] = rescaling(imgs[0], self.rfactor_plotting)
-            imgs[1] = rescaling(imgs[1], self.rfactor_plotting)
+            imgs[0] = rescaling(imgs[0], self.rfactors_plotting[0])
+            imgs[1] = rescaling(imgs[1], self.rfactors_plotting[0])
             imgs = padding(*imgs)
             imgs = [image_normalization(img) for img in imgs]
             imgs = imgs_conversion(imgs)
@@ -426,7 +432,7 @@ class ImagesAlign:
             return
 
         alignment = self.juxt_alignment
-        rfac = self.rfactor_plotting
+        rfacs = self.rfactors_plotting
 
         arr_0 = img_0[0].get_array()
         arr_1 = img_1[0].get_array()
@@ -444,7 +450,7 @@ class ImagesAlign:
 
         for k in range(2):
             if self.rois[k] is not None:
-                xmin, xmax, ymin, ymax = np.asarray(self.rois[k]) * rfac
+                xmin, xmax, ymin, ymax = np.asarray(self.rois[k]) * rfacs[k]
                 width, height = xmax - xmin, ymax - ymin
                 if k == 1:
                     xmin += offset[0]
@@ -457,19 +463,20 @@ class ImagesAlign:
 
             x0 = y0 = x1 = y1 = 0
             if self.rois[0] is not None:
-                x0, _, _, y0 = self.rois[0]
+                x0, _, _, y0 = np.asarray(self.rois[0]) * rfacs[0]
                 y0 -= arr_0.shape[0]
             if self.rois[1] is not None:
-                x1, _, _, y1 = self.rois[1]
+                x1, _, _, y1 = np.asarray(self.rois[1]) * rfacs[1]
                 y1 -= arr_1.shape[0]
 
             np.random.seed(0)
             random.seed(0)
             rng = np.random.default_rng(0)
             inds = random.sample(range(0, npoints), min(10, npoints))
-            for src, dst in zip(self.points[0][inds], self.points[1][inds]):
-                xp0, yp0 = src[0] * rfac, arr_0.shape[0] - src[1] * rfac
-                xp1, yp1 = dst[0] * rfac, arr_1.shape[0] - dst[1] * rfac
-                x = [xp0 + x0 * rfac, xp1 + x1 * rfac + offset[0]]
-                y = [yp0 + y0 * rfac, yp1 + y1 * rfac + offset[1]]
+            points = np.asarray(self.points)
+            for src, dst in zip(points[0][inds], points[1][inds]):
+                xp0, yp0 = src[0] * rfacs[0], arr_0.shape[0] - src[1] * rfacs[0]
+                xp1, yp1 = dst[0] * rfacs[1], arr_1.shape[0] - dst[1] * rfacs[1]
+                x = [xp0 + x0, xp1 + x1 + offset[0]]
+                y = [yp0 + y0, yp1 + y1 + offset[1]]
                 self.ax[3].plot(x, y, '-', color=rng.random(3))

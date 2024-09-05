@@ -42,4 +42,4 @@ if __name__ == '__main__':
         dirname = Path(tmpdir) / "images_alignement"
         dirname.mkdir(exist_ok=True)
 
-        ex_appli(dirname, IMG_NAMES[0], REGISTRATION_MODELS[0])
+        ex_appli(dirname, IMG_NAMES[1], REGISTRATION_MODELS[1])

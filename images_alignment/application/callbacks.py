@@ -247,7 +247,6 @@ class Callbacks:
 
         self.ax1.clear()
         ax_ref = self.model.ax[self.k_ref]
-        rfac = self.model.rfactor_plotting
 
         if self.binarized.get():
             cmap, vmin, vmax = CMAP_BINARIZED, -1, 1
@@ -258,31 +257,29 @@ class Callbacks:
         if len(imgs) > 0:
             arr = imgs[0].get_array()
             shape = arr.shape
-            extent = [0, shape[1] / rfac, 0, shape[0] / rfac]
+            extent = [0, shape[1], 0, shape[0]]
             self.ax1.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent)
 
         lines = ax_ref.get_lines()
         for line in lines:
             color = (255 * line.get_color()).astype(int)
             hex_color = '#{:02x}{:02x}{:02x}'.format(*color)
-            self.ax1.plot(line.get_xdata() / rfac, line.get_ydata() / rfac,
-                          c=hex_color, lw=2)
+            self.ax1.plot(line.get_xdata(), line.get_ydata(), c=hex_color, lw=2)
 
         if self.k_ref in [0, 1, 3]:
             for rect in ax_ref.patches:
-                rect2 = Rectangle(np.asarray(rect.get_xy()) / rfac,
-                                  rect.get_width() / rfac,
-                                  rect.get_height() / rfac,
-                                  ec='y', fc='none')
+                rect2 = Rectangle(np.asarray(rect.get_xy()), rect.get_width(),
+                                  rect.get_height(), ec='y', fc='none')
                 self.ax1.add_patch(rect2)
 
         if self.k_ref == 3:
+            rfac = self.model.rfactors_plotting[0]
             if self.model.juxt_alignment == 'horizontal':
-                self.ax1.axvline(self.model.imgs[0].shape[1] - 0.5,
-                                 c='w', ls='dashed', lw=0.5)
+                x12 = self.model.imgs[0].shape[1] * rfac - 0.5
+                self.ax1.axvline(x12, c='w', ls='dashed', lw=0.5)
             elif self.model.juxt_alignment == 'vertical':
-                self.ax1.axhline(self.model.imgs[0].shape[0] - 0.5,
-                                 c='w', ls='dashed', lw=0.5)
+                y12 = self.model.imgs[0].shape[0] * rfac - 0.5
+                self.ax1.axhline(y12, c='w', ls='dashed', lw=0.5)
 
     def update_rois(self, k):
         """ Update ROIs of the k-th image from the Tkinter.Entry """
@@ -328,7 +325,7 @@ class Callbacks:
     def update_max_size_plotting(self):
         """ Update the 'max_size_plotting' value """
         self.model.max_size_plotting = int(self.max_size_plotting.get())
-        self.model.set_rfactor_plotting()
+        self.model.set_rfactors_plotting()
         self.update_plots()
 
     def bin_inversion(self, k):
