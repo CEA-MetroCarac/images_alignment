@@ -127,9 +127,9 @@ class View(Callbacks):
         ############
 
         fig0, ax0 = plt.subplots(1, 4, figsize=(11, 1.5),
-                                 gridspec_kw={'width_ratios': [1, 1, 1, 2]})
-        fig0.tight_layout(h_pad=0)
-        fig0.subplots_adjust(bottom=0.02)
+                                 gridspec_kw={'width_ratios': [1, 1, 2, 1]})
+        # fig0.tight_layout(h_pad=0)
+        # fig0.subplots_adjust(bottom=0.02)
         for i in range(4):
             ax0[i].set_label(i)
             ax0[i].get_xaxis().set_visible(False)

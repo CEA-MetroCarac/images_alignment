@@ -120,8 +120,8 @@ class ImagesAlign:
     def set_max_size_plotting(self):
         """ Set 'max_size_plotting' wrt maximum 'imgs' sizes """
         if self.imgs[0] is not None and self.imgs[1] is not None:
-            self._max_size_plotting = max(max(self.imgs[0].shape),
-                                          max(self.imgs[1].shape))
+            self.max_size_plotting = min(max(self.imgs[0].shape),
+                                         max(self.imgs[1].shape))
 
     def set_rfactors_plotting(self):
         """ Set 'rfactor-plotting' wrt 'max_size_plotting' and 'imgs' sizes """
@@ -353,10 +353,10 @@ class ImagesAlign:
             self.plot_fixed_or_moving_image(k)
 
         elif k == 2:
-            self.plot_combined_images()
+            self.plot_juxtaposed_images()
 
         elif k == 3:
-            self.plot_juxtaposed_images()
+            self.plot_combined_images()
 
         else:
             raise IOError
@@ -389,42 +389,10 @@ class ImagesAlign:
             self.ax[k].add_patch(Rectangle((xmin, ymin), width, height,
                                            ec='y', fc='none'))
 
-    def plot_combined_images(self):
-        """ Plot the combined images """
-
-        self.ax[2].set_title("Combined images")
-
-        if self.imgs[0] is None or self.imgs[1] is None:
-            return
-
-        if self.binarized:
-            imgs = self.crop_and_resize(self.imgs_bin)
-            if self.img_reg_bin is not None:
-                imgs[1] = self.img_reg_bin.copy()
-            imgs[0] = rescaling(imgs[0], self.rfactors_plotting[0])
-            imgs[1] = rescaling(imgs[1], self.rfactors_plotting[0])
-            imgs = padding(*imgs)
-            img = np.zeros_like(imgs[0], dtype=int)
-            img[imgs[1] * ~imgs[0]] = 1
-            img[imgs[0] * ~imgs[1]] = -1
-            self.ax[2].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
-
-        else:
-            imgs = self.crop_and_resize(self.imgs)
-            if self.img_reg is not None:
-                imgs[1] = self.img_reg.copy()
-            imgs[0] = rescaling(imgs[0], self.rfactors_plotting[0])
-            imgs[1] = rescaling(imgs[1], self.rfactors_plotting[0])
-            imgs = padding(*imgs)
-            imgs = [image_normalization(img) for img in imgs]
-            imgs = imgs_conversion(imgs)
-            img = 0.5 * (imgs[0] + imgs[1])
-            self.ax[2].imshow(img, cmap='gray')
-
     def plot_juxtaposed_images(self):
         """ Plot the juxtaposed images """
 
-        self.ax[3].set_title("Juxtaposed images")
+        self.ax[2].set_title("Juxtaposed images")
 
         img_0 = self.ax[0].get_images()
         img_1 = self.ax[1].get_images()
@@ -443,10 +411,10 @@ class ImagesAlign:
         extent = [0, img.shape[1], 0, img.shape[0]]
 
         if self.binarized:
-            self.ax[3].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1,
+            self.ax[2].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1,
                               extent=extent)
         else:
-            self.ax[3].imshow(img, cmap='gray', extent=extent)
+            self.ax[2].imshow(img, cmap='gray', extent=extent)
 
         for k in range(2):
             if self.rois[k] is not None:
@@ -455,7 +423,7 @@ class ImagesAlign:
                 if k == 1:
                     xmin += offset[0]
                     ymin += offset[1]
-                self.ax[3].add_patch(Rectangle((xmin, ymin), width, height,
+                self.ax[2].add_patch(Rectangle((xmin, ymin), width, height,
                                                ec='y', fc='none'))
 
         npoints = len(self.points[0])
@@ -479,4 +447,36 @@ class ImagesAlign:
                 xp1, yp1 = dst[0] * rfacs[1], arr_1.shape[0] - dst[1] * rfacs[1]
                 x = [xp0 + x0, xp1 + x1 + offset[0]]
                 y = [yp0 + y0, yp1 + y1 + offset[1]]
-                self.ax[3].plot(x, y, '-', color=rng.random(3))
+                self.ax[2].plot(x, y, '-', color=rng.random(3))
+
+    def plot_combined_images(self):
+        """ Plot the combined images """
+
+        self.ax[3].set_title("Combined images")
+
+        if self.imgs[0] is None or self.imgs[1] is None:
+            return
+
+        if self.binarized:
+            imgs = self.crop_and_resize(self.imgs_bin)
+            if self.img_reg_bin is not None:
+                imgs[1] = self.img_reg_bin.copy()
+            imgs[0] = rescaling(imgs[0], self.rfactors_plotting[0])
+            imgs[1] = rescaling(imgs[1], self.rfactors_plotting[0])
+            imgs = padding(*imgs)
+            img = np.zeros_like(imgs[0], dtype=int)
+            img[imgs[1] * ~imgs[0]] = 1
+            img[imgs[0] * ~imgs[1]] = -1
+            self.ax[3].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
+
+        else:
+            imgs = self.crop_and_resize(self.imgs)
+            if self.img_reg is not None:
+                imgs[1] = self.img_reg.copy()
+            imgs[0] = rescaling(imgs[0], self.rfactors_plotting[0])
+            imgs[1] = rescaling(imgs[1], self.rfactors_plotting[0])
+            imgs = padding(*imgs)
+            imgs = [image_normalization(img) for img in imgs]
+            imgs = imgs_conversion(imgs)
+            img = 0.5 * (imgs[0] + imgs[1])
+            self.ax[3].imshow(img, cmap='gray')

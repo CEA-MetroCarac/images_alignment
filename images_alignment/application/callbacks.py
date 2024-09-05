@@ -20,7 +20,7 @@ class Callbacks:
 
     def __init__(self):
 
-        self.k_ref = 2
+        self.k_ref = 3
         self.pair = [None, None]
         self.rectangle = None
         self.line = None
@@ -51,7 +51,7 @@ class Callbacks:
 
         if self.toolbar.mode == '' and \
                 event.inaxes == self.ax1 and \
-                self.k_ref == 3 and \
+                self.k_ref == 2 and \
                 self.registration_model.get() == 'User-Driven':
 
             x, y = event.xdata, event.ydata
@@ -101,7 +101,7 @@ class Callbacks:
         """ Draw the line in 'fig1' (with 'User-Driven' mode activated) """
         if self.toolbar.mode == '' and \
                 event.inaxes == self.ax1 and \
-                self.k_ref == 3 and \
+                self.k_ref == 2 and \
                 self.pair != [None, None] and \
                 self.registration_model.get() == 'User-Driven':
 
@@ -230,7 +230,7 @@ class Callbacks:
         else:
             self.model.plot_k(k)
         if k in range(2):
-            self.model.plot_k(2)
+            self.model.plot_k(3)
         self.update_fig1()
         self.canvas0.draw()
         self.canvas1.draw()
@@ -259,16 +259,16 @@ class Callbacks:
         if k_ref in [0, 1]:
             shape = self.model.imgs[k_ref].shape
         elif k_ref == 2:
+            shape = arr.shape
+        elif k_ref == 3:
             if self.model.rois[0] is not None:
                 xmin, xmax, ymin, ymax = self.model.rois[0]
                 shape = [ymax - ymin, xmax - xmin]
             else:
                 shape = self.model.imgs[0].shape
-        elif k_ref == 3:
-            shape = arr.shape
         extent = [0, shape[1], 0, shape[0]]
         self.ax1.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent)
-        if k_ref == 3:
+        if k_ref == 2:
             self.ax1.axis('off')
 
         lines = ax_ref.get_lines()
@@ -277,13 +277,13 @@ class Callbacks:
             hex_color = '#{:02x}{:02x}{:02x}'.format(*color)
             self.ax1.plot(line.get_xdata(), line.get_ydata(), c=hex_color, lw=2)
 
-        if k_ref in [0, 1, 3]:
+        if k_ref in [0, 1, 2]:
             for rect in ax_ref.patches:
                 rect2 = Rectangle(np.asarray(rect.get_xy()), rect.get_width(),
                                   rect.get_height(), ec='y', fc='none')
                 self.ax1.add_patch(rect2)
 
-        if k_ref == 3:
+        if k_ref == 2:
             rfac = self.model.rfactors_plotting[0]
             if self.model.juxt_alignment == 'horizontal':
                 x12 = self.model.imgs[0].shape[1] * rfac - 0.5
@@ -331,7 +331,7 @@ class Callbacks:
     def update_juxt_alignment(self):
         """ Update the 'juxt_alignment' value """
         self.model.juxt_alignment = self.juxt_alignment.get()
-        self.update_plots(k=3)
+        self.update_plots(k=2)
 
     def update_max_size_plotting(self):
         """ Update the 'max_size_plotting' value """
