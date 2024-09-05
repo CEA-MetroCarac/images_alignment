@@ -55,14 +55,17 @@ class Callbacks:
                 self.registration_model.get() == 'User-Driven':
 
             x, y = event.xdata, event.ydata
-            shape0 = self.model.imgs[0].shape
-            shape1 = self.model.imgs[1].shape
             rfacs = self.model.rfactors_plotting
             alignment = self.model.juxt_alignment
 
+            x0min, x0max, y0min, y0max = self.model.rois[0]
+            x1min, x1max, y1min, y1max = self.model.rois[1]
+            shape0 = (y0max - y0min, x0max - x0min)
+            shape1 = (y1max - y1min, x1max - x1min)
+            x12 = shape0[1] * rfacs[0]
+            y12 = shape0[0] * rfacs[0]
+
             if event.button == 1:
-                x12 = shape0[1] * rfacs[0]
-                y12 = shape0[0] * rfacs[0]
                 if (alignment == 'horizontal' and x > x12) or \
                         (alignment == 'vertical' and y > y12):
                     if self.pair[1] is None:
@@ -154,7 +157,7 @@ class Callbacks:
                 self.model.points = [[], []]
                 self.model.img_reg = None
                 self.model.img_reg_bin = None
-                self.update_plots(self.k_ref)
+                self.update_plots()
 
     def set_roi(self, event):
         """ Set ROI from the view to the model """
@@ -290,7 +293,7 @@ class Callbacks:
             hex_color = '#{:02x}{:02x}{:02x}'.format(*color)
             self.ax1.plot(line.get_xdata(), line.get_ydata(), c=hex_color, lw=2)
 
-        if k_ref in [0, 1, 2]:
+        if k_ref in [0, 1]:
             for rect in ax_ref.patches:
                 rect2 = Rectangle(np.asarray(rect.get_xy()), rect.get_width(),
                                   rect.get_height(), ec='y', fc='none')
@@ -298,12 +301,15 @@ class Callbacks:
 
         if k_ref == 2:
             rfac = self.model.rfactors_plotting[0]
+            if self.model.rois[0] is not None:
+                xmin, xmax, ymin, ymax = self.model.rois[0]
+                shape = (ymax - ymin, xmax - xmin)
+            else:
+                shape = self.model.imgs[0].shape
             if self.model.juxt_alignment == 'horizontal':
-                x12 = self.model.imgs[0].shape[1] * rfac - 0.5
-                self.ax1.axvline(x12, c='w', ls='dashed', lw=0.5)
+                self.ax1.axvline(shape[1] * rfac, c='w', ls='dashed', lw=0.5)
             elif self.model.juxt_alignment == 'vertical':
-                y12 = self.model.imgs[0].shape[0] * rfac - 0.5
-                self.ax1.axhline(y12, c='w', ls='dashed', lw=0.5)
+                self.ax1.axhline(shape[0] * rfac, c='w', ls='dashed', lw=0.5)
 
     def update_rois(self, k):
         """ Update ROIs of the k-th image from the Tkinter.Entry """

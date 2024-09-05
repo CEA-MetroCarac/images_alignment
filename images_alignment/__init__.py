@@ -120,7 +120,7 @@ class ImagesAlign:
         """ Update the 'rfactors_plotting' wrt 'resolution' and 'imgs' sizes """
         if self.imgs[0] is not None and self.imgs[1] is not None:
             vmax = max(max(self.imgs[0].shape), max(self.imgs[1].shape))
-            vmin = min(max(self.imgs[0].shape), max(self.imgs[1].shape))
+            vmin = min(512, max(self.imgs[0].shape), max(self.imgs[1].shape))
             max_size = (vmax - vmin) * self.resolution + vmin
             self.rfactors_plotting = rescaling_factors(self.imgs, max_size)
 
@@ -389,20 +389,23 @@ class ImagesAlign:
 
         self.ax[2].set_title("Juxtaposed images")
 
-        img_0 = self.ax[0].get_images()
-        img_1 = self.ax[1].get_images()
-        if len(img_0) == 0 or len(img_1) == 0:
+        imgs = [self.ax[k].get_images() for k in range(2)]
+        if len(imgs[0]) == 0 or len(imgs[1]) == 0:
             return
 
         alignment = self.juxt_alignment
         rfacs = self.rfactors_plotting
 
-        arr_0 = img_0[0].get_array()
-        arr_1 = img_1[0].get_array()
+        arrs = []
+        for k in range(2):
+            arr = imgs[k][0].get_array()
+            if self.rois[k] is not None:
+                roi = (np.asarray(self.rois[k]) * rfacs[k]).astype(int)
+                arr = cropping(arr, roi)
+            arrs.append(arr)
 
-        arr_0, arr_1 = imgs_conversion([arr_0, arr_1])
-
-        img, offset = concatenate_images(arr_0, arr_1, alignment=alignment)
+        arrs = imgs_conversion(arrs)
+        img, offset = concatenate_images(*arrs, alignment=alignment)
         extent = [0, img.shape[1], 0, img.shape[0]]
 
         if self.binarized:
@@ -411,38 +414,18 @@ class ImagesAlign:
         else:
             self.ax[2].imshow(img, cmap='gray', extent=extent)
 
-        for k in range(2):
-            if self.rois[k] is not None:
-                xmin, xmax, ymin, ymax = np.asarray(self.rois[k]) * rfacs[k]
-                width, height = xmax - xmin, ymax - ymin
-                if k == 1:
-                    xmin += offset[0]
-                    ymin += offset[1]
-                self.ax[2].add_patch(Rectangle((xmin, ymin), width, height,
-                                               ec='y', fc='none'))
-
         npoints = len(self.points[0])
         if npoints > 0:
-
-            x0 = y0 = x1 = y1 = 0
-            if self.registration_model != 'User-Driven':
-                if self.rois[0] is not None:
-                    x0, _, _, y0 = np.asarray(self.rois[0]) * rfacs[0]
-                    y0 -= arr_0.shape[0]
-                if self.rois[1] is not None:
-                    x1, _, _, y1 = np.asarray(self.rois[1]) * rfacs[1]
-                    y1 -= arr_1.shape[0]
-
             np.random.seed(0)
             random.seed(0)
             rng = np.random.default_rng(0)
             inds = random.sample(range(0, npoints), min(10, npoints))
             points = np.asarray(self.points)
             for src, dst in zip(points[0][inds], points[1][inds]):
-                xp0, yp0 = src[0] * rfacs[0], arr_0.shape[0] - src[1] * rfacs[0]
-                xp1, yp1 = dst[0] * rfacs[1], arr_1.shape[0] - dst[1] * rfacs[1]
-                x = [xp0 + x0, xp1 + x1 + offset[0]]
-                y = [yp0 + y0, yp1 + y1 + offset[1]]
+                x0, y0 = src[0] * rfacs[0], arrs[0].shape[0] - src[1] * rfacs[0]
+                x1, y1 = dst[0] * rfacs[1], arrs[1].shape[0] - dst[1] * rfacs[1]
+                x = [x0, x1 + offset[0]]
+                y = [y0, y1 + offset[1]]
                 self.ax[2].plot(x, y, '-', color=rng.random(3))
 
     def plot_combined_images(self):
@@ -457,8 +440,6 @@ class ImagesAlign:
             imgs = self.crop_and_resize(self.imgs_bin)
             if self.img_reg_bin is not None:
                 imgs[1] = self.img_reg_bin.copy()
-            imgs[0] = rescaling(imgs[0], self.rfactors_plotting[0])
-            imgs[1] = rescaling(imgs[1], self.rfactors_plotting[0])
             imgs = padding(*imgs)
             img = np.zeros_like(imgs[0], dtype=int)
             img[imgs[1] * ~imgs[0]] = 1
@@ -469,8 +450,6 @@ class ImagesAlign:
             imgs = self.crop_and_resize(self.imgs)
             if self.img_reg is not None:
                 imgs[1] = self.img_reg.copy()
-            imgs[0] = rescaling(imgs[0], self.rfactors_plotting[0])
-            imgs[1] = rescaling(imgs[1], self.rfactors_plotting[0])
             imgs = padding(*imgs)
             imgs = [image_normalization(img) for img in imgs]
             imgs = imgs_conversion(imgs)

@@ -102,10 +102,11 @@ def absolute_threshold(img, relative_threshold):
 
 def resizing(img1, img2):
     """ Resize the images to have similar shape (requested for pyStackReg) """
-    if img1.size <= img2.size:
-        img1 = resize(img1, img2.shape, preserve_range=True)
-    else:
-        img2 = resize(img2, img1.shape, preserve_range=True)
+    # if img1.size <= img2.size:
+    #     img1 = resize(img1, img2.shape, preserve_range=True)
+    # else:
+    #     img2 = resize(img2, img1.shape, preserve_range=True)
+    img2 = resize(img2, img1.shape, preserve_range=True)
     return [img1, img2]
 
 
