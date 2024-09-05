@@ -246,7 +246,8 @@ class Callbacks:
         """ Update the fig1 """
 
         self.ax1.clear()
-        ax_ref = self.model.ax[self.k_ref]
+        k_ref = self.k_ref
+        ax_ref = self.model.ax[k_ref]
 
         if self.binarized.get():
             cmap, vmin, vmax = CMAP_BINARIZED, -1, 1
@@ -254,11 +255,21 @@ class Callbacks:
             cmap, vmin, vmax = 'gray', None, None
 
         imgs = ax_ref.get_images()
-        if len(imgs) > 0:
-            arr = imgs[0].get_array()
+        arr = imgs[0].get_array()
+        if k_ref in [0, 1]:
+            shape = self.model.imgs[k_ref].shape
+        elif k_ref == 2:
+            if self.model.rois[0] is not None:
+                xmin, xmax, ymin, ymax = self.model.rois[0]
+                shape = [ymax - ymin, xmax - xmin]
+            else:
+                shape = self.model.imgs[0].shape
+        elif k_ref == 3:
             shape = arr.shape
-            extent = [0, shape[1], 0, shape[0]]
-            self.ax1.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent)
+        extent = [0, shape[1], 0, shape[0]]
+        self.ax1.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent)
+        if k_ref == 3:
+            self.ax1.axis('off')
 
         lines = ax_ref.get_lines()
         for line in lines:
@@ -266,13 +277,13 @@ class Callbacks:
             hex_color = '#{:02x}{:02x}{:02x}'.format(*color)
             self.ax1.plot(line.get_xdata(), line.get_ydata(), c=hex_color, lw=2)
 
-        if self.k_ref in [0, 1, 3]:
+        if k_ref in [0, 1, 3]:
             for rect in ax_ref.patches:
                 rect2 = Rectangle(np.asarray(rect.get_xy()), rect.get_width(),
                                   rect.get_height(), ec='y', fc='none')
                 self.ax1.add_patch(rect2)
 
-        if self.k_ref == 3:
+        if k_ref == 3:
             rfac = self.model.rfactors_plotting[0]
             if self.model.juxt_alignment == 'horizontal':
                 x12 = self.model.imgs[0].shape[1] * rfac - 0.5
