@@ -333,10 +333,10 @@ class Callbacks:
         self.model.juxt_alignment = self.juxt_alignment.get()
         self.update_plots(k=2)
 
-    def update_max_size_plotting(self):
-        """ Update the 'max_size_plotting' value """
-        self.model.max_size_plotting = int(self.max_size_plotting.get())
-        self.model.set_rfactors_plotting()
+    def update_resolution(self):
+        """ Update the 'resolution' and 'rfactors_plotting' values """
+        self.model.resolution = self.resolution.get()
+        self.model.update_rfactors_plotting()
         self.update_plots()
 
     def bin_inversion(self, k):

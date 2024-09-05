@@ -56,8 +56,8 @@ class ImagesAlign:
 
         self.binarized = False
         self.mode = 'Juxtaposed'
+        self.resolution = 0.
         self.rfactors_plotting = [1., 1.]
-        self.max_size_plotting = 1024
         self.juxt_alignment = 'horizontal'
 
         self.imgs = [None, None]
@@ -114,19 +114,14 @@ class ImagesAlign:
             self.dtypes[k] = img.dtype
             self.fnames[k] = fname
             self.binarization_k(k)
-            self.set_max_size_plotting()
-            self.set_rfactors_plotting()
+            self.update_rfactors_plotting()
 
-    def set_max_size_plotting(self):
-        """ Set 'max_size_plotting' wrt maximum 'imgs' sizes """
+    def update_rfactors_plotting(self):
+        """ Update the 'rfactors_plotting' wrt 'resolution' and 'imgs' sizes """
         if self.imgs[0] is not None and self.imgs[1] is not None:
-            self.max_size_plotting = min(max(self.imgs[0].shape),
-                                         max(self.imgs[1].shape))
-
-    def set_rfactors_plotting(self):
-        """ Set 'rfactor-plotting' wrt 'max_size_plotting' and 'imgs' sizes """
-        if self.imgs[0] is not None and self.imgs[1] is not None:
-            max_size = self.max_size_plotting
+            vmax = max(max(self.imgs[0].shape), max(self.imgs[1].shape))
+            vmin = min(max(self.imgs[0].shape), max(self.imgs[1].shape))
+            max_size = (vmax - vmin) * self.resolution + vmin
             self.rfactors_plotting = rescaling_factors(self.imgs, max_size)
 
     def set_roi_k(self, k, roi=None, roi_percent=None):

@@ -90,7 +90,7 @@ class View(Callbacks):
         self.juxt_alignment = StringVar(value=str(self.model.juxt_alignment))
         self.mode = StringVar(value='Juxtaposed')
         self.show_results = BooleanVar(value=True)
-        self.max_size_plotting = StringVar(value=self.model.max_size_plotting)
+        self.resolution = DoubleVar(value=self.model.resolution)
         self.max_size_reg = StringVar(value=self.model.max_size_reg)
 
         # Frames creation
@@ -149,8 +149,11 @@ class View(Callbacks):
 
         fr = LabelFrame(frame)
         add(fr, 0, 1)
-        add_entry(fr, 0, 'Resolution max.:', self.max_size_plotting,
-                  bind_fun=self.update_max_size_plotting)
+        add(Label(fr, text='Resolution:'), 0, 0, E)
+        scale = Scale(fr, variable=self.resolution, resolution=0.01, to=1,
+                      showvalue=False, orient=HORIZONTAL)
+        scale.bind("<ButtonRelease-1>", lambda _: self.update_resolution())
+        add(scale, 0, 1, W)
 
         fr = LabelFrame(frame)
         add(fr, 0, 2)
