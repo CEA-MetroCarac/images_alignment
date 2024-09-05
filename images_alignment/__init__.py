@@ -124,22 +124,6 @@ class ImagesAlign:
             max_size = (vmax - vmin) * self.resolution + vmin
             self.rfactors_plotting = rescaling_factors(self.imgs, max_size)
 
-    def set_roi_k(self, k, roi=None, roi_percent=None):
-        """ Set ROI parameter for the k-th image"""
-        if roi is not None and roi_percent is not None:
-            msg = "ERROR: 'roi' and 'roi_percent' cannot be defined " \
-                  "simultaneously "
-            self.terminal.write(msg)
-
-        if roi is not None:
-            self.rois[k] = roi
-        elif roi_percent is not None:
-            xmin_p, xmax_p, ymin_p, ymax_p = roi_percent
-            shape = self.imgs[k].shape
-            ymin, ymax = ymin_p * shape[0], ymax_p * shape[0]
-            xmin, xmax = xmin_p * shape[1], xmax_p * shape[1]
-            self.rois[k] = xmin, xmax, ymin, ymax
-
     def binarization_k(self, k):
         """ Binarize the k-th image """
         if self.imgs[k] is None:

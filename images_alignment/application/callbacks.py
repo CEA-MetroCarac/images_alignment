@@ -146,18 +146,19 @@ class Callbacks:
             self.rectangle.set_height(y - y0)
             self.canvas1.draw_idle()
 
+            if event.button == 3:
+                self.pair = [None, None]
+                self.rois_entry[self.k_ref].delete(0, END)
+                self.update_rois(self.k_ref)
+
             if set_roi:
                 shape = self.model.imgs[self.k_ref].shape
                 roi = [max(0, int(min(x0, x))), min(shape[1], int(max(x0, x))),
                        max(0, int(min(y0, y))), min(shape[0], int(max(y0, y)))]
-                self.model.set_roi_k(self.k_ref, roi=roi)
-                self.model.binarization_k(self.k_ref)
-                self.rois_entry[self.k_ref].delete(0, END)
-                self.rois_entry[self.k_ref].insert(0, str(roi))
-                self.model.points = [[], []]
-                self.model.img_reg = None
-                self.model.img_reg_bin = None
-                self.update_plots()
+                if roi[0] != roi[1] and roi[2] != roi[3]:
+                    self.rois_entry[self.k_ref].delete(0, END)
+                    self.rois_entry[self.k_ref].insert(0, str(roi))
+                    self.update_rois(self.k_ref)
 
     def set_roi(self, event):
         """ Set ROI from the view to the model """
