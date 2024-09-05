@@ -34,7 +34,16 @@ class Callbacks:
         if event.inaxes in self.model.ax:
             self.k_ref = int(event.inaxes.axes.get_label())
             self.update_fig1()
+            self.canvas0.draw()
             self.canvas1.draw()
+
+    def spine_axis(self):
+        """ Spine the selected axis """
+        for k, ax in enumerate(self.model.ax):
+            color = 'red' if k == self.k_ref else 'white'
+            for spine in ax.spines.values():
+                spine.set_edgecolor(color)
+                spine.set_linewidth(2)
 
     def init_rectangle(self, event):
         """ Initialize rectangle """
@@ -265,6 +274,7 @@ class Callbacks:
         self.ax1.clear()
         k_ref = self.k_ref
         ax_ref = self.model.ax[k_ref]
+        self.spine_axis()
 
         if self.binarized.get():
             cmap, vmin, vmax = CMAP_BINARIZED, -1, 1

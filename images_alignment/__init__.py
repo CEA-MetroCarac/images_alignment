@@ -216,7 +216,10 @@ class ImagesAlign:
                                                  'tmat': self.tmat}
 
         score = self.results[self.registration_model]['score']
-        self.terminal.write(f"score : {score:.1f} %\n")
+        msg = f"score : {score:.1f} %"
+        if self.registration_model == "SIFT":
+            msg += f" - nblines (SIFT) : {len(self.points[0])}"
+        self.terminal.write(msg + "\n")
 
         return imgs[0], self.img_reg
 

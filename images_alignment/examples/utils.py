@@ -9,11 +9,13 @@ from skimage import data
 from skimage.transform import AffineTransform, warp
 from skimage.io import imsave
 from skimage import img_as_ubyte
+from scipy.ndimage import rotate
 
 from images_alignment.utils import gray_conversion
 
 ROIS = {'astronaut': [[130, 320, 310, 500], [5, 70, 130, 210]],
-        'camera': [[130, 330, 290, 460], [5, 80, 130, 210]]}
+        'camera': [[130, 330, 290, 460], [5, 80, 130, 210]],
+        'shepp_logan_phantom': [None, None]}
 
 
 class UserTempDirectory:
@@ -62,7 +64,12 @@ def images_generation(dirname, img_name='astronaut', nimg=1):
         imsave(fname_moving, img2)
     else:
         for k in range(nimg):
-            img2 = moving_image_generation(img1, rotation=0.5 + 0.1 * k)
+            if img_name == 'shepp_logan_phantom':
+                img2 = rotate(img1, angle=-(20 + 20 * k), reshape=False)
+                img2 = np.pad(img2, [[200, 50], [200, 50]])
+                img2 = img2[::4, ::4]
+            else:
+                img2 = moving_image_generation(img1, rotation=0.5 + 0.1 * k)
             fname_moving = dirname / f'img2_{k + 1}.tif'
             fnames_moving.append(fname_moving)
             imsave(fname_moving, img2)

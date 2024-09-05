@@ -20,8 +20,10 @@ def ex_appli(dirname, img_name, registration_model):
               fnames_moving=fnames_moving,
               rois=ROIS[img_name])
 
+    app.model.registration_model = registration_model
+
     if registration_model in ["StackReg", "SIFT"]:
-        app.model.registration(registration_model=registration_model)
+        app.model.registration()
 
     # apply the transformation to the set of images
     # app.view.apply_to_all(dirname_res=dirname / 'results')
@@ -35,7 +37,7 @@ if __name__ == '__main__':
     DIRFUNC = UserTempDirectory  # use the user temp location
     # DIRFUNC = tempfile.TemporaryDirectory  # use a TemporaryDirectory
 
-    IMG_NAMES = ['camera', 'astronaut']
+    IMG_NAMES = ['camera', 'astronaut', 'shepp_logan_phantom']
     REGISTRATION_MODELS = ['StackReg', 'SIFT', 'User-Driven']
 
     with DIRFUNC() as tmpdir:
