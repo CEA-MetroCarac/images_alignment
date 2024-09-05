@@ -55,10 +55,16 @@ class Callbacks:
                 self.registration_model.get() == 'User-Driven':
 
             x, y = event.xdata, event.ydata
-            x12 = self.model.imgs[0].shape[1]
+            shape0 = self.model.imgs[0].shape
+            shape1 = self.model.imgs[1].shape
+            rfacs = self.model.rfactors_plotting
+            alignment = self.model.juxt_alignment
 
             if event.button == 1:
-                if x > x12:
+                x12 = shape0[1] * rfacs[0]
+                y12 = shape0[0] * rfacs[0]
+                if (alignment == 'horizontal' and x > x12) or \
+                        (alignment == 'vertical' and y > y12):
                     if self.pair[1] is None:
                         self.pair[1] = [x, y]
                 else:
@@ -68,8 +74,15 @@ class Callbacks:
                     (x1, y1), (x2, y2) = self.pair
                     line = self.ax1.plot((x1, x2), (y1, y2), 'r-')[0]
                     self.lines.append(line)
-                    self.model.points[0].append([x1, y1])
-                    self.model.points[1].append([x2 - x12, y2])
+                    x1p, y1p = x1 / rfacs[0], shape0[0] - y1 / rfacs[0]
+                    if alignment == 'horizontal':
+                        x2p = (x2 - x12) / rfacs[1]
+                        y2p = shape1[0] - y2 / rfacs[1]
+                    else:
+                        x2p = x2 / rfacs[1]
+                        y2p = shape1[0] - (y2 - y12) / rfacs[1]
+                    self.model.points[0].append([x1p, y1p])
+                    self.model.points[1].append([x2p, y2p])
                     self.remove_moving_line()
 
             elif event.button == 3:

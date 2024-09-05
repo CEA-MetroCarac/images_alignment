@@ -425,12 +425,13 @@ class ImagesAlign:
         if npoints > 0:
 
             x0 = y0 = x1 = y1 = 0
-            if self.rois[0] is not None:
-                x0, _, _, y0 = np.asarray(self.rois[0]) * rfacs[0]
-                y0 -= arr_0.shape[0]
-            if self.rois[1] is not None:
-                x1, _, _, y1 = np.asarray(self.rois[1]) * rfacs[1]
-                y1 -= arr_1.shape[0]
+            if self.registration_model != 'User-Driven':
+                if self.rois[0] is not None:
+                    x0, _, _, y0 = np.asarray(self.rois[0]) * rfacs[0]
+                    y0 -= arr_0.shape[0]
+                if self.rois[1] is not None:
+                    x1, _, _, y1 = np.asarray(self.rois[1]) * rfacs[1]
+                    y1 -= arr_1.shape[0]
 
             np.random.seed(0)
             random.seed(0)
