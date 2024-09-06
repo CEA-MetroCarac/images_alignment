@@ -116,13 +116,29 @@ class ImagesAlign:
             self.binarization_k(k)
             self.update_rfactors_plotting()
 
+    def get_shapes(self):
+        """ Return the shapes related to the cropped (or not cropped) images """
+        shapes = []
+        for k in range(2):
+            if self.rois[k] is not None:
+                xmin, xmax, ymin, ymax = self.rois[k]
+                shapes.append((ymax - ymin, xmax - xmin))
+            else:
+                shape = self.imgs[k].shape
+                shapes.append([shape[0], shape[1]])
+        return shapes
+
     def update_rfactors_plotting(self):
         """ Update the 'rfactors_plotting' wrt 'resolution' and 'imgs' sizes """
-        if self.imgs[0] is not None and self.imgs[1] is not None:
-            vmax = max(max(self.imgs[0].shape), max(self.imgs[1].shape))
-            vmin = min(512, max(self.imgs[0].shape), max(self.imgs[1].shape))
-            max_size = (vmax - vmin) * self.resolution + vmin
-            self.rfactors_plotting = rescaling_factors(self.imgs, max_size)
+        if self.imgs[0] is None or self.imgs[1] is None:
+            return
+
+        shapes = self.get_shapes()
+        vmax = max(max(shapes[0]), max(shapes[1]))
+        vmin = min(512, min(shapes[0]), min(shapes[1]))
+        max_size = (vmax - vmin) * self.resolution + vmin
+        imgs = self.crop_and_resize(self.imgs)
+        self.rfactors_plotting = rescaling_factors(imgs, max_size)
 
     def binarization_k(self, k):
         """ Binarize the k-th image """
@@ -392,7 +408,7 @@ class ImagesAlign:
             arrs.append(arr)
 
         arrs = imgs_conversion(arrs)
-        img, offset = concatenate_images(*arrs, alignment=alignment)
+        img, offset = concatenate_images(arrs[0], arrs[1], alignment=alignment)
         extent = [0, img.shape[1], 0, img.shape[0]]
 
         if self.binarized:

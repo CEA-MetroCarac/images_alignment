@@ -66,11 +66,7 @@ class Callbacks:
             x, y = event.xdata, event.ydata
             rfacs = self.model.rfactors_plotting
             alignment = self.model.juxt_alignment
-
-            x0min, x0max, y0min, y0max = self.model.rois[0]
-            x1min, x1max, y1min, y1max = self.model.rois[1]
-            shape0 = (y0max - y0min, x0max - x0min)
-            shape1 = (y1max - y1min, x1max - x1min)
+            shape0, shape1 = self.model.get_shapes()
             x12 = shape0[1] * rfacs[0]
             y12 = shape0[0] * rfacs[0]
 
@@ -249,6 +245,7 @@ class Callbacks:
 
     def update_plots(self, k=None):
         """ Update the plots """
+        self.model.update_rfactors_plotting()
         self.model.binarized = self.binarized.get()
         self.model.mode = self.mode.get()
         if k is None:
@@ -288,11 +285,7 @@ class Callbacks:
         elif k_ref == 2:
             shape = arr.shape
         elif k_ref == 3:
-            if self.model.rois[0] is not None:
-                xmin, xmax, ymin, ymax = self.model.rois[0]
-                shape = [ymax - ymin, xmax - xmin]
-            else:
-                shape = self.model.imgs[0].shape
+            shape = self.model.get_shapes()[0]
         extent = [0, shape[1], 0, shape[0]]
         self.ax1.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent)
         if k_ref == 2:
@@ -312,11 +305,7 @@ class Callbacks:
 
         if k_ref == 2:
             rfac = self.model.rfactors_plotting[0]
-            if self.model.rois[0] is not None:
-                xmin, xmax, ymin, ymax = self.model.rois[0]
-                shape = (ymax - ymin, xmax - xmin)
-            else:
-                shape = self.model.imgs[0].shape
+            shape = self.model.get_shapes()[0]
             if self.model.juxt_alignment == 'horizontal':
                 self.ax1.axvline(shape[1] * rfac, c='w', ls='dashed', lw=0.5)
             elif self.model.juxt_alignment == 'vertical':
