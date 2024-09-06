@@ -133,11 +133,11 @@ class ImagesAlign:
         if self.imgs[0] is None or self.imgs[1] is None:
             return
 
-        shapes = self.get_shapes()
+        imgs = [cropping(self.imgs[k], self.rois[k]) for k in range(2)]
+        shapes = [imgs[0].shape[:2], imgs[1].shape[:2]]
         vmax = max(max(shapes[0]), max(shapes[1]))
         vmin = min(512, min(shapes[0]), min(shapes[1]))
         max_size = (vmax - vmin) * self.resolution + vmin
-        imgs = self.crop_and_resize(self.imgs)
         self.rfactors_plotting = rescaling_factors(imgs, max_size)
 
     def binarization_k(self, k):
