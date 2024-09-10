@@ -70,6 +70,7 @@ class ImagesAlign:
         self.score = 0
         self.img_reg = None
         self.img_reg_bin = None
+        self.inv_reg = False
         self.results = {}
         self.dirname_res = [None, None]
         self.fixed_reg = False
@@ -136,7 +137,7 @@ class ImagesAlign:
         imgs = [cropping(self.imgs[k], self.rois[k]) for k in range(2)]
         shapes = [imgs[0].shape[:2], imgs[1].shape[:2]]
         vmax = max(max(shapes[0]), max(shapes[1]))
-        vmin = min(512, min(shapes[0]), min(shapes[1]))
+        vmin = min(max(shapes[0]), max(shapes[1]))
         max_size = (vmax - vmin) * self.resolution + vmin
         self.rfactors_plotting = rescaling_factors(imgs, max_size)
 
@@ -211,20 +212,24 @@ class ImagesAlign:
         imgs = self.crop_and_resize(self.imgs)
         imgs_bin = self.crop_and_resize(self.imgs_bin)
 
-        output_shape = imgs[0].shape
-        self.img_reg = warp(imgs[1], self.tmat,
+        inds, tmat = [1, 0], self.tmat
+        if self.inv_reg:  # inverse registr. from the fixed to the moving image
+            inds, tmat = [0, 1], np.linalg.inv(self.tmat)
+
+        output_shape = imgs[inds[1]].shape
+        self.img_reg = warp(imgs[inds[0]], tmat,
                             output_shape=output_shape,
                             preserve_range=True,
                             mode='constant', cval=1, order=None)
-        self.img_reg_bin = warp(imgs_bin[1], self.tmat,
+        self.img_reg_bin = warp(imgs_bin[inds[0]], tmat,
                                 output_shape=output_shape[:2],
                                 preserve_range=True,
                                 mode='constant', cval=1, order=None)
 
         # score calculation
-        mask = warp(np.ones_like(self.img_reg_bin), self.tmat, mode='constant',
+        mask = warp(np.ones_like(self.img_reg_bin), tmat, mode='constant',
                     cval=0, preserve_range=True, order=None)
-        mismatch = np.logical_xor(imgs_bin[0], self.img_reg_bin)
+        mismatch = np.logical_xor(imgs_bin[inds[1]], self.img_reg_bin)
         mismatch[~mask] = 0
         self.score = 100 * (1. - np.sum(mismatch) / np.sum(mask))
 
@@ -442,7 +447,8 @@ class ImagesAlign:
         if self.binarized:
             imgs = self.crop_and_resize(self.imgs_bin)
             if self.img_reg_bin is not None:
-                imgs[1] = self.img_reg_bin.copy()
+                k = 0 if self.inv_reg else 1
+                imgs[k] = self.img_reg_bin.copy()
             imgs = padding(*imgs)
             img = np.zeros_like(imgs[0], dtype=int)
             img[imgs[1] * ~imgs[0]] = 1
@@ -452,7 +458,8 @@ class ImagesAlign:
         else:
             imgs = self.crop_and_resize(self.imgs)
             if self.img_reg is not None:
-                imgs[1] = self.img_reg.copy()
+                k = 0 if self.inv_reg else 1
+                imgs[k] = self.img_reg.copy()
             imgs = padding(*imgs)
             imgs = [image_normalization(img) for img in imgs]
             imgs = imgs_conversion(imgs)

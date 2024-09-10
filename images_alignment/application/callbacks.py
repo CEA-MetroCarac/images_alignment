@@ -285,11 +285,10 @@ class Callbacks:
         elif k_ref == 2:
             shape = arr.shape
         elif k_ref == 3:
-            shape = self.model.get_shapes()[0]
+            shapes = self.model.get_shapes()
+            shape = shapes[1] if self.model.inv_reg else shapes[0]
         extent = [0, shape[1], 0, shape[0]]
         self.ax1.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent)
-        if k_ref == 2:
-            self.ax1.axis('off')
 
         lines = ax_ref.get_lines()
         for line in lines:
@@ -342,6 +341,12 @@ class Callbacks:
         self.model.registration_model = self.registration_model.get()
         self.model.reinit()
         self.update_plots()
+
+    def update_inv_reg(self):
+        """ Update the 'inv_reg' value """
+        self.model.inv_reg = self.inv_reg.get()
+        self.model.registration_apply()
+        self.update_plots(k=3)
 
     def update_fixed_reg(self):
         """ Update the 'fixed_reg' value """

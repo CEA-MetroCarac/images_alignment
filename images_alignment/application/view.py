@@ -85,6 +85,7 @@ class View(Callbacks):
         self.thresholds = [DoubleVar(value=self.model.thresholds[0]),
                            DoubleVar(value=self.model.thresholds[1])]
         self.registration_model = StringVar(value=self.model.registration_model)
+        self.inv_reg = BooleanVar(value=self.model.inv_reg)
         self.fixed_reg = BooleanVar(value=self.model.fixed_reg)
         self.binarized = BooleanVar(value=self.model.binarized)
         self.juxt_alignment = StringVar(value=str(self.model.juxt_alignment))
@@ -216,6 +217,8 @@ class View(Callbacks):
 
         add(Button(frame, text='REGISTRATION',
                    command=self.registration), 1, 1)
+        add(Checkbutton(frame, text='INV.', variable=self.inv_reg,
+                        command=self.update_inv_reg), 1, 2)
 
         add(Button(frame, text='SAVE IMAGES',
                    command=self.save_images), 2, 0)
