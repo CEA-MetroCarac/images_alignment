@@ -2,12 +2,13 @@
 Class View attached to the application
 """
 from tkinter import (Frame, LabelFrame, Label, Radiobutton, Scale,
-                     Button, Checkbutton, Entry,
+                     Button, Checkbutton, Entry, Toplevel, Message,
                      W, E, HORIZONTAL, DoubleVar, StringVar, BooleanVar)
 from tkinter.ttk import Notebook
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
+import webbrowser
 
 from images_alignment.application.callbacks import Callbacks
 from images_alignment.application.utils import add, add_entry
@@ -80,6 +81,7 @@ class View(Callbacks):
 
         super().__init__()
 
+        self.root = root
         self.model = model
         self.rois_entry = [None, None]
         self.thresholds = [DoubleVar(value=self.model.thresholds[0]),
@@ -97,32 +99,11 @@ class View(Callbacks):
         # Frames creation
         #################
 
-        notebook = Notebook(root)
-
-        frame = Frame(notebook)
-        notebook.add(frame, text='Main')
-
-        frame_proc = Frame(frame)
+        frame_proc = Frame(root)
         frame_proc.grid(row=0, column=0, padx=0, sticky=W + E)
 
-        frame_visu = Frame(frame)
+        frame_visu = Frame(root)
         frame_visu.grid(row=0, column=1, sticky=W + E)
-
-        frame_options = Frame(notebook)
-        notebook.add(frame_options, text="Options")
-        for k, label in enumerate(['Fixed image', 'Moving image']):
-            frame = LabelFrame(frame_options, text=label, font=FONT)
-            add(frame, k, 0)
-            add(Label(frame, text='Threshold:'), 2, 0, E, pady=0)
-            add(Scale(frame, resolution=0.01, to=1., orient=HORIZONTAL,
-                      length=120, tickinterval=1, variable=self.thresholds[k],
-                      command=lambda val, k=k: self.update_threshold(val, k)),
-                2, 1, W, pady=0)
-        fr = LabelFrame(frame_options, text='Registration', font=FONT)
-        add(fr, 3, 0, W + E)
-        add_entry(fr, 0, 'Max. image size:', self.max_size_reg)
-
-        notebook.pack(expand=True, fill='both')
 
         # VISU frame
         ############
@@ -186,10 +167,21 @@ class View(Callbacks):
         # PROCESSING frame
         ##################
 
+        frame_tab_bar = Frame(frame_proc)
+        add(frame_tab_bar, 0, 0)
+
+        self.options_but = Button(frame_tab_bar, text="Options",
+                                  command=self.open_options)
+        add(self.options_but, 0, 0, padx=10)
+
+        self.about_but = Button(frame_tab_bar, text="About",
+                                command=self.open_about)
+        add(self.about_but, 0, 1, padx=10)
+
         self.fselectors = []
         for k, label in enumerate(['Fixed image', 'Moving image']):
             frame = LabelFrame(frame_proc, text=label, font=FONT)
-            add(frame, k, 0, pady=10)
+            add(frame, k + 1, 0, pady=10)
 
             fr = Frame(frame)
             add(fr, 0, 0, W + E, cspan=3)
@@ -208,7 +200,7 @@ class View(Callbacks):
                        command=lambda k=k: self.bin_inversion(k)), 1, 2)
 
         frame = LabelFrame(frame_proc, text='Preprocessing', font=FONT)
-        add(frame, 2, 0, W + E, pady=10)
+        add(frame, 3, 0, W + E, pady=10)
 
         for i, reg_model in enumerate(REG_MODELS):
             add(Radiobutton(frame, text=reg_model, value=reg_model,
@@ -228,7 +220,7 @@ class View(Callbacks):
                    command=self.reload_params), 2, 2)
 
         frame = LabelFrame(frame_proc, text='Application', font=FONT)
-        add(frame, 3, 0, W + E, pady=10)
+        add(frame, 4, 0, W + E, pady=10)
 
         add(Button(frame, text='SELECT DIR. RESULT',
                    command=self.model.set_dirname_res), 0, 0, cspan=2)
@@ -244,4 +236,42 @@ class View(Callbacks):
                         command=self.plot_results), 2, 0, cspan=2)
 
         self.model.terminal = Terminal(frame_proc)
-        add(self.model.terminal, 4, 0, W + E, cspan=3)
+        add(self.model.terminal, 5, 0, W + E, cspan=3)
+
+    def open_options(self):
+        frame_options = Toplevel(self.root)
+        frame_options.title("Options")
+        x = self.options_but.winfo_rootx()
+        y = self.options_but.winfo_rooty()
+        frame_options.geometry(f"220x220+{x}+{y}")
+
+        for k, label in enumerate(['Fixed image', 'Moving image']):
+            frame = LabelFrame(frame_options, text=label, font=FONT)
+            add(frame, k, 0)
+            add(Label(frame, text='Threshold:'), 2, 0, E, pady=0)
+            add(Scale(frame, resolution=0.01, to=1., orient=HORIZONTAL,
+                      length=120, tickinterval=1, variable=self.thresholds[k],
+                      command=lambda val, k=k: self.update_threshold(val, k)),
+                2, 1, W, pady=0)
+        fr = LabelFrame(frame_options, text='Registration', font=FONT)
+        add(fr, 3, 0, W + E)
+        add_entry(fr, 0, 'Max. image size:', self.max_size_reg)
+
+    def open_about(self):
+        frame_about = Toplevel(self.root)
+        frame_about.title("About")
+
+        text = "This code is dedicated to images alignment.\n"
+        text += "The sources and the related documentation are accessible in:\n"
+        website = r"https://github.com/CEA-MetroCarac/images_registration"
+        message = Message(frame_about, text=text, width=400)
+        add(message, 0, 0, pady=0)
+        label = Label(frame_about, text=website, fg="blue")
+        label.bind("<Button-1>", lambda _: webbrowser.open_new(website))
+        add(label, 0, 1, pady=0)
+
+        # width = frame_about.winfo_reqwidth()
+        # height = frame_about.winfo_reqheight()
+        x = self.about_but.winfo_rootx()
+        y = self.about_but.winfo_rooty()
+        frame_about.geometry(f"{700}x{40}+{x}+{y}")

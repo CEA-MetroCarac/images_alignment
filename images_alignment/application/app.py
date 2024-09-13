@@ -20,7 +20,7 @@ class App:
     """
 
     def __init__(self,
-                 root, size="1450x880", force_terminal_exit=True,
+                 root, size="1450x860", force_terminal_exit=True,
                  fnames_fixed=None,
                  fnames_moving=None,
                  rois=None,
