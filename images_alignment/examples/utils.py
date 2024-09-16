@@ -51,7 +51,7 @@ def images_generation(dirname, img_name='astronaut', nimg=1):
 
     # fixed image
     img1 = eval(f"data.{img_name}()")
-    fname_fixed = dirname / 'img1.tif'
+    fname_fixed = dirname / f'{img_name}_1.tif'
     imsave(fname_fixed, img1)
     fnames_fixed = [fname_fixed]
 
@@ -59,7 +59,7 @@ def images_generation(dirname, img_name='astronaut', nimg=1):
     fnames_moving = []
     if nimg == 1:
         img2 = moving_image_generation(img1, rotation=0.5)
-        fname_moving = dirname / 'img2.tif'
+        fname_moving = dirname / f'{img_name}_2.tif'
         fnames_moving.append(fname_moving)
         imsave(fname_moving, img2)
     else:
@@ -70,7 +70,7 @@ def images_generation(dirname, img_name='astronaut', nimg=1):
                 img2 = img2[::4, ::4]
             else:
                 img2 = moving_image_generation(img1, rotation=0.5 + 0.1 * k)
-            fname_moving = dirname / f'img2_{k + 1}.tif'
+            fname_moving = dirname / f'{img_name}_2_{k + 1}.tif'
             fnames_moving.append(fname_moving)
             imsave(fname_moving, img2)
 
