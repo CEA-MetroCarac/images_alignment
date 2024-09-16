@@ -4,7 +4,7 @@ Application for images registration
 import sys
 import numpy as np
 from skimage.color import rgba2rgb, rgb2gray, gray2rgb
-from skimage.transform import AffineTransform, resize, rescale
+from skimage.transform import AffineTransform, resize
 from skimage.feature import SIFT, match_descriptors
 from skimage.measure import ransac
 
@@ -82,20 +82,20 @@ def imgs_conversion(imgs):
 
 def image_normalization(img):
     """ Normalize image in range [0., 1.] """
-    vmin, vmax = img.min(), img.max()
+    vmin, vmax = np.nanmin(img), np.nanmax(img)
     return (img - vmin) / (vmax - vmin)
 
 
 def absolute_threshold(img, relative_threshold):
     """ Return the absolute threshold to use when binarizing a 'img' """
-    hist, edges = np.histogram(img.flatten(), bins=256)
+    hist, edges = np.histogram(img[~np.isnan(img)].flatten(), bins=1000)
     cdf = np.cumsum(hist)
     cdf = cdf / cdf[-1]
 
     delta = np.abs(cdf - relative_threshold)
     ind = np.where(delta == delta.min())[0][-1]  # keep the last 'min. item'
 
-    abs_threshold = 0.5 * (edges[ind] + edges[ind + 1])
+    abs_threshold = edges[ind + 1]
 
     return abs_threshold
 
@@ -120,6 +120,8 @@ def cropping(img, area):
         xmin, xmax, ymin, ymax = area
         imin, imax = shape[0] - ymax, shape[0] - ymin
         jmin, jmax = xmin, xmax
+        imin, imax = min(shape[0], max(0, imin)), min(shape[0], max(0, imax))
+        jmin, jmax = min(shape[1], max(0, jmin)), min(shape[1], max(0, jmax))
         return img[imin:imax, jmin:jmax]
 
 
@@ -238,13 +240,12 @@ def concatenate_images(img1, img2, alignment='horizontal'):
     return img, offset
 
 
-def rescaling(img, rescaling_factor=0.25):
-    """ Return image with 'rescaling_factor' applied in the 2 dimensions """
-    if rescaling_factor == 1.:
+def rescaling(img, rfac=0.25):
+    """ Return image with the rescaling_factor applied in the 2 dimensions """
+    if rfac == 1.:
         return img
     else:
         shape = img.shape
-        shape2 = (int(shape[0] * rescaling_factor),
-                  int(shape[1] * rescaling_factor))
+        shape2 = (int(shape[0] * rfac), int(shape[1] * rfac))
         img2 = resize(img, shape2, order=0)  # rescale not working with rgb img
         return img2

@@ -279,16 +279,17 @@ class Callbacks:
             cmap, vmin, vmax = 'gray', None, None
 
         imgs = ax_ref.get_images()
-        arr = imgs[0].get_array()
-        if k_ref in [0, 1]:
-            shape = self.model.imgs[k_ref].shape
-        elif k_ref == 2:
-            shape = arr.shape
-        elif k_ref == 3:
-            shapes = self.model.get_shapes()
-            shape = shapes[1] if self.model.inv_reg else shapes[0]
-        extent = [0, shape[1], 0, shape[0]]
-        self.ax1.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent)
+        if len(imgs) > 0:
+            arr = imgs[0].get_array()
+            if k_ref in [0, 1]:
+                shape = self.model.imgs[k_ref].shape
+            elif k_ref == 2:
+                shape = arr.shape
+            elif k_ref == 3:
+                shapes = self.model.get_shapes()
+                shape = shapes[1] if self.model.inv_reg else shapes[0]
+            extent = [0, shape[1], 0, shape[0]]
+            self.ax1.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent)
 
         lines = ax_ref.get_lines()
         for line in lines:
@@ -378,6 +379,7 @@ class Callbacks:
 
     def save_images(self):
         """ Save the fixed and moving images in their final state """
+        # TODO revisit
         imgs = self.model.crop_and_resize(self.model.imgs)
         if self.model.img_reg is not None:
             imgs[1] = self.model.img_reg
@@ -406,8 +408,8 @@ class Callbacks:
         """ Apply the alignment processing to all the images """
         dirnames_res = [dirname_res]
         if self.model.dirname_res[0] is not None:
-            dirnames_res.append(self.model.dirname_res[0].parent)
-        if self.model.fnames[0].parents[1] in dirnames_res:
+            dirnames_res.append(Path(self.model.dirname_res[0]).parent)
+        if Path(self.model.fnames[0]).parents[1] in dirnames_res:
             msg = 'You are about to re-align images located in the RESULT dir.'
             if self.show_results.get():
                 msg += '\nTo go back to the raw data files, select "No" ' \

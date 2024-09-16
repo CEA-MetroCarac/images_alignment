@@ -12,17 +12,16 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Rectangle
 from pystackreg import StackReg
-from skimage.transform import warp, AffineTransform, estimate_transform
+from skimage.transform import warp, estimate_transform
 
 from images_alignment.utils import (Terminal,
                                     gray_conversion, imgs_conversion,
-                                    rescaling_factor, rescaling_factors,
-                                    imgs_rescaling,
+                                    rescaling_factors, imgs_rescaling,
                                     image_normalization, absolute_threshold,
                                     resizing, cropping, padding, sift,
                                     concatenate_images, rescaling)
 
-REG_MODELS = ['StackReg', 'SIFT', 'User-Driven']
+REG_MODELS = ['StackReg', 'SIFT', 'SIFT + StackReg', 'User-Driven']
 STREG = StackReg(StackReg.AFFINE)
 CMAP_BINARIZED = ListedColormap(["#00FF00", "black", "red"])
 KEYS = ['rois', 'thresholds', 'bin_inversions', 'registration_model']
@@ -67,7 +66,6 @@ class ImagesAlign:
         self.points = [[], []]
         self.max_size_reg = 512
         self.tmat = np.identity(3)
-        self.score = 0
         self.img_reg = None
         self.img_reg_bin = None
         self.inv_reg = False
@@ -166,10 +164,10 @@ class ImagesAlign:
             imgs = resizing(*imgs)
         return imgs
 
-    def registration(self, registration_model=None):
+    def registration(self, registration_model=None, show_score=True):
         """ Calculate the transformation matrix 'tmat' and apply it """
         self.registration_calc(registration_model=registration_model)
-        self.registration_apply()
+        self.registration_apply(show_score=show_score)
 
     def registration_calc(self, registration_model=None):
         """ Calculate the transformation matrix 'tmat' """
@@ -198,13 +196,38 @@ class ImagesAlign:
             dst = np.asarray(self.points[1])
             self.tmat = estimate_transform('affine', src, dst).params
 
+        elif self.registration_model == 'SIFT + StackReg':
+
+            self.registration(registration_model='SIFT', show_score=False)
+
+            # save/change input data
+            tmat = self.tmat.copy()
+            imgs = self.imgs.copy()
+            imgs_bin = self.imgs_bin.copy()
+            rois = self.rois.copy()
+
+            # change temporarily input data
+            self.imgs[0] = cropping(self.imgs[0], self.rois[0])
+            self.imgs[1] = self.img_reg
+            self.rois = [None, None]
+            self.binarization()
+
+            self.registration_calc(registration_model='StackReg')
+            self.tmat = np.matmul(tmat, self.tmat)
+
+            # re-set data to their original values
+            self.registration_model = 'SIFT + StackReg'
+            self.imgs = imgs
+            self.imgs_bin = imgs_bin
+            self.rois = rois
+
         else:
             raise IOError
 
         print()
         print(self.tmat)
 
-    def registration_apply(self):
+    def registration_apply(self, show_score=True):
         """ Apply the transformation matrix 'tmat' to the moving image """
         if self.tmat is None:
             return
@@ -212,35 +235,36 @@ class ImagesAlign:
         imgs = self.crop_and_resize(self.imgs)
         imgs_bin = self.crop_and_resize(self.imgs_bin)
 
-        inds, tmat = [1, 0], self.tmat
+        k0, k1, tmat = 0, 1, self.tmat
         if self.inv_reg:  # inverse registr. from the fixed to the moving image
-            inds, tmat = [0, 1], np.linalg.inv(self.tmat)
+            k0, k1, tmat = 1, 0, np.linalg.inv(self.tmat)
 
-        output_shape = imgs[inds[1]].shape
-        self.img_reg = warp(imgs[inds[0]], tmat,
+        output_shape = imgs[k0].shape
+        self.img_reg = warp(imgs[k1], tmat,
                             output_shape=output_shape,
                             preserve_range=True,
-                            mode='constant', cval=1, order=None)
-        self.img_reg_bin = warp(imgs_bin[inds[0]], tmat,
-                                output_shape=output_shape[:2],
-                                preserve_range=True,
-                                mode='constant', cval=1, order=None)
+                            mode='constant', cval=np.nan, order=None)
+        self.img_reg_bin = warp(imgs_bin[k1], tmat,
+                                output_shape=output_shape[:2])
 
-        # score calculation
-        mask = warp(np.ones_like(self.img_reg_bin), tmat, mode='constant',
-                    cval=0, preserve_range=True, order=None)
-        mismatch = np.logical_xor(imgs_bin[inds[1]], self.img_reg_bin)
-        mismatch[~mask] = 0
-        self.score = 100 * (1. - np.sum(mismatch) / np.sum(mask))
+        # score calculation and displaying
+        if show_score:
+            mismatch = np.logical_xor(imgs_bin[k0], self.img_reg_bin)
+            mask = np.isnan(self.img_reg)
+            if len(mask.shape) > 2:
+                mask = mask.any(axis=-1)
+            mismatch[mask] = 0
+            score = (1. - np.sum(mismatch) / (mismatch.size - np.sum(mask)))
+            score *= 100
 
-        self.results[self.registration_model] = {'score': self.score,
-                                                 'tmat': self.tmat}
+            msg = f"score : {score:.1f} % ({self.registration_model}"
+            if "SIFT" in self.registration_model:
+                msg += f" - nb_matches : {len(self.points[0])}"
+            msg += ")"
+            self.terminal.write(msg + "\n")
 
-        score = self.results[self.registration_model]['score']
-        msg = f"score : {score:.1f} %"
-        if self.registration_model == "SIFT":
-            msg += f" - nblines (SIFT) : {len(self.points[0])}"
-        self.terminal.write(msg + "\n")
+            self.results[self.registration_model] = {'score': score,
+                                                     'tmat': self.tmat}
 
         return imgs[0], self.img_reg
 
@@ -297,7 +321,7 @@ class ImagesAlign:
                 imgs = self.registration_apply()
                 for k in range(2):
                     iio.imwrite(self.dirname_res[k] / names[k],
-                                imgs[k].astype(self.model.dtypes[k]))
+                                imgs[k].astype(self.dtypes[k]))
 
             except:
                 self.terminal.write("FAILED\n")
@@ -450,9 +474,14 @@ class ImagesAlign:
                 k = 0 if self.inv_reg else 1
                 imgs[k] = self.img_reg_bin.copy()
             imgs = padding(*imgs)
-            img = np.zeros_like(imgs[0], dtype=int)
+            img = np.zeros_like(imgs[0], dtype=float)
             img[imgs[1] * ~imgs[0]] = 1
             img[imgs[0] * ~imgs[1]] = -1
+            if self.img_reg is not None:
+                mask = np.isnan(self.img_reg)
+                if len(mask.shape) > 2:
+                    mask = mask.any(axis=-1)
+                img[mask] = np.nan
             self.ax[3].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
         else:

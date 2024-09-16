@@ -4,11 +4,10 @@ Class View attached to the application
 from tkinter import (Frame, LabelFrame, Label, Radiobutton, Scale,
                      Button, Checkbutton, Entry, Toplevel, Message,
                      W, E, HORIZONTAL, DoubleVar, StringVar, BooleanVar)
-from tkinter.ttk import Notebook
+import webbrowser
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
-import webbrowser
 
 from images_alignment.application.callbacks import Callbacks
 from images_alignment.application.utils import add, add_entry
@@ -203,21 +202,22 @@ class View(Callbacks):
         add(frame, 3, 0, W + E, pady=10)
 
         for i, reg_model in enumerate(REG_MODELS):
+            row, col = 0 if i < 3 else 1, i if i < 3 else 1
             add(Radiobutton(frame, text=reg_model, value=reg_model,
                             variable=self.registration_model,
-                            command=self.update_registration_model), 0, i)
+                            command=self.update_registration_model), row, col)
 
         add(Button(frame, text='REGISTRATION',
-                   command=self.registration), 1, 1)
+                   command=self.registration), 2, 1)
         add(Checkbutton(frame, text='INV.', variable=self.inv_reg,
-                        command=self.update_inv_reg), 1, 2)
+                        command=self.update_inv_reg), 2, 2)
 
         add(Button(frame, text='SAVE IMAGES',
-                   command=self.save_images), 2, 0)
+                   command=self.save_images), 3, 0)
         add(Button(frame, text='SAVE PARAMS',
-                   command=self.model.save_params), 2, 1)
+                   command=self.model.save_params), 3, 1)
         add(Button(frame, text='RELOAD PARAMS',
-                   command=self.reload_params), 2, 2)
+                   command=self.reload_params), 3, 2)
 
         frame = LabelFrame(frame_proc, text='Application', font=FONT)
         add(frame, 4, 0, W + E, pady=10)
@@ -239,6 +239,7 @@ class View(Callbacks):
         add(self.model.terminal, 5, 0, W + E, cspan=3)
 
     def open_options(self):
+        """ Open the 'Options' tab"""
         frame_options = Toplevel(self.root)
         frame_options.title("Options")
         x = self.options_but.winfo_rootx()
@@ -258,6 +259,7 @@ class View(Callbacks):
         add_entry(fr, 0, 'Max. image size:', self.max_size_reg)
 
     def open_about(self):
+        """ Open the 'About' tab"""
         frame_about = Toplevel(self.root)
         frame_about.title("About")
 
