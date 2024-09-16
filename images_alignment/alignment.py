@@ -68,6 +68,7 @@ class ImagesAlign:
         self.tmat = np.identity(3)
         self.img_reg = None
         self.img_reg_bin = None
+        self.mask = None
         self.inv_reg = False
         self.results = {}
         self.dirname_res = [None, None]
@@ -89,6 +90,7 @@ class ImagesAlign:
         self.img_reg = None
         self.img_reg_bin = None
         self.results = {}
+        self.mask = None
 
     def load_files(self, k, fnames):
         """ Load the k-th image files """
@@ -207,8 +209,9 @@ class ImagesAlign:
             rois = self.rois.copy()
 
             # change temporarily input data
-            self.imgs[0] = cropping(self.imgs[0], self.rois[0])
             self.imgs[1] = self.img_reg
+            self.imgs[0] = cropping(self.imgs[0], self.rois[0]).astype(float)
+            self.imgs[0][self.mask] = np.nan
             self.rois = [None, None]
             self.binarization()
 
@@ -247,15 +250,16 @@ class ImagesAlign:
         self.img_reg_bin = warp(imgs_bin[k1], tmat,
                                 output_shape=output_shape[:2])
 
+        self.mask = np.isnan(self.img_reg)
+        if len(self.mask.shape) > 2:
+            self.mask = self.mask.any(axis=-1)
+
         # score calculation and displaying
         if show_score:
             mismatch = np.logical_xor(imgs_bin[k0], self.img_reg_bin)
-            mask = np.isnan(self.img_reg)
-            if len(mask.shape) > 2:
-                mask = mask.any(axis=-1)
-            mismatch[mask] = 0
-            score = (1. - np.sum(mismatch) / (mismatch.size - np.sum(mask)))
-            score *= 100
+            mismatch[self.mask] = 0
+            score = 100 * (1. - np.sum(mismatch) /
+                           (mismatch.size - np.sum(self.mask)))
 
             msg = f"score : {score:.1f} % ({self.registration_model}"
             if "SIFT" in self.registration_model:
@@ -311,7 +315,7 @@ class ImagesAlign:
         for i, fname_moving in enumerate(fnames_moving):
             fname_fixed = fnames_fixed[0] if n0 == 1 else fnames_fixed[i]
             names = [Path(fname_fixed).name, Path(fname_moving).name]
-            self.terminal.write(f"{i + 1}/{n1} {names[0]} - {names[1]}: ")
+            self.terminal.write(f"{i + 1}/{n1} {names[0]} - {names[1]}:\n")
 
             try:
                 self.load_image(0, fname=fname_fixed)
@@ -477,11 +481,8 @@ class ImagesAlign:
             img = np.zeros_like(imgs[0], dtype=float)
             img[imgs[1] * ~imgs[0]] = 1
             img[imgs[0] * ~imgs[1]] = -1
-            if self.img_reg is not None:
-                mask = np.isnan(self.img_reg)
-                if len(mask.shape) > 2:
-                    mask = mask.any(axis=-1)
-                img[mask] = np.nan
+            if self.mask is not None:
+                img[self.mask] = np.nan
             self.ax[3].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
         else:

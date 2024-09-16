@@ -171,8 +171,10 @@ class Callbacks:
 
     def zoom(self, event):
         """ Zoom/Unzoom the 'fig1' """
+        if event.inaxes != self.ax1:
+            return
+        
         base_scale = 1.1
-
         if event.button == 'up':
             scale_factor = base_scale
         elif event.button == 'down':
