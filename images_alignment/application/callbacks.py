@@ -173,7 +173,7 @@ class Callbacks:
         """ Zoom/Unzoom the 'fig1' """
         if event.inaxes != self.ax1:
             return
-        
+
         base_scale = 1.1
         if event.button == 'up':
             scale_factor = base_scale
@@ -363,6 +363,7 @@ class Callbacks:
     def update_resolution(self):
         """ Update the 'resolution' and 'rfactors_plotting' values """
         self.model.resolution = self.resolution.get()
+        self.model.min_img_res = int(self.min_img_res.get())
         self.model.update_rfactors_plotting()
         self.update_plots()
 

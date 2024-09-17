@@ -94,6 +94,7 @@ class View(Callbacks):
         self.show_results = BooleanVar(value=True)
         self.resolution = DoubleVar(value=self.model.resolution)
         self.max_size_reg = StringVar(value=self.model.max_size_reg)
+        self.min_img_res = StringVar(value=self.model.min_img_res)
 
         # Frames creation
         #################
@@ -244,7 +245,7 @@ class View(Callbacks):
         frame_options.title("Options")
         x = self.options_but.winfo_rootx()
         y = self.options_but.winfo_rooty()
-        frame_options.geometry(f"220x220+{x}+{y}")
+        frame_options.geometry(f"220x280+{x}+{y}")
 
         for k, label in enumerate(['Fixed image', 'Moving image']):
             frame = LabelFrame(frame_options, text=label, font=FONT)
@@ -258,10 +259,18 @@ class View(Callbacks):
         add(fr, 3, 0, W + E)
         add_entry(fr, 0, 'Max. image size:', self.max_size_reg)
 
+        fr = LabelFrame(frame_options, text='Resolution', font=FONT)
+        add(fr, 4, 0, W + E)
+        add_entry(fr, 0, 'Min. image resolution:', self.min_img_res,
+                  bind_fun=self.update_resolution)
+
     def open_about(self):
         """ Open the 'About' tab"""
         frame_about = Toplevel(self.root)
         frame_about.title("About")
+        x = self.about_but.winfo_rootx()
+        y = self.about_but.winfo_rooty()
+        frame_about.geometry(f"700x40+{x}+{y}")
 
         text = "This code is dedicated to images alignment.\n"
         text += "The sources and the related documentation are accessible in:\n"
@@ -271,9 +280,3 @@ class View(Callbacks):
         label = Label(frame_about, text=website, fg="blue")
         label.bind("<Button-1>", lambda _: webbrowser.open_new(website))
         add(label, 0, 1, pady=0)
-
-        # width = frame_about.winfo_reqwidth()
-        # height = frame_about.winfo_reqheight()
-        x = self.about_but.winfo_rootx()
-        y = self.about_but.winfo_rooty()
-        frame_about.geometry(f"{700}x{40}+{x}+{y}")

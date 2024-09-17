@@ -20,7 +20,7 @@ class Terminal:
 
 def gray_conversion(img):
     """ Convert RGBA or RGB image to gray image """
-    if img.ndim == 4:
+    if img.ndim == 3 and img.shape[2] == 4:
         img = rgba2rgb(img)
     if img.ndim == 3:
         img = rgb2gray(img)

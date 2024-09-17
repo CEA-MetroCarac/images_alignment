@@ -56,6 +56,7 @@ class ImagesAlign:
         self.binarized = False
         self.mode = 'Juxtaposed'
         self.resolution = 0.
+        self.min_img_res = 256
         self.rfactors_plotting = [1., 1.]
         self.juxt_alignment = 'horizontal'
 
@@ -137,7 +138,7 @@ class ImagesAlign:
         imgs = [cropping(self.imgs[k], self.rois[k]) for k in range(2)]
         shapes = [imgs[0].shape[:2], imgs[1].shape[:2]]
         vmax = max(max(shapes[0]), max(shapes[1]))
-        vmin = min(max(shapes[0]), max(shapes[1]))
+        vmin = min(self.min_img_res, max(shapes[0]), max(shapes[1]))
         max_size = (vmax - vmin) * self.resolution + vmin
         self.rfactors_plotting = rescaling_factors(imgs, max_size)
 
@@ -472,11 +473,14 @@ class ImagesAlign:
         if self.imgs[0] is None or self.imgs[1] is None:
             return
 
+        rfacs = self.rfactors_plotting
+
         if self.binarized:
-            imgs = self.crop_and_resize(self.imgs_bin)
+            imgs = [rescaling(self.imgs_bin[k], rfacs[k]) for k in range(2)]
+            imgs = self.crop_and_resize(imgs)
             if self.img_reg_bin is not None:
-                k = 0 if self.inv_reg else 1
-                imgs[k] = self.img_reg_bin.copy()
+                k0, k1 = (0, 1) if self.inv_reg else (1, 0)
+                imgs[k0] = rescaling(self.img_reg_bin, rfacs[k1])
             imgs = padding(*imgs)
             img = np.zeros_like(imgs[0], dtype=float)
             img[imgs[1] * ~imgs[0]] = 1
@@ -486,10 +490,11 @@ class ImagesAlign:
             self.ax[3].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
         else:
-            imgs = self.crop_and_resize(self.imgs)
+            imgs = [cropping(self.imgs[k], self.rois[k]) for k in range(2)]
+            imgs = [rescaling(imgs[k], rfacs[k]) for k in range(2)]
             if self.img_reg is not None:
-                k = 0 if self.inv_reg else 1
-                imgs[k] = self.img_reg.copy()
+                k0, k1 = (0, 1) if self.inv_reg else (1, 0)
+                imgs[k0] = rescaling(self.img_reg, rfacs[k1])
             imgs = padding(*imgs)
             imgs = [image_normalization(img) for img in imgs]
             imgs = imgs_conversion(imgs)
