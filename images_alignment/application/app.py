@@ -1,9 +1,10 @@
 """
 Tkinter-application for the images alignment
 """
+import shutil
 from tkinter import Tk, messagebox
 
-from images_alignment import ImagesAlign
+from images_alignment import ImagesAlign, TMP_DIR
 from images_alignment.application.view import View
 
 
@@ -45,6 +46,7 @@ class App:
     def on_closing(self):
         """ To quit 'properly' the application """
         if messagebox.askokcancel("Quit", "Would you like to quit ?"):
+            shutil.rmtree(TMP_DIR)
             self.root.destroy()
 
 

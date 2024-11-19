@@ -2,7 +2,9 @@
 Application for images registration
 """
 import sys
+from pathlib import Path
 import numpy as np
+import tifffile
 from skimage.color import rgba2rgb, rgb2gray, gray2rgb
 from skimage.transform import AffineTransform, resize
 from skimage.feature import SIFT, match_descriptors
@@ -16,6 +18,44 @@ class Terminal:
         """ Write message into the console """
         sys.stdout.write(message)
         sys.stdout.flush()
+
+
+def flatten(nested_list):
+    flat_list = []
+    for item in nested_list:
+        if isinstance(item, list):
+            flat_list.extend(flatten(item))
+        else:
+            flat_list.append(item)
+    return flat_list
+
+
+def fnames_multiframes_from_list(fnames):
+    fnames_new = []
+    for fname in fnames:
+        fnames_new.append(fnames_multiframes(fname))
+    return flatten(fnames_new)
+
+
+def fnames_multiframes(fname):
+    """ Return/create fnames in the TMP_DIR if the .tif has multiple frames """
+    from images_alignment import TMP_DIR
+
+    name = Path(fname).name
+    try:
+        with tifffile.TiffFile(fname) as tif:
+            num_frames = len(tif.pages)
+            if num_frames > 1:
+                fnames = []
+                for i in range(num_frames):
+                    fnames.append(TMP_DIR / f"({i}) {name}")
+                    img = tif.pages[i].asarray()
+                    tifffile.imwrite(fnames[-1], img, dtype=img.dtype)
+                return fnames
+            else:
+                return fname
+    except:
+        return fname
 
 
 def gray_conversion(img):

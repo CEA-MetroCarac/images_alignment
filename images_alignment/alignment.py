@@ -2,9 +2,11 @@
 Application for images registration
 """
 import os
+import shutil
 from pathlib import Path
 import json
 from tkinter import filedialog
+from tempfile import gettempdir
 import random
 import numpy as np
 import imageio.v3 as iio
@@ -14,12 +16,16 @@ from matplotlib.patches import Rectangle
 from pystackreg import StackReg
 from skimage.transform import warp, estimate_transform
 
-from images_alignment.utils import (Terminal,
+from images_alignment.utils import (Terminal, fnames_multiframes_from_list,
                                     gray_conversion, imgs_conversion,
                                     rescaling_factors, imgs_rescaling,
                                     image_normalization, absolute_threshold,
                                     resizing, cropping, padding, sift,
                                     concatenate_images, rescaling)
+
+TMP_DIR = Path(gettempdir()) / "images_alignment"
+shutil.rmtree(TMP_DIR, ignore_errors=True)
+os.makedirs(TMP_DIR, exist_ok=True)
 
 REG_MODELS = ['StackReg', 'SIFT', 'SIFT + StackReg', 'User-Driven']
 STREG = StackReg(StackReg.AFFINE)
@@ -46,6 +52,11 @@ class ImagesAlign:
     def __init__(self, fnames_fixed=None, fnames_moving=None, rois=None,
                  thresholds=None, bin_inversions=None, terminal=None):
 
+        if fnames_fixed is not None:
+            fnames_fixed = fnames_multiframes_from_list(fnames_fixed)
+        if fnames_fixed is not None:
+            fnames_moving = fnames_multiframes_from_list(fnames_moving)
+
         self.fnames_tot = [fnames_fixed, fnames_moving]
         self.fnames = [None, None]
         self.rois = rois or [None, None]
@@ -70,6 +81,7 @@ class ImagesAlign:
         self.img_reg = None
         self.img_reg_bin = None
         self.mask = None
+        self.apply_mask = True
         self.inv_reg = False
         self.results = {}
         self.dirname_res = [None, None]
@@ -301,7 +313,7 @@ class ImagesAlign:
             return
 
         n0, n1 = len(self.fnames_tot[0]), len(self.fnames_tot[1])
-        if not (n0 == 1 or n0 != n1):
+        if not (n0 == 1 or n0 == n1):
             msg = f"\nERROR: fixed images should be 1 or {n1} files.\n"
             msg += f"{n0} has been given\n\n"
             self.terminal.write(msg)
@@ -441,6 +453,8 @@ class ImagesAlign:
                 arr = cropping(arr, roi)
             arrs.append(arr)
 
+        if not self.binarized:
+            arrs = [image_normalization(arr) for arr in arrs]
         arrs = imgs_conversion(arrs)
         img, offset = concatenate_images(arrs[0], arrs[1], alignment=alignment)
         extent = [0, img.shape[1], 0, img.shape[0]]
@@ -476,17 +490,18 @@ class ImagesAlign:
         rfacs = self.rfactors_plotting
 
         if self.binarized:
-            imgs = [rescaling(self.imgs_bin[k], rfacs[k]) for k in range(2)]
-            imgs = self.crop_and_resize(imgs)
+            imgs = self.crop_and_resize(self.imgs_bin)
             if self.img_reg_bin is not None:
                 k0, k1 = (0, 1) if self.inv_reg else (1, 0)
-                imgs[k0] = rescaling(self.img_reg_bin, rfacs[k1])
+                imgs[k0] = self.img_reg_bin
             imgs = padding(*imgs)
             img = np.zeros_like(imgs[0], dtype=float)
             img[imgs[1] * ~imgs[0]] = 1
             img[imgs[0] * ~imgs[1]] = -1
-            if self.mask is not None:
+            if self.apply_mask and self.mask is not None:
                 img[self.mask] = np.nan
+            k0, k1 = (0, 1) if self.inv_reg else (1, 0)
+            img = rescaling(img, rfacs[k1])
             self.ax[3].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
         else:
@@ -498,5 +513,9 @@ class ImagesAlign:
             imgs = padding(*imgs)
             imgs = [image_normalization(img) for img in imgs]
             imgs = imgs_conversion(imgs)
-            img = 0.5 * (imgs[0] + imgs[1])
+            img = np.stack([imgs[0], imgs[1]], axis=0)
+            if self.apply_mask:
+                img = np.mean(img, axis=0)
+            else:
+                img = np.nanmean(img, axis=0)
             self.ax[3].imshow(img, cmap='gray')

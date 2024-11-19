@@ -11,6 +11,8 @@ from tkinter import filedialog as fd
 from tkinter.ttk import Scrollbar
 from tkinter.font import Font
 
+from images_alignment.utils import fnames_multiframes
+
 
 def add(obj, row, col, sticky='', padx=5, pady=3, rspan=1, cspan=1, **kwargs):
     """ Add tkinter object at the (row, col)-position of a grid """
@@ -140,8 +142,12 @@ class FilesSelector:
         ind_start = ind_start or len(self.fnames)
 
         for fname in hsorted(fnames):
-            self.lbox.insert(END, os.path.basename(fname))
-            self.fnames.append(fname)
+            fnames_multi = fnames_multiframes(fname)
+            if fnames_multi == fname:
+                self.lbox.insert(END, os.path.basename(fname))
+                self.fnames.append(fname)
+            else:
+                self.add_items(fnames=fnames_multi, ind_start=ind_start)
 
         # select the first new item
         self.select_item(ind_start)

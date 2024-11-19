@@ -93,6 +93,7 @@ class View(Callbacks):
         self.mode = StringVar(value='Juxtaposed')
         self.show_results = BooleanVar(value=True)
         self.resolution = DoubleVar(value=self.model.resolution)
+        self.apply_mask = BooleanVar(value=self.model.apply_mask)
         self.max_size_reg = StringVar(value=self.model.max_size_reg)
         self.min_img_res = StringVar(value=self.model.min_img_res)
 
@@ -144,6 +145,13 @@ class View(Callbacks):
             add(Radiobutton(fr, text=juxt_alignment, value=juxt_alignment,
                             variable=self.juxt_alignment,
                             command=self.update_juxt_alignment), 0, i + 1)
+
+        fr = LabelFrame(frame)
+        add(fr, 0, 3)
+        add(Label(fr, text='Combination:'), 0, 0, pady=0)
+        add(Checkbutton(fr, text='Apply Mask', variable=self.apply_mask,
+                        command=self.update_apply_mask), 0, 1)
+
 
         self.canvas0 = FigureCanvasTkAgg(fig0, master=frame_visu)
         add(self.canvas0.get_tk_widget(), 1, 0, padx=0)

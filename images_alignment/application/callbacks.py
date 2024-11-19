@@ -49,7 +49,8 @@ class Callbacks:
         """ Initialize rectangle """
         if self.toolbar.mode == '' and \
                 event.inaxes == self.ax1 and \
-                self.k_ref in [0, 1]:
+                self.k_ref in [0, 1] and \
+                self.rectangle is None:
             x, y = event.xdata, event.ydata
             self.pair = [[x, y], [None, None]]
             self.rectangle = Rectangle((x, y), 0, 0, ec='y', fc='none')
@@ -143,7 +144,7 @@ class Callbacks:
         if self.toolbar.mode == '' and \
                 event.inaxes == self.ax1 and \
                 self.k_ref in [0, 1] and \
-                self.pair[0] is not None:
+                self.rectangle is not None:
 
             x, y = event.xdata, event.ydata
             x0, y0 = self.pair[0]
@@ -153,6 +154,8 @@ class Callbacks:
 
             if event.button == 3:
                 self.pair = [None, None]
+                self.rectangle.remove()
+                self.rectangle = None
                 self.rois_entry[self.k_ref].delete(0, END)
                 self.update_rois(self.k_ref)
 
@@ -283,13 +286,9 @@ class Callbacks:
         imgs = ax_ref.get_images()
         if len(imgs) > 0:
             arr = imgs[0].get_array()
+            shape = arr.shape
             if k_ref in [0, 1]:
                 shape = self.model.imgs[k_ref].shape
-            elif k_ref == 2:
-                shape = arr.shape
-            elif k_ref == 3:
-                shapes = self.model.get_shapes()
-                shape = shapes[1] if self.model.inv_reg else shapes[0]
             extent = [0, shape[1], 0, shape[0]]
             self.ax1.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent)
 
@@ -336,7 +335,7 @@ class Callbacks:
         """ Update the threshold value associated with the k-th image """
         self.model.thresholds[k] = float(value)
         self.model.binarization_k(k)
-        self.model.registration()
+        # self.model.registration()
         self.update_plots()
 
     def update_registration_model(self):
@@ -359,6 +358,12 @@ class Callbacks:
         """ Update the 'juxt_alignment' value """
         self.model.juxt_alignment = self.juxt_alignment.get()
         self.update_plots(k=2)
+
+
+    def update_apply_mask(self):
+        """ Update the 'juxt_alignment' value """
+        self.model.apply_mask = self.apply_mask.get()
+        self.update_plots(k=3)
 
     def update_resolution(self):
         """ Update the 'resolution' and 'rfactors_plotting' values """
