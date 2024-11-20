@@ -32,7 +32,10 @@ class Callbacks:
     def select_axis(self, event):
         """ Select the axis to be displayed in 'fig1' """
         if event.inaxes in self.model.ax:
-            self.k_ref = int(event.inaxes.axes.get_label())
+            k = int(event.inaxes.axes.get_label())
+            if k != self.k_ref:
+                self.pair = [None, None]
+            self.k_ref = k
             self.update_fig1()
             self.canvas0.draw()
             self.canvas1.draw()
@@ -50,7 +53,7 @@ class Callbacks:
         if self.toolbar.mode == '' and \
                 event.inaxes == self.ax1 and \
                 self.k_ref in [0, 1] and \
-                self.rectangle is None:
+                self.pair[0] is None:
             x, y = event.xdata, event.ydata
             self.pair = [[x, y], [None, None]]
             self.rectangle = Rectangle((x, y), 0, 0, ec='y', fc='none')
@@ -144,7 +147,7 @@ class Callbacks:
         if self.toolbar.mode == '' and \
                 event.inaxes == self.ax1 and \
                 self.k_ref in [0, 1] and \
-                self.rectangle is not None:
+                self.pair[0] is not None:
 
             x, y = event.xdata, event.ydata
             x0, y0 = self.pair[0]
@@ -171,6 +174,7 @@ class Callbacks:
     def set_roi(self, event):
         """ Set ROI from the view to the model """
         self.draw_rectangle(event, set_roi=True)
+        self.pair = [None, None]
 
     def zoom(self, event):
         """ Zoom/Unzoom the 'fig1' """
