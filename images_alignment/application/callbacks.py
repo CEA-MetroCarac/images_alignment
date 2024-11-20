@@ -170,11 +170,11 @@ class Callbacks:
                     self.rois_entry[self.k_ref].delete(0, END)
                     self.rois_entry[self.k_ref].insert(0, str(roi))
                     self.update_rois(self.k_ref)
+                self.pair = [None, None]
 
     def set_roi(self, event):
         """ Set ROI from the view to the model """
         self.draw_rectangle(event, set_roi=True)
-        self.pair = [None, None]
 
     def zoom(self, event):
         """ Zoom/Unzoom the 'fig1' """
@@ -333,6 +333,7 @@ class Callbacks:
         self.model.points = [[], []]
         self.model.img_reg = None
         self.model.img_reg_bin = None
+        self.model.mask = None
         self.update_plots()
 
     def update_threshold(self, value, k):
