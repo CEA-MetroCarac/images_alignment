@@ -3,7 +3,7 @@ Class View attached to the application
 """
 from tkinter import (Frame, LabelFrame, Label, Radiobutton, Scale,
                      Button, Checkbutton, Entry, Toplevel, Message,
-                     W, E, HORIZONTAL, DoubleVar, StringVar, BooleanVar)
+                     W, E, HORIZONTAL, DoubleVar, IntVar, StringVar, BooleanVar)
 import webbrowser
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -96,6 +96,7 @@ class View(Callbacks):
         self.apply_mask = BooleanVar(value=self.model.apply_mask)
         self.max_size_reg = StringVar(value=self.model.max_size_reg)
         self.min_img_res = StringVar(value=self.model.min_img_res)
+        self.angles = [IntVar(value=0), IntVar(value=0)]
 
         # Frames creation
         #################
@@ -151,7 +152,6 @@ class View(Callbacks):
         add(Label(fr, text='Combination:'), 0, 0, pady=0)
         add(Checkbutton(fr, text='Apply Mask', variable=self.apply_mask,
                         command=self.update_apply_mask), 0, 1)
-
 
         self.canvas0 = FigureCanvasTkAgg(fig0, master=frame_visu)
         add(self.canvas0.get_tk_widget(), 1, 0, padx=0)
@@ -253,16 +253,21 @@ class View(Callbacks):
         frame_options.title("Options")
         x = self.options_but.winfo_rootx()
         y = self.options_but.winfo_rooty()
-        frame_options.geometry(f"220x280+{x}+{y}")
+        frame_options.geometry(f"300x340+{x}+{y}")
 
         for k, label in enumerate(['Fixed image', 'Moving image']):
             frame = LabelFrame(frame_options, text=label, font=FONT)
             add(frame, k, 0)
+            add(Label(frame, text='Rotation:'), 1, 0)
+            for i, angle in enumerate([0, 90, 180, 270]):
+                add(Radiobutton(frame, text=f"{angle}°", value=angle,
+                                variable=self.angles[k],
+                                command=lambda k=k: self.update_angles(k)), 1, i + 1, padx=0)
             add(Label(frame, text='Threshold:'), 2, 0, E, pady=0)
             add(Scale(frame, resolution=0.01, to=1., orient=HORIZONTAL,
-                      length=120, tickinterval=1, variable=self.thresholds[k],
+                      length=200, tickinterval=1, variable=self.thresholds[k],
                       command=lambda val, k=k: self.update_threshold(val, k)),
-                2, 1, W, pady=0)
+                2, 1, W, pady=0, cspan=4)
         fr = LabelFrame(frame_options, text='Registration', font=FONT)
         add(fr, 3, 0, W + E)
         add_entry(fr, 0, 'Max. image size:', self.max_size_reg)

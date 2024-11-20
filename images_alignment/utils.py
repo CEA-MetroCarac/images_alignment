@@ -150,18 +150,24 @@ def resizing(img1, img2):
     return [img1, img2]
 
 
-def cropping(img, area):
+def cropping(img, area, verbosity=True):
     """ Return cropped image according to the given area """
     if area is None:
         return img
+
+    assert np.asarray(area).dtype == int
+    shape = img.shape
+    xmin, xmax, ymin, ymax = area
+    imin, imax = shape[0] - ymax, shape[0] - ymin
+    jmin, jmax = xmin, xmax
+    imin, imax = min(shape[0], max(0, imin)), min(shape[0], max(0, imax))
+    jmin, jmax = min(shape[1], max(0, jmin)), min(shape[1], max(0, jmax))
+    if imin == imax or jmin == jmax:
+        if verbosity:
+            size = (shape[1], shape[0])
+            print(f"Warning: the cropping area {area} is not suitable with image of size {size}")
+        return img
     else:
-        assert np.asarray(area).dtype == int
-        shape = img.shape
-        xmin, xmax, ymin, ymax = area
-        imin, imax = shape[0] - ymax, shape[0] - ymin
-        jmin, jmax = xmin, xmax
-        imin, imax = min(shape[0], max(0, imin)), min(shape[0], max(0, imax))
-        jmin, jmax = min(shape[1], max(0, jmin)), min(shape[1], max(0, jmax))
         return img[imin:imax, jmin:jmax]
 
 

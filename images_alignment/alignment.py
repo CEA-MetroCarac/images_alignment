@@ -60,6 +60,7 @@ class ImagesAlign:
         self.fnames_tot = [fnames_fixed, fnames_moving]
         self.fnames = [None, None]
         self.rois = rois or [None, None]
+        self.angles = [0, 0]
         self.thresholds = thresholds or [0.5, 0.5]
         self.bin_inversions = bin_inversions or [False, False]
         self.terminal = terminal or Terminal()
@@ -124,7 +125,7 @@ class ImagesAlign:
 
         if success:
             self.reinit()
-            self.imgs[k] = img
+            self.imgs[k] = np.rot90(img, k=self.angles[k] / 90)
             self.dtypes[k] = img.dtype
             self.fnames[k] = fname
             self.binarization_k(k)
@@ -147,7 +148,7 @@ class ImagesAlign:
         if self.imgs[0] is None or self.imgs[1] is None:
             return
 
-        imgs = [cropping(self.imgs[k], self.rois[k]) for k in range(2)]
+        imgs = [cropping(self.imgs[k], self.rois[k], verbosity=False) for k in range(2)]
         shapes = [imgs[0].shape[:2], imgs[1].shape[:2]]
         vmax = max(max(shapes[0]), max(shapes[1]))
         vmin = min(self.min_img_res, max(shapes[0]), max(shapes[1]))
@@ -160,8 +161,7 @@ class ImagesAlign:
             return
 
         img = image_normalization(gray_conversion(self.imgs[k]))
-        abs_threshold = absolute_threshold(cropping(img, self.rois[k]),
-                                           self.thresholds[k])
+        abs_threshold = absolute_threshold(cropping(img, self.rois[k]), self.thresholds[k])
         self.imgs_bin[k] = img > abs_threshold
 
         if self.bin_inversions[k]:
@@ -172,9 +172,9 @@ class ImagesAlign:
         self.binarization_k(0)
         self.binarization_k(1)
 
-    def crop_and_resize(self, imgs):
+    def crop_and_resize(self, imgs, verbosity=True):
         """ Crop and Resize the images"""
-        imgs = [cropping(imgs[k], self.rois[k]) for k in range(2)]
+        imgs = [cropping(imgs[k], self.rois[k], verbosity=verbosity) for k in range(2)]
         if self.registration_model == 'StackReg':
             imgs = resizing(*imgs)
         return imgs
@@ -248,8 +248,8 @@ class ImagesAlign:
         if self.tmat is None:
             return
 
-        imgs = self.crop_and_resize(self.imgs)
-        imgs_bin = self.crop_and_resize(self.imgs_bin)
+        imgs = self.crop_and_resize(self.imgs, verbosity=False)
+        imgs_bin = self.crop_and_resize(self.imgs_bin, verbosity=False)
 
         k0, k1, tmat = 0, 1, self.tmat
         if self.inv_reg:  # inverse registr. from the fixed to the moving image
@@ -450,7 +450,7 @@ class ImagesAlign:
             arr = imgs[k][0].get_array()
             if self.rois[k] is not None:
                 roi = (np.asarray(self.rois[k]) * rfacs[k]).astype(int)
-                arr = cropping(arr, roi)
+                arr = cropping(arr, roi, verbosity=False)
             arrs.append(arr)
 
         if not self.binarized:
@@ -490,7 +490,7 @@ class ImagesAlign:
         rfacs = self.rfactors_plotting
 
         if self.binarized:
-            imgs = self.crop_and_resize(self.imgs_bin)
+            imgs = self.crop_and_resize(self.imgs_bin, verbosity=False)
             if self.img_reg_bin is not None:
                 k0, k1 = (0, 1) if self.inv_reg else (1, 0)
                 imgs[k0] = self.img_reg_bin
@@ -505,7 +505,7 @@ class ImagesAlign:
             self.ax[3].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
         else:
-            imgs = [cropping(self.imgs[k], self.rois[k]) for k in range(2)]
+            imgs = [cropping(self.imgs[k], self.rois[k], verbosity=False) for k in range(2)]
             imgs = [rescaling(imgs[k], rfacs[k]) for k in range(2)]
             if self.img_reg is not None:
                 k0, k1 = (0, 1) if self.inv_reg else (1, 0)

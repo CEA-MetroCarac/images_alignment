@@ -359,11 +359,16 @@ class Callbacks:
         self.model.juxt_alignment = self.juxt_alignment.get()
         self.update_plots(k=2)
 
-
     def update_apply_mask(self):
-        """ Update the 'juxt_alignment' value """
+        """ Update the 'apply_mask' value """
         self.model.apply_mask = self.apply_mask.get()
         self.update_plots(k=3)
+
+    def update_angles(self, k):
+        """ Update the angle of k-th image """
+        self.model.angles[k] = self.angles[k].get()
+        self.model.load_image(k, fname=self.model.fnames[k])
+        self.update_plots()
 
     def update_resolution(self):
         """ Update the 'resolution' and 'rfactors_plotting' values """
