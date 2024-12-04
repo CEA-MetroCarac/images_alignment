@@ -1,57 +1,40 @@
+![](https://cea-metrocarac.github.io/images_registration/images_alignment.png)
 
-![](https://cea-metrocarac.github.io/images_registration/images_registration.png)
+# Images_Alignment
 
+![](https://cea-metrocarac.github.io/images_registration/appli.png)
 
-# Images_registration
+**Images_Alignment** is an application dedicated to realign pairs of images by applying affine transformation matrices calculated either from the pyStackReg or Sift algorithm, a combined approach or from user driven coupling vectors.
 
-**images_registration** is a web application dedicated to:
+Once the parameters have been set, these ones can be applied to a set of images (optional).
 
-- 1/ the calculation of the `transformation matrix` related to a pair of images 
+![](https://cea-metrocarac.github.io/images_registration/example_series_1.png)
 
-![](https://cea-metrocarac.github.io/images_registration/images_registration4.png)
+![](https://cea-metrocarac.github.io/images_registration/example_series_2.png)
 
-
-- 2/ the application of the previous `transformation matrix` to a set of images.
-
-![](https://cea-metrocarac.github.io/images_registration/images_registration3.png)
-
-
-*(Figures above are extracted from the `example.py` located at the root of the repository).*
-
+*(Figures above are extracted from the `example.py` available [here](https://github.com/CEA-MetroCarac/images_registration/images_alignment/examples/example.py).*
 
 # Installation
 
-All the application is contained in the `app.py` file located at the root of the repository.
-
-For a fast install and assuming you have already a python environment, you can just `copy` + `paste` this file and update your env. with the required packages listed in the `requirements.txt` file.
-
-For a full install, clone the project from the following [git](https://git-scm.com/downloads) command:
+Assuming you have already a python environment, to install the application with **pip**:
 
 ```bash
-git clone https://github.dev/CEA-MetroCarac/images_registration.git
-```
-
-Create and activate a dedicated virtual environment as explained [here](https://realpython.com/python-virtual-environments-a-primer/), and install the `requirements.txt` file:
-
-```bash
-pip install -r requirements.txt -U
+pip install git+https://github.com/CEA-MetroCarac/images_registration.git
 ```
 
 ### Usage
 
-Once your python environment has been created and activated, you can launch the web application in a terminal typing:
+Once your python environment has been activated, you can simply launch the application in a terminal writing:
 
-```python
-python app.py
+```bash
+images_alignment
 ```
-This command will launch the web application directly in your web browser.
 
-for more informations concerning the application parameters setting, see the [documentation](https://github.com/CEA-MetroCarac/images_registration/tree/main/doc) .
-
+for more informations concerning the application parameters setting, see the [documentation](https://github.com/CEA-MetroCarac/images_registration/doc).
 
 ### Authors informations
 
-In case you use this web application to align images for a study wich leads to an article, please cite:
+In case you use this web application to align images for a study which leads to an article, please cite:
 
 - Patrick Quéméré, Univ. Grenoble Alpes, CEA, Leti, F-38000 Grenoble, France, https://github.dev/CEA-MetroCarac/images_registration
 

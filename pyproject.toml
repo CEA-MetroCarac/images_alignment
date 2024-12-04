@@ -1,11 +1,11 @@
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ['setuptools>=42']
+build-backend = 'setuptools.build_meta'
 
-[tool.poetry]
+[project]
 name = "images_alignment"
-version = "2024.1"
-description = "images alignment worflow"
+version = "2024.2beta"
+description = "images alignment application"
 authors = ["Patrick Quemere <patrick.quemere@cea.fr>"]
 license = "GPL-3.0-only"
 readme = "README.md"
@@ -14,20 +14,19 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "imageio",
+    "tifffile",
+    "scikit-image",
+    "pystackreg"
+]
 
-[tool.poetry.scripts]
+[project.scripts]
 images_alignment = 'images_alignment.application.app:launcher'
 
-[tool.poetry.dependencies]
-python = "^3.8"
-panel = "*"
-numpy = "*"
-imageio = "*"
-matplotlib = "*"
-scikit-image = "*"
-pystackreg = "*"
-
-[[tool.poetry.source]]
+[project.urls]
 name = "images_alignment"
 url = "https://github.com/CEA-MetroCarac/images_registration"
 priority = "primary"
