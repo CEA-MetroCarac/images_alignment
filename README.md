@@ -1,22 +1,31 @@
-![](https://cea-metrocarac.github.io/images_registration/images_alignment.png)
+<p align="center" width="100%">
+    <img align="center" width=250 src=https://cea-metrocarac.github.io/images_registration/images_alignment.png>
+</p>
 
 # Images_Alignment
 
-![](https://cea-metrocarac.github.io/images_registration/appli.png)
-
-**Images_Alignment** is an application dedicated to realign pairs of images by applying affine transformation matrices calculated either from the pyStackReg or Sift algorithm, a combined approach or from user driven coupling vectors.
+**Images_Alignment** is an application dedicated to facilitate pairs of images realignment using affine transformation matrices calculated either from the [pyStackReg](https://github.com/glichtner/pystackreg) or [SIFT](https://scikit-image.org/docs/stable/auto_examples/features_detection/plot_sift.html) algorithm, a combined approach or from user driven matching points.
 
 Once the parameters have been set, these ones can be applied to a set of images (optional).
 
-![](https://cea-metrocarac.github.io/images_registration/example_series_1.png)
+<p align="center" width="100%">
+    <img align="center" width="75%" src=https://cea-metrocarac.github.io/images_registration/appli.png>
+</p>
 
-![](https://cea-metrocarac.github.io/images_registration/example_series_2.png)
+<p align="center" width="100%">
+    <img align="center" width="40%" src=https://cea-metrocarac.github.io/images_registration/example_series_1.png>
+</p>
 
-*(Figures above are extracted from the `example.py` available [here](https://github.com/CEA-MetroCarac/images_registration/images_alignment/examples/example.py).*
+<p align="center" width="100%">
+    <img align="center" width="40%" src=https://cea-metrocarac.github.io/images_registration/example_series_2.png>
+</p>
+
+
+*(The 2 figures above are extracted from the `example.py` available [here](https://github.com/CEA-MetroCarac/images_registration/images_alignment/examples/example.py).*
 
 # Installation
 
-Assuming you have already a python environment, to install the application with **pip**:
+Assuming you have a python environment which is activated in a console, the application can be installed by the ``pip`` command:
 
 ```bash
 pip install git+https://github.com/CEA-MetroCarac/images_registration.git
@@ -24,17 +33,17 @@ pip install git+https://github.com/CEA-MetroCarac/images_registration.git
 
 ### Usage
 
-Once your python environment has been activated, you can simply launch the application in a terminal writing:
+The application can be launching directly from a console (after activating your python environment) by:
 
 ```bash
 images_alignment
 ```
 
-for more informations concerning the application parameters setting, see the [documentation](https://github.com/CEA-MetroCarac/images_registration/doc).
+for more informations concerning the application usage and more particularly the parameters setting, see the [documentation](https://github.com/CEA-MetroCarac/images_registration/doc).
 
-### Authors informations
+### Authors information
 
-In case you use this web application to align images for a study which leads to an article, please cite:
+In case you use this application to align images for a study which leads to an article, please cite:
 
 - Patrick Quéméré, Univ. Grenoble Alpes, CEA, Leti, F-38000 Grenoble, France, https://github.dev/CEA-MetroCarac/images_registration
 
