@@ -2,7 +2,7 @@
 
 
 <p align="center" width="100%">
-    <img align="center" width=250 src=https://cea-metrocarac.github.io/images_registration/images_alignment.png>
+    <img align="center" width=250 src=https://cea-metrocarac.github.io/images_alignment/logo.png>
 </p>
 
 # Images_Alignment
@@ -12,17 +12,17 @@
 Once the parameters have been set, these ones can be applied automatically to a set of images as a workflow.
 
 <p align="center" width="100%">
-    <img align="center" width="75%" src=https://cea-metrocarac.github.io/images_registration/appli.png> <br>
+    <img align="center" width="75%" src=https://cea-metrocarac.github.io/images_alignment/appli.png> <br>
     <em>View of the GUI</em> 
 </p>
 
 
 <p align="center" width="100%">
-    <img align="center" width="60%" src=https://cea-metrocarac.github.io/images_registration/example_series_1.png> 
+    <img align="center" width="60%" src=https://cea-metrocarac.github.io/images_alignment/example_series_1.png> 
 </p>
 
 <p align="center" width="100%">
-    <img align="center" width="60%" src=https://cea-metrocarac.github.io/images_registration/example_series_2.png> <br>
+    <img align="center" width="60%" src=https://cea-metrocarac.github.io/images_alignment/example_series_2.png> <br>
     <em>Application to a set of 3 images.</em>
 
 (The figures above have been generated from `example.py` available [here](https://github.com/CEA-MetroCarac/images_alignment/images_alignment/examples/example.py).)
@@ -32,7 +32,7 @@ Once the parameters have been set, these ones can be applied automatically to a 
 Assuming you have a python environment which is activated in a terminal, the application can be installed with the ``pip`` command:
 
 ```bash
-pip install git+https://github.com/CEA-MetroCarac/images_registration.git
+pip install git+https://github.com/CEA-MetroCarac/images_alignment.git
 ```
 
 Once installed, the application can be launched directly from a terminal (with the previous python environment activated), by:
@@ -47,6 +47,6 @@ For more information concerning the usage and the parameters settings, see the [
 
 In case you use this application to align images for a study which leads to an article, please cite:
 
-- Patrick Quéméré, Univ. Grenoble Alpes, CEA, Leti, F-38000 Grenoble, France, https://github.dev/CEA-MetroCarac/images_registration
+- Patrick Quéméré, Univ. Grenoble Alpes, CEA, Leti, F-38000 Grenoble, France, https://github.dev/CEA-MetroCarac/images_alignment
 
 - P. Thevenaz, U. E. Ruttimann and M. Unser, "A pyramid approach to subpixel registration based on intensity," in IEEE Transactions on Image Processing, vol. 7, no. 1, pp. 27-41, Jan. 1998, doi: 10.1109/83.650848.
