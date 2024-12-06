@@ -25,7 +25,7 @@ Once the parameters have been set, these ones can be applied automatically to a 
     <img align="center" width="60%" src=https://cea-metrocarac.github.io/images_registration/example_series_2.png> <br>
     <em>Application to a set of 3 images.</em>
 
-(The figures above have been generated from `example.py` available [here](https://github.com/CEA-MetroCarac/images_registration/images_alignment/examples/example.py).)
+(The figures above have been generated from `example.py` available [here](https://github.com/CEA-MetroCarac/images_alignment/images_alignment/examples/example.py).)
 
 ## Installation and Usage
 
