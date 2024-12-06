@@ -7,7 +7,6 @@ name = "images_alignment"
 version = "2024.2beta"
 description = "images alignment application"
 authors = ["Patrick Quemere <patrick.quemere@cea.fr>"]
-license = "GPL-3.0-only"
 readme = "README.md"
 homepage = "https://github.com/CEA-MetroCarac/images_registration"
 classifiers = [
