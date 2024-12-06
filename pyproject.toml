@@ -8,7 +8,6 @@ version = "2024.2beta"
 description = "images alignment application"
 authors = [{ name = "Patrick Quéméré", email = "patrick.quemere@cea.fr" }]
 readme = "README.md"
-homepage = "https://github.com/CEA-MetroCarac/images_registration"
 classifiers = [
     "License :: OSI Approved :: GNU General Public License v3",
     "Operating System :: OS Independent",
@@ -27,5 +26,5 @@ images_alignment = 'images_alignment.application.app:launcher'
 
 [project.urls]
 name = "images_alignment"
-url = "https://github.com/CEA-MetroCarac/images_registration"
+url = "https://github.com/CEA-MetroCarac/images_alignment"
 priority = "primary"
