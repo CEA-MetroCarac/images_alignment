@@ -41,7 +41,7 @@ Once installed, the application can be launched directly from a terminal (with t
 images_alignment
 ```
 
-For more information concerning the usage and the parameters settings, see the [documentation](https://github.com/CEA-MetroCarac/images_registration/doc).
+For more information concerning the usage and the parameters settings, see the [documentation](https://CEA-MetroCarac.github.io/images_alignment).
 
 ## Authors information
 
