@@ -1,57 +1,51 @@
-
-![](https://cea-metrocarac.github.io/images_registration/images_registration.png)
-
-
-# Images_registration
-
-**images_registration** is a web application dedicated to:
-
-- 1/ the calculation of the `transformation matrix` related to a pair of images 
-
-![](https://cea-metrocarac.github.io/images_registration/images_registration4.png)
+[![Docs](https://img.shields.io/badge/docs-passing-brightgreen)](https://CEA-MetroCarac.github.io/images_alignment)
 
 
-- 2/ the application of the previous `transformation matrix` to a set of images.
+<p align="center" width="100%">
+    <img align="center" width=250 src=https://cea-metrocarac.github.io/images_registration/images_alignment.png>
+</p>
 
-![](https://cea-metrocarac.github.io/images_registration/images_registration3.png)
+# Images_Alignment
+
+**Images_Alignment** is an application dedicated to ease the images alignment using affine transformation matrices calculated either from the [pyStackReg](https://github.com/glichtner/pystackreg) or [SIFT](https://scikit-image.org/docs/stable/auto_examples/features_detection/plot_sift.html) algorithm, a combined approach, or from a user driven approach (specifying manually the matching points).
+
+Once the parameters have been set, these ones can be applied automatically to a set of images as a workflow.
+
+<p align="center" width="100%">
+    <img align="center" width="75%" src=https://cea-metrocarac.github.io/images_registration/appli.png> <br>
+    <em>View of the GUI</em> 
+</p>
 
 
-*(Figures above are extracted from the `example.py` located at the root of the repository).*
+<p align="center" width="100%">
+    <img align="center" width="60%" src=https://cea-metrocarac.github.io/images_registration/example_series_1.png> 
+</p>
 
+<p align="center" width="100%">
+    <img align="center" width="60%" src=https://cea-metrocarac.github.io/images_registration/example_series_2.png> <br>
+    <em>Application to a set of 3 images.</em>
 
-# Installation
+(The figures above have been generated from `example.py` available [here](https://github.com/CEA-MetroCarac/images_registration/images_alignment/examples/example.py).)
 
-All the application is contained in the `app.py` file located at the root of the repository.
+## Installation and Usage
 
-For a fast install and assuming you have already a python environment, you can just `copy` + `paste` this file and update your env. with the required packages listed in the `requirements.txt` file.
-
-For a full install, clone the project from the following [git](https://git-scm.com/downloads) command:
-
-```bash
-git clone https://github.dev/CEA-MetroCarac/images_registration.git
-```
-
-Create and activate a dedicated virtual environment as explained [here](https://realpython.com/python-virtual-environments-a-primer/), and install the `requirements.txt` file:
+Assuming you have a python environment which is activated in a terminal, the application can be installed with the ``pip`` command:
 
 ```bash
-pip install -r requirements.txt -U
+pip install git+https://github.com/CEA-MetroCarac/images_registration.git
 ```
 
-### Usage
+Once installed, the application can be launched directly from a terminal (with the previous python environment activated), by:
 
-Once your python environment has been created and activated, you can launch the web application in a terminal typing:
-
-```python
-python app.py
+```bash
+images_alignment
 ```
-This command will launch the web application directly in your web browser.
 
-for more informations concerning the application parameters setting, see the [documentation](https://github.com/CEA-MetroCarac/images_registration/tree/main/doc) .
+For more information concerning the usage and the parameters settings, see the [documentation](https://github.com/CEA-MetroCarac/images_registration/doc).
 
+## Authors information
 
-### Authors informations
-
-In case you use this web application to align images for a study wich leads to an article, please cite:
+In case you use this application to align images for a study which leads to an article, please cite:
 
 - Patrick Quéméré, Univ. Grenoble Alpes, CEA, Leti, F-38000 Grenoble, France, https://github.dev/CEA-MetroCarac/images_registration
 
