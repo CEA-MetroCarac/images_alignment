@@ -38,6 +38,7 @@ jobs:
         with:
           repository: CEA-MetroCarac/images_alignment-doc
           ref: refs/heads/main
+          token: ${{ secrets.IMAG_ALIGN_PAGES_ACTIONS_TOKEN }}
       - name: Download doc artifact
         uses: actions/download-artifact@v4
         with:
@@ -64,6 +65,7 @@ jobs:
         with: 
           repository: CEA-MetroCarac/CEA-MetroCarac.github.io
           ref: refs/heads/main
+          token: ${{ secrets.IMAG_ALIGN_PAGES_ACTIONS_TOKEN }}
           submodules: true
       - name: Pull & update submodules recursively
         run: |
