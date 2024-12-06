@@ -256,7 +256,7 @@ class Callbacks:
         """ Update the plots """
         self.model.update_rfactors_plotting()
         self.model.binarized = self.binarized.get()
-        self.model.mode = self.mode.get()
+        # self.model.mode = self.mode.get()
         if k is None:
             self.model.plot_all()
         else:

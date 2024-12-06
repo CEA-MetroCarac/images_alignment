@@ -1,5 +1,5 @@
 """
-Application for images registration
+Class dedicated to images alignment
 """
 import os
 import shutil
@@ -37,16 +37,93 @@ plt.rcParams['axes.titlesize'] = 10
 
 class ImagesAlign:
     """
-    Application dedicated to images alignment
+    Class dedicated to images alignment
 
     Parameters
     ----------
-    fnames: iterable of 2 str, optional
-        Images pathnames to handle
+    fnames_fixed, fnames_moving: iterables of str, optional
+        Images pathnames related to fixed and moving images resp. to handle
+    rois: list of 2 iterables, optional
+        rois (regions of interest) attached to the fixed and moving images, each defining as:
+         [xmin, xmax, ymin, ymax]
     thresholds: iterable of 2 floats, optional
-        Thresholds used to binarize the images
+        Thresholds used to binarize the images. Default values are [0.5, 0.5]
     bin_inversions: iterable of 2 bools, optional
         Activation keywords to reverse the image binarization
+    terminal: object, optional
+        object with an associated write() class function to write messages
+
+    Attributes
+    ----------
+    fnames_tot: list of 2 list
+        Images pathnames related to fixed and moving images resp.
+    fnames: list of 2 str
+        List of the current fixed and moving images filenames
+    imgs, imgs_bin: list of 2 arrays
+        Arrays related to the current fixed and moving images, in their raw or binarized states
+        resp.
+    dtype: list of 2 dtype
+        Datatypes associated to the current fixed and moving images
+    rois: list of 2 iterables, optional
+        rois (regions of interest) attached to the fixed and moving images, each defining as:
+         [xmin, xmax, ymin, ymax]
+    thresholds: iterable of 2 floats
+        Thresholds used to binarize the images. Default values are [0.5, 0.5]
+    angles: list of 2 int
+        angles to apply resp to the fixed and moving images before registration.
+        (each angle to be chosen among [0, 90, 180, 270])
+    bin_inversions: iterable of 2 bools
+        Activation keywords to reverse the image binarization
+    terminal: object
+        object with an associated write() class function to write messages
+    registration_model: str
+        Registration model to be considered among ['StackReg', 'SIFT', 'SIFT + StackReg',
+        'User-Driven'].
+        Default is 'StackReg'.
+    points: list of 2 list of floats
+        Coordinates of the matching points between the fixed and moving images (filled by all
+        registration models except 'StackReg').
+    max_size_reg: int
+        Maximum image size considered when performing the registration.
+        Default value is 512.
+    inv_reg: bool
+        Activation key to reverse 'fixed' and 'moving' images during the registration calculation.
+        Default is False.
+    tmat: numpy.ndarray((3, 3))
+        Affine transformation matrice returned by the registration.
+    img_reg, img_reg_bin: arrays
+        Arrays issued from the moving registrated image in its raw or binarized state resp.
+    mask: numpy.ndarray
+        Array (dtype=bool) associated with the overlapping area issued from the registration.
+    fixed_reg: bool
+        Activation key to perform the worflow calculation with a fixed 'tmat'.
+        Default is False.
+    results: dict
+        Dictionary that contains the workflow score and tmat of each alignment
+    dirname_res: list of 2 str
+        Filenames associated with the 'fixed_images' and 'moving_images' resulting images
+        sub-folders
+    binarized: bool
+        Activation key to display images according to their binarized values
+    resolution: float
+        relative resolution parameter (between [0., 1.]).
+        Default value is 0.
+    min_img_res: int
+        Minimum image resolution associated to 'resolution'=0.
+        Default value is 256.
+    rfactors_plotting: list of 2 floats
+        Rescaling factors used for images displaying (each one between [0., 1.]).
+        Default values are [1., 1.].
+    juxt_alignment: str
+        Mode of images juxtapostion ('horizontal' or 'vertical').
+        Default value is 'horizontal'.
+    apply_mask: bool
+        Activation keyword to limit the combined image to the overlapping area.
+        Default is True.
+    ax: matplotlib.axes.Axes object
+        Axes associated to the image alignment application to display the different images.
+        Default is a 4 horizontal axes to respectively display the 'fixed' and 'moving' image,
+        the 'juxtaposed image' and the 'combined image'.
     """
 
     def __init__(self, fnames_fixed=None, fnames_moving=None, rois=None,
@@ -54,39 +131,45 @@ class ImagesAlign:
 
         if fnames_fixed is not None:
             fnames_fixed = fnames_multiframes_from_list(fnames_fixed)
-        if fnames_fixed is not None:
+        if fnames_moving is not None:
             fnames_moving = fnames_multiframes_from_list(fnames_moving)
 
         self.fnames_tot = [fnames_fixed, fnames_moving]
         self.fnames = [None, None]
+        self.imgs = [None, None]
+        self.imgs_bin = [None, None]
+        self.dtypes = [None, None]
+
+        # calculation parameters
         self.rois = rois or [None, None]
         self.angles = [0, 0]
         self.thresholds = thresholds or [0.5, 0.5]
         self.bin_inversions = bin_inversions or [False, False]
         self.terminal = terminal or Terminal()
 
-        self.binarized = False
-        self.mode = 'Juxtaposed'
-        self.resolution = 0.
-        self.min_img_res = 256
-        self.rfactors_plotting = [1., 1.]
-        self.juxt_alignment = 'horizontal'
-
-        self.imgs = [None, None]
-        self.dtypes = [None, None]
-        self.imgs_bin = [None, None]
+        # 'registration' parameters and attributes
         self.registration_model = 'StackReg'
         self.points = [[], []]
         self.max_size_reg = 512
+        self.inv_reg = False
         self.tmat = np.identity(3)
         self.img_reg = None
         self.img_reg_bin = None
         self.mask = None
-        self.apply_mask = True
-        self.inv_reg = False
+
+        # 'application' attributes
+        self.fixed_reg = False
         self.results = {}
         self.dirname_res = [None, None]
-        self.fixed_reg = False
+
+        # visualization parameters
+        self.binarized = False
+        # self.mode = 'Juxtaposed'
+        self.resolution = 0.
+        self.min_img_res = 256
+        self.rfactors_plotting = [1., 1.]
+        self.juxt_alignment = 'horizontal'
+        self.apply_mask = True
 
         _, self.ax = plt.subplots(1, 4, figsize=(10, 4),
                                   gridspec_kw={'width_ratios': [1, 1, 1, 2]})
@@ -252,7 +335,7 @@ class ImagesAlign:
         imgs_bin = self.crop_and_resize(self.imgs_bin, verbosity=False)
 
         k0, k1, tmat = 0, 1, self.tmat
-        if self.inv_reg:  # inverse registr. from the fixed to the moving image
+        if self.inv_reg:  # inverse registration from the fixed to the moving image
             k0, k1, tmat = 1, 0, np.linalg.inv(self.tmat)
 
         output_shape = imgs[k0].shape
@@ -313,7 +396,7 @@ class ImagesAlign:
             return
 
         n0, n1 = len(self.fnames_tot[0]), len(self.fnames_tot[1])
-        if not (n0 == 1 or n0 == n1):
+        if not n0 in [1, n1]:
             msg = f"\nERROR: fixed images should be 1 or {n1} files.\n"
             msg += f"{n0} has been given\n\n"
             self.terminal.write(msg)
@@ -408,7 +491,7 @@ class ImagesAlign:
         self.ax[k].autoscale(tight=True)
 
     def plot_fixed_or_moving_image(self, k):
-        """ Plot the fixed or the moving image """
+        """ Plot the fixed (k=0) or the moving (k=1) image """
 
         if self.imgs[k] is None:
             return

@@ -21,59 +21,12 @@ class View(Callbacks):
     """
     Gui associated to the spectra fitting application
 
-    Attributes
+    Parameters
     ----------
-    ax_map, canvas_map: Matplotlib.Axes, FigureCanvasTkAgg
-        Axes and canvas related to the 2D-map figure displaying
-    figure_settings: FigureSettings obj
-        Tkinter.TopLevel derivative object for figure parameters setting
-    fit_settings: FitSettings obj
-        Tkinter.TopLevel derivative object for fitting parameters setting
-    paramsview: ParamsView obj
-        Tkinter.TopLevel derivative object for fitting models params displaying
-    statsview: StatsView obj
-        Tkinter.TopLevel derivative object for fitting stats results displaying
-    progressbar: ProgressBar obj
-        Tkinter.TopLevel derivative object with progression bar
-    range_min, range_max: Tkinter.StringVars
-        Range associated to the spectrum support
-    outliers_coef: Tkinter.DoubleVar
-        Coefficient applied to the outliers limits
-    baseline_mode: Tkinter.StringVar
-        Method associated with the baseline determination method ('Semi-Auto',
-        'Linear' or 'Polynomial')
-    baseline_coef: Tkinter.IntVar
-        Smoothing coefficient used when calculating the baseline with the
-        'Semi-Auto' algorithm
-    baseline_attached: Tkinter.BooleanVar
-        Activation keyword for baseline points attachment to the spectra
-    baseline_sigma: Tkinter.IntVar
-        Smoothing gaussian coefficient applied to the spectra when calculating
-        the attached baseline points
-    baseline_distance: Tkinter.DoubleVar
-        Minimum distance used by 'spectrum.auto_baseline'
-    baseline_mode: Tkinter.StringVar
-        Type of baseline ('Linear' or 'Polynomial')
-    baseline_order_max: Tkinter.IntVar
-        Max polynomial order to consider when plotting/removing the baseline
-    normalize: Tkinter.BooleanVar
-        Activation keyword for spectrum profiles normalization
-    normalize_range_min, normalize_range_max: Tkinter.StringVars
-        Ranges for searching the maximum value used in the normalization
-    model: Tkinter.StringVar
-        Spectrum peak base model name among 'Gaussian', 'Lorentzian',
-        'GaussianAsym' and 'LorentzianAsym'
-    bkg_name: Tkinter.StringVar
-        Background model name among 'None', 'Constant', 'Linear', 'Parabolic'
-        and 'Exponential'
-    asym: Tkinter.BooleanVar
-        Activation keyword to consider asymetric spectrum model
-    ax: Matplotlib.Axes object
-        Current axis to work with
-    canvas: FigureCanvasTkAgg object
-        Current canvas to work with
-    fileselector: common.core.appli_gui.FilesSelector object
-        Widget dedicated to the files selection
+    root: Tkinter.Tk object
+        Root window
+    model: images_alignment.ImagesAlign object
+        Model used to perform the images alignment
     """
 
     def __init__(self, root, model):

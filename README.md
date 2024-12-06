@@ -1,47 +1,49 @@
+[![Docs](https://img.shields.io/badge/docs-passing-brightgreen)](https://CEA-MetroCarac.github.io/images_alignment)
+
+
 <p align="center" width="100%">
     <img align="center" width=250 src=https://cea-metrocarac.github.io/images_registration/images_alignment.png>
 </p>
 
 # Images_Alignment
 
-**Images_Alignment** is an application dedicated to facilitate pairs of images realignment using affine transformation matrices calculated either from the [pyStackReg](https://github.com/glichtner/pystackreg) or [SIFT](https://scikit-image.org/docs/stable/auto_examples/features_detection/plot_sift.html) algorithm, a combined approach or from user driven matching points.
+**Images_Alignment** is an application dedicated to ease the images alignment using affine transformation matrices calculated either from the [pyStackReg](https://github.com/glichtner/pystackreg) or [SIFT](https://scikit-image.org/docs/stable/auto_examples/features_detection/plot_sift.html) algorithm, a combined approach, or from a user driven approach (specifying manually the matching points).
 
-Once the parameters have been set, these ones can be applied to a set of images (optional).
-
-<p align="center" width="100%">
-    <img align="center" width="75%" src=https://cea-metrocarac.github.io/images_registration/appli.png>
-</p>
+Once the parameters have been set, these ones can be applied automatically to a set of images as a workflow.
 
 <p align="center" width="100%">
-    <img align="center" width="40%" src=https://cea-metrocarac.github.io/images_registration/example_series_1.png>
-</p>
-
-<p align="center" width="100%">
-    <img align="center" width="40%" src=https://cea-metrocarac.github.io/images_registration/example_series_2.png>
+    <img align="center" width="75%" src=https://cea-metrocarac.github.io/images_registration/appli.png> <br>
+    <em>View of the GUI</em> 
 </p>
 
 
-*(The 2 figures above are extracted from the `example.py` available [here](https://github.com/CEA-MetroCarac/images_registration/images_alignment/examples/example.py).*
+<p align="center" width="100%">
+    <img align="center" width="60%" src=https://cea-metrocarac.github.io/images_registration/example_series_1.png> 
+</p>
 
-# Installation
+<p align="center" width="100%">
+    <img align="center" width="60%" src=https://cea-metrocarac.github.io/images_registration/example_series_2.png> <br>
+    <em>Application to a set of 3 images.</em>
 
-Assuming you have a python environment which is activated in a console, the application can be installed by the ``pip`` command:
+(The figures above have been generated from `example.py` available [here](https://github.com/CEA-MetroCarac/images_registration/images_alignment/examples/example.py).)
+
+## Installation and Usage
+
+Assuming you have a python environment which is activated in a terminal, the application can be installed with the ``pip`` command:
 
 ```bash
 pip install git+https://github.com/CEA-MetroCarac/images_registration.git
 ```
 
-### Usage
-
-The application can be launching directly from a console (after activating your python environment) by:
+Once installed, the application can be launched directly from a terminal (with the previous python environment activated), by:
 
 ```bash
 images_alignment
 ```
 
-for more informations concerning the application usage and more particularly the parameters setting, see the [documentation](https://github.com/CEA-MetroCarac/images_registration/doc).
+For more information concerning the usage and the parameters settings, see the [documentation](https://github.com/CEA-MetroCarac/images_registration/doc).
 
-### Authors information
+## Authors information
 
 In case you use this application to align images for a study which leads to an article, please cite:
 

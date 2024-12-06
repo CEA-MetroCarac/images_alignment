@@ -1,5 +1,5 @@
 """
-Application for images registration
+Utilities functions or Classes
 """
 import sys
 from pathlib import Path

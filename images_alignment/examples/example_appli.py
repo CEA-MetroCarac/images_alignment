@@ -10,10 +10,13 @@ from images_alignment.examples.utils import ROIS
 from images_alignment import REG_MODELS
 
 
-def ex_appli(dirname, img_name, registration_model):
+def example_appli(dirname, img_name, registration_model):
     """ Example based on 3 duplicated moving images using the application """
 
-    fnames_fixed, fnames_moving = images_generation(dirname, img_name, nimg=2)
+    input_dirname = dirname / 'example_appli'
+    input_dirname.mkdir(exist_ok=True)
+
+    fnames_fixed, fnames_moving = images_generation(input_dirname, img_name, nimg=2)
 
     root = Tk()
     app = App(root,
@@ -40,7 +43,5 @@ if __name__ == '__main__':
     IMG_NAMES = ['camera', 'astronaut', 'shepp_logan_phantom']
 
     with DIRFUNC() as tmpdir:
-        dirname = Path(tmpdir) / "images_alignement"
-        dirname.mkdir(exist_ok=True)
-
-        ex_appli(dirname, IMG_NAMES[1], REG_MODELS[2])
+        dirname = Path(tmpdir) / "images_alignment"
+        example_appli(dirname, IMG_NAMES[2], REG_MODELS[1])

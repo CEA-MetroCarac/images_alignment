@@ -12,12 +12,23 @@ class App:
     """
     Application for the images alignment
 
-    Attributes
+    Parameters
     ----------
     root: Tkinter.Tk object
         Root window
-    force_terminal_exit: bool
+    size: str, optional
+        Size of the root window
+    force_terminal_exit: bool, optional
         Key to force terminal session to exit after 'root' destroying
+    fnames_fixed, fnames_moving: iterables of str, optional
+        Images pathnames related to fixed and moving images resp. to handle
+    rois: list of 2 iterables, optional
+        rois (regions of interest) attached to the fixed and moving images, each defining as:
+         [xmin, xmax, ymin, ymax]
+    thresholds: iterable of 2 floats, optional
+        Thresholds used to binarize the images. Default values are [0.5, 0.5]
+    bin_inversions: iterable of 2 bools, optional
+        Activation keywords to reverse the image binarization
     """
 
     def __init__(self,
