@@ -6,8 +6,7 @@ from skimage.transform import rotate
 from skimage.io import imsave, imread
 
 from images_alignment import ImagesAlign
-from images_alignment.examples.utils import images_generation
-from images_alignment.examples.utils import ROIS
+from examples.utils import images_generation, ROIS
 
 
 @pytest.fixture
