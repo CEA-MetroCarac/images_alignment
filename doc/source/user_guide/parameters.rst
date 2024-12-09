@@ -1,6 +1,8 @@
 Files selection / Parameters settings
 -------------------------------------
 
+This section and the the following ones address features belonging to the Panel **1** (as defined in the 'Intro' section).
+
 
 Files selection
 ~~~~~~~~~~~~~~~
@@ -33,7 +35,7 @@ The **alignment** is performed in pairs. By consequence the number of selected i
 Defining ROIs
 ~~~~~~~~~~~~~
 
-In addition to defining ROIs (regions of interest) using the mouse, they can also be specified textually in the dedicated fields, following the convention: **[xmin, xmax, ymin, ymax]**, based on the coordinate system of the image displayed in **Panel 4**.
+In addition to defining ROIs (regions of interest) using the mouse ni the main Figure window (Panel **4**), they can also be specified textually in the related fields, following the convention: **[xmin, xmax, ymin, ymax]**, based on the coordinate system of the image displayed in **Panel 4**.
 
 
 .. figure::  ../_static/roi.png

@@ -1,13 +1,11 @@
 Scripting
 ---------
 
-Every operation performed through the GUI can also be executed in scripting mode.
-
-Below is a brief illustration of image alignment by adjusting a few parameters::
+Every operation performed through the GUI can also be executed in scripting mode. Here is a brief illustration::
 
     from images_alignment import ImagesAlign
 
-    imgalign = ImagesAlign(fixed_images=['img1.tif'], fnames_moving=['img2_1.tif', 'img2_2.tif', 'img2_3.tif', ...])
+    imgalign = ImagesAlign(fixed_images=['img1.tif'], fnames_moving=['img2_1.tif', 'img2_2.tif', ...])
 
     imgalign.angles = [0, 90]
     imgalign.thresholds = [0.50, 0.65]

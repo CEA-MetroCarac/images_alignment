@@ -17,7 +17,7 @@ Once the images to be processed are selected (see next section), **Panel 2** pro
 
 - Selecting the juxtaposition mode: choosing between horizontal or vertical alignment of the images.
 
-- Displaying the Combined images considering the full frame or their overlapping regions only (Apply Mask to ``True``).
+- Displaying the Combined images considering the full frame or their overlapping regions only (enabling ``Apply Mask``).
 
 
 **Panel 3** as 'thumbnails' allows users to select the type of image (**Fixed image**, **Moving image**,  **Juxtaposed images** or **Combined image**) to view in within **Panel 4**.

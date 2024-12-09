@@ -6,13 +6,13 @@ Registration algorithms
 StackReg
 ~~~~~~~~
 
-This algorithm is based on a minimization processing based on **cross-correlation** of binarized images (of identical size). Binarization and image resizing are handled automatically within the code. Binarization is performed to achieve, as closely as possible, a 50-50 distribution of True-False (or 0-1) values for the selected regions (either ROIs or entire images). In some cases, users have to adjust this threshold in the ``Options`` tab to better highlight features essential for accurate alignment.
+This algorithm is based on a minimization processing based on **cross-correlation** of binarized images of similar size. Binarization and image resizing are handled automatically within the code. Binarization is performed to achieve, by default and as closely as possible, a 50-50 distribution of True-False (or 0-1) values for the selected regions (either ROIs or entire images). In some cases, users have to adjust this threshold in the ``Options`` tab to better highlight features essential for accurate alignment.
 
 .. figure::  ../_static/stackreg_threshold.png
    :align:   center
    :width:   100%
 
-   Adjustment of the Threshold related to the binarization in the ``Options`` tab.
+   Illustration of adjusting the ``Threshold`` in the ``Options`` tab to reveal features.
 
 
 It is important to note that ``StackReg`` relies on a gradient descent method to minimize misalignment. Therefore, it requires the images to already have significant overlap in their features to function effectively.
@@ -40,7 +40,7 @@ Due to the random sampling process used to match features between images, consec
 SIFT + StackReg
 ~~~~~~~~~~~~~~~
 
-This combined approach leverages the strengths of both methods. ``SIFT`` first performs a coarse alignment, bringing potentially highly misaligned images closer together. Then, ``StackReg`` refines this alignment to achieve possibily a higher level of precision.
+This combined approach leverages the strengths of both methods. ``SIFT`` first performs a primary alignment, bringing potentially highly misaligned images closer together. Then, ``StackReg`` refines this alignment to achieve possibily a higher level of precision.
 
 
 User-Driven

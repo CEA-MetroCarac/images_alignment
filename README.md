@@ -9,7 +9,7 @@
 
 **Images_Alignment** is an application dedicated to ease the images alignment using affine transformation matrices calculated either from the [pyStackReg](https://github.com/glichtner/pystackreg) or [SIFT](https://scikit-image.org/docs/stable/auto_examples/features_detection/plot_sift.html) algorithm, a combined approach, or from a user driven approach (specifying manually the matching points).
 
-Once the parameters have been set, these ones can be applied automatically to a set of images as a workflow.
+Once the parameters have been set, they can be automatically applied to a set of images as part of a workflow.
 
 <p align="center" width="100%">
     <img align="center" width="75%" src=https://cea-metrocarac.github.io/images_alignment/appli.png> <br>

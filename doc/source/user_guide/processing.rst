@@ -18,11 +18,11 @@ With each registration computation, the matrix corresponding to the **affine tra
      [ -0.63508967   1.16203181  52.11186476]
      [  0.           0.           1.        ]]
 
-The ``INV`` mode allows the roles of "fixed" and "moving" images to be reversed.
+The ``INV`` mode allows the roles of **Fixed** and **Moving** images to be reversed during the registration processing.
 
-After registration, the resulting images can be saved via the ``SAVE IMAGES`` button.
+After registration, each of these images can be saved via the ``SAVE IMAGES`` button.
 
-The alignment parameters (e.g., ROIs, binarization thresholds) can also be saved in .json file using ``SAVE PARAMS`` for later reuse with ``RELOAD PARAMS``.
+The alignment parameters (e.g., ROIs, thresholds, ...) can also be saved in a .json file using ``SAVE PARAMS`` for later reuse with ``RELOAD PARAMS``.
 
 .. note::
     To reduce computation times during the registration processing, high-resolution images are sub-sampled to a size of **512 pixels** per  dimension. This criterion can be adjusted through the ``Max image size`` parameter under the **Registration** section in the ``Options`` tab.
