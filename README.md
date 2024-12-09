@@ -1,4 +1,5 @@
 [![Docs](https://img.shields.io/badge/docs-passing-brightgreen)](https://CEA-MetroCarac.github.io/images_alignment)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14338698.svg)](https://doi.org/10.5281/zenodo.14338698)
 
 
 <p align="center" width="100%">
@@ -43,10 +44,14 @@ images_alignment
 
 For more information concerning the usage and the parameters settings, see the [documentation](https://CEA-MetroCarac.github.io/images_alignment).
 
+## Acknowledgements
+
+This work, carried out on the CEA-PFNC (Platform for Nanocharacterisation), was supported by the “Recherche Technologique de Base” program of the French National Research Agency (ANR).
+
 ## Authors information
 
 In case you use this application to align images for a study which leads to an article, please cite:
 
-- Patrick Quéméré, Univ. Grenoble Alpes, CEA, Leti, F-38000 Grenoble, France, https://github.dev/CEA-MetroCarac/images_alignment
+- Quéméré, P. (2024). Images_alignment : A python package to ease images alignment with a dedicated GUI (2024.1). Zenodo. https://doi.org/10.5281/zenodo.14338698
 
 - P. Thevenaz, U. E. Ruttimann and M. Unser, "A pyramid approach to subpixel registration based on intensity," in IEEE Transactions on Image Processing, vol. 7, no. 1, pp. 27-41, Jan. 1998, doi: 10.1109/83.650848.
