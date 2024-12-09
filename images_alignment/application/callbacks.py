@@ -8,7 +8,6 @@ from tkinter.messagebox import showerror, askyesno
 
 import numpy as np
 from matplotlib.patches import Rectangle
-from imageio.v3 import imwrite
 
 from images_alignment import CMAP_BINARIZED
 
@@ -396,21 +395,15 @@ class Callbacks:
         self.update_plots()
 
     def save_images(self):
-        """ Save the fixed and moving images in their final state """
-        # TODO revisit
-        imgs = self.model.crop_and_resize(self.model.imgs)
-        if self.model.img_reg is not None:
-            imgs[1] = self.model.img_reg
-
+        """ Save the fixed and moving images in their final states """
+        fnames_save = []
         for k in range(2):
             ind = self.fselectors[k].lbox.curselection()[0]
             fname = Path(self.fselectors[k].fnames[ind])
             initialdir = fname.parent
             initialfile = fname.stem + "_aligned" + fname.suffix
-            fname_reg = fd.asksaveasfilename(initialfile=initialfile,
-                                             initialdir=initialdir)
-            if fname_reg != "":
-                imwrite(fname_reg, imgs[k].astype(self.model.dtypes[k]))
+            fnames_save.append(fd.asksaveasfilename(initialfile=initialfile, initialdir=initialdir))
+        self.model.save_images(fnames_save)
 
     def reload_params(self):
         """ Reload parameters """

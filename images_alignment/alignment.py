@@ -3,6 +3,7 @@ Class dedicated to images alignment
 """
 import os
 import shutil
+import warnings
 from pathlib import Path
 import json
 from tkinter import filedialog
@@ -368,6 +369,18 @@ class ImagesAlign:
 
         return imgs[0], self.img_reg
 
+    def save_images(self, fnames_save):
+        """ Save the fixed and moving images in their final states """
+        imgs = self.crop_and_resize(self.imgs, verbosity=False)
+        if self.img_reg is not None:
+            k0 = 0 if self.inv_reg else 1
+            imgs[k0] = self.img_reg
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            [iio.imwrite(fname, imgs[k].astype(self.dtypes[k]))
+             for k, fname in enumerate(fnames_save) if fname != '']
+
     def set_dirname_res(self, dirname_res=None):
         """ Set dirname results 'dirname_res' """
         if dirname_res is None:
@@ -402,6 +415,11 @@ class ImagesAlign:
             self.terminal.write(msg)
             return
 
+        if self.inv_reg and n0 != n1:
+            msg = f"\nERROR: 'INV' can be activated only when processing N-to-N files'.\n"
+            self.terminal.write(msg)
+            return
+
         self.terminal.write("\n")
 
         self.set_dirname_res(dirname_res=dirname_res)
@@ -419,9 +437,11 @@ class ImagesAlign:
                 if not self.fixed_reg:
                     self.registration_calc()
                 imgs = self.registration_apply()
-                for k in range(2):
-                    iio.imwrite(self.dirname_res[k] / names[k],
-                                imgs[k].astype(self.dtypes[k]))
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=RuntimeWarning)
+                    for k in range(2):
+                        iio.imwrite(self.dirname_res[k] / names[k],
+                                    imgs[k].astype(self.dtypes[k]))
 
             except:
                 self.terminal.write("FAILED\n")
@@ -573,9 +593,9 @@ class ImagesAlign:
         rfacs = self.rfactors_plotting
 
         if self.binarized:
+            k0, k1 = (0, 1) if self.inv_reg else (1, 0)
             imgs = self.crop_and_resize(self.imgs_bin, verbosity=False)
             if self.img_reg_bin is not None:
-                k0, k1 = (0, 1) if self.inv_reg else (1, 0)
                 imgs[k0] = self.img_reg_bin
             imgs = padding(*imgs)
             img = np.zeros_like(imgs[0], dtype=float)
@@ -583,16 +603,14 @@ class ImagesAlign:
             img[imgs[0] * ~imgs[1]] = -1
             if self.apply_mask and self.mask is not None:
                 img[self.mask] = np.nan
-            k0, k1 = (0, 1) if self.inv_reg else (1, 0)
             img = rescaling(img, rfacs[k1])
             self.ax[3].imshow(img, cmap=CMAP_BINARIZED, vmin=-1, vmax=1)
 
         else:
-            imgs = [cropping(self.imgs[k], self.rois[k], verbosity=False) for k in range(2)]
-            imgs = [rescaling(imgs[k], rfacs[k]) for k in range(2)]
+            k0, k1 = (0, 1) if self.inv_reg else (1, 0)
+            imgs = self.crop_and_resize(self.imgs, verbosity=False)
             if self.img_reg is not None:
-                k0, k1 = (0, 1) if self.inv_reg else (1, 0)
-                imgs[k0] = rescaling(self.img_reg, rfacs[k1])
+                imgs[k0] = self.img_reg
             imgs = padding(*imgs)
             imgs = [image_normalization(img) for img in imgs]
             imgs = imgs_conversion(imgs)
@@ -601,4 +619,5 @@ class ImagesAlign:
                 img = np.mean(img, axis=0)
             else:
                 img = np.nanmean(img, axis=0)
+            img = rescaling(img, rfacs[k1])
             self.ax[3].imshow(img, cmap='gray')
