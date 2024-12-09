@@ -14,35 +14,29 @@ For a **scripting mode usage**, please refer to the final section of this docume
 Installation
 ------------
 
-Assuming you have a python environment which is activated in a terminal, the application can be installed thanks the ``pip`` command:
+Assuming you have a python environment which is activated in a terminal, the application can be installed thanks the ``pip`` command::
 
-```bash
-pip install git+https://github.com/CEA-MetroCarac/images_alignment.git
-```
+    pip install git+https://github.com/CEA-MetroCarac/images_alignment.git
 
-Once installed, the application can be launched directly from a terminal (with the previous python environment activated), by:
+Once installed, the application can be launched directly from a terminal (with the previous python environment activated), by::
 
-```bash
-images_alignment
-```
+    images_alignment
+
 
 Tests execution
 ---------------
 
-For developers, the full package including examples and tests can be installed via:
+For developers, the full package including examples and tests can be installed via::
 
-```bash
-git clone https://github.com/CEA-MetroCarac/images_alignment.git
-cd images_alignment
-pip install .
-```
+    git clone https://github.com/CEA-MetroCarac/images_alignment.git
+    cd images_alignment
+    pip install .
 
-The tests can be executed via the following commands:
 
-```bash
-pip install pytest
-pytest tests
-```
+The tests can be executed via the following commands::
+
+    pip install pytest
+    pytest tests
 
 
 
