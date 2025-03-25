@@ -230,7 +230,7 @@ class View(Callbacks):
         add(fr, 3, 0, W + E)
         add_entry(fr, 0, 'Max. image size:', self.max_size_reg)
         for k, key in enumerate(self.tmat_options.keys()):
-            row, col = k // 2, k % 2
+            row, col = 1 + k // 2, k % 2
             add(Checkbutton(fr, text=key.capitalize(), variable=self.tmat_options[key],
                             command=lambda key=key: self.update_tmat_options(key)), row, col, W)
 
