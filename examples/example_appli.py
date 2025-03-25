@@ -14,7 +14,7 @@ from utils import ROIS
 def example_appli(dirname, img_name, registration_model):
     """ Example based on 3 duplicated moving images using the application """
 
-    input_dirname = dirname / 'example_appli'
+    input_dirname = Path(dirname) / 'example_appli'
     input_dirname.mkdir(exist_ok=True)
 
     fnames_fixed, fnames_moving = images_generation(input_dirname, img_name, nimg=2)

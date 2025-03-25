@@ -20,7 +20,7 @@ from utils import ROIS
 def example(dirname, img_name, registration_model):
     """ Example """
 
-    input_dirname = dirname / 'example'
+    input_dirname = Path(dirname) / 'example'
     input_dirname.mkdir(exist_ok=True)
 
     fnames_fixed, fnames_moving = images_generation(dirname, img_name)
