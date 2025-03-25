@@ -4,7 +4,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = "images_alignment"
-version = "2024.1"
+version = "2025.1"
 description = "images alignment application"
 authors = [{ name = "Patrick Quéméré", email = "patrick.quemere@cea.fr" }]
 readme = "README.md"
