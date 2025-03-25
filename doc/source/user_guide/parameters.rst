@@ -18,7 +18,7 @@ If the images are oriented differently, it is possible to rotate them by 90°, 1
    ``Options`` tab.
 
 
-The ``translation``, ``rotation``, ``scaling``, and ``shearing`` options allow enabling or disabling the types of transformations considered within the transformation matrix.
+The ``Translation``, ``Rotation``, ``Scaling``, and ``Shearing`` options allow enabling or disabling the types of transformations considered within the transformation matrix.
 
 
 The **alignment** is performed in pairs. By consequence the number of selected images must meet the following criteria:
