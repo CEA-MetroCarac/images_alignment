@@ -12,7 +12,7 @@ An indicative value of the "goodness" of the alignment (**score**) is displayed 
    **Combined images** after registration in gray (left) and binarization (right) mode respectively leading to a score of **95.8%** with ``StackReg``.
 
 
-With each registration computation, the matrix corresponding to the **affine transformation** applied to the **Moving image** is displayed in the terminal associated with the application's execution::
+With each registration computation, the matrix corresponding to the **affine transformation** applied to the **Moving image** (regarding the transformations activated in the ``Options`` tab) is displayed in the terminal associated with the application's execution::
 
     [[  0.77767435   0.43040319 -24.41735391]
      [ -0.63508967   1.16203181  52.11186476]

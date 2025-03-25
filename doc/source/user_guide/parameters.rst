@@ -18,6 +18,9 @@ If the images are oriented differently, it is possible to rotate them by 90°, 1
    ``Options`` tab.
 
 
+The ``translation``, ``rotation``, ``scaling``, and ``shearing`` options allow enabling or disabling the types of transformations considered within the transformation matrix.
+
+
 The **alignment** is performed in pairs. By consequence the number of selected images must meet the following criteria:
 
 - **N-to-N Alignment**: The number of **Fixed** images must match the number of **Moving** images. In this case, the images will be processed pairwise in the order in which they appear in their respective file lists.
