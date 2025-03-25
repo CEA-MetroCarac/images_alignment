@@ -245,13 +245,15 @@ class View(Callbacks):
         frame_about.title("About")
         x = self.about_but.winfo_rootx()
         y = self.about_but.winfo_rooty()
-        frame_about.geometry(f"700x40+{x}+{y}")
+        frame_about.geometry(f"380x100+{x}+{y}")
 
         text = "This code is dedicated to images alignment.\n"
-        text += "The sources and the related documentation are accessible in:\n"
-        website = r"https://github.com/CEA-MetroCarac/images_registration"
+        text += "The sources and the documentation are respectively accessible in:"
+        website_src = r"https://github.com/CEA-MetroCarac/images_alignment"
+        website_doc = r"https://cea-metrocarac.github.io/images_alignment/index.html"
         message = Message(frame_about, text=text, width=400)
         add(message, 0, 0, pady=0)
-        label = Label(frame_about, text=website, fg="blue")
-        label.bind("<Button-1>", lambda _: webbrowser.open_new(website))
-        add(label, 0, 1, pady=0)
+        add(Button(frame_about, text=website_src, fg="blue",
+                   command=lambda: webbrowser.open_new(website_src)), 1, 0, pady=0)
+        add(Button(frame_about, text=website_doc, fg="blue",
+                   command=lambda: webbrowser.open_new(website_doc)), 2, 0, pady=0)
