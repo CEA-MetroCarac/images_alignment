@@ -50,6 +50,11 @@ class View(Callbacks):
         self.max_size_reg = StringVar(value=self.model.max_size_reg)
         self.min_img_res = StringVar(value=self.model.min_img_res)
         self.angles = [IntVar(value=0), IntVar(value=0)]
+        self.tmat_options = {
+            'translation': BooleanVar(value=self.model.tmat_options['translation']),
+            'rotation': BooleanVar(value=self.model.tmat_options['rotation']),
+            'scaling': BooleanVar(value=self.model.tmat_options['scaling']),
+            'shearing': BooleanVar(value=self.model.tmat_options['shearing'])}
 
         # Frames creation
         #################
@@ -206,7 +211,7 @@ class View(Callbacks):
         frame_options.title("Options")
         x = self.options_but.winfo_rootx()
         y = self.options_but.winfo_rooty()
-        frame_options.geometry(f"300x340+{x}+{y}")
+        frame_options.geometry(f"300x400+{x}+{y}")
 
         for k, label in enumerate(['Fixed image', 'Moving image']):
             frame = LabelFrame(frame_options, text=label, font=FONT)
@@ -224,6 +229,10 @@ class View(Callbacks):
         fr = LabelFrame(frame_options, text='Registration', font=FONT)
         add(fr, 3, 0, W + E)
         add_entry(fr, 0, 'Max. image size:', self.max_size_reg)
+        for k, key in enumerate(self.tmat_options.keys()):
+            row, col = k // 2, k % 2
+            add(Checkbutton(fr, text=key.capitalize(), variable=self.tmat_options[key],
+                            command=lambda key=key: self.update_tmat_options(key)), row, col, W)
 
         fr = LabelFrame(frame_options, text='Resolution', font=FONT)
         add(fr, 4, 0, W + E)

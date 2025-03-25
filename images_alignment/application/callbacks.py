@@ -348,6 +348,10 @@ class Callbacks:
         self.model.reinit()
         self.update_plots()
 
+    def update_tmat_options(self, key):
+        """ Update the tmat_options boolean value related to the key """
+        self.model.tmat_options[key] = self.tmat_options[key].get()
+
     def update_inv_reg(self):
         """ Update the 'inv_reg' value """
         self.model.inv_reg = self.inv_reg.get()

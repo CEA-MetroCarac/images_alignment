@@ -6,7 +6,9 @@ from pathlib import Path
 import numpy as np
 import tifffile
 from skimage.color import rgba2rgb, rgb2gray, gray2rgb
-from skimage.transform import AffineTransform, resize
+from skimage.transform import (resize,
+                               AffineTransform, EuclideanTransform, SimilarityTransform,
+                               ProjectiveTransform)
 from skimage.feature import SIFT, match_descriptors
 from skimage.measure import ransac
 
@@ -191,6 +193,49 @@ def padding(img1, img2):
     img2_pad = np.pad(img2, pad_width2)
 
     return img1_pad, img2_pad
+
+
+class TranslationTransform(ProjectiveTransform):
+    def __init__(self):
+        super().__init__()
+        self.params = np.eye(3)
+
+    def estimate(self, src, dst):
+        """Estimate the transformation from a set of corresponding points"""
+        src = np.asarray(src)
+        dst = np.asarray(dst)
+        translation = np.mean(dst - src, axis=0)
+        self.params = np.array([[1, 0, translation[0]],
+                                [0, 1, translation[1]],
+                                [0, 0, 1]])
+        return True
+
+    def inverse(self):
+        """Return the inverse translation."""
+        inv_tx, inv_ty = -self.params[0, 2], -self.params[1, 2]
+        return TranslationTransform(inv_tx, inv_ty)
+
+
+def get_transformation(options, model='StackReg'):
+    if model == 'StackReg':
+        mapping = {("translation",): "TRANSLATION",
+                   ("translation", "rotation"): "RIGID_BODY",
+                   ("translation", "rotation", "scaling"): "SCALED_ROTATION",
+                   ("translation", "rotation", "scaling", "shearing"): "AFFINE"}
+    else:
+        mapping = {("translation",): TranslationTransform,
+                   ("translation", "rotation"): EuclideanTransform,
+                   ("translation", "rotation", "scaling"): SimilarityTransform,
+                   ("translation", "rotation", "scaling", "shearing"): AffineTransform}
+
+    active_keys = tuple(k for k in ["translation", "rotation", "scaling", "shearing"]
+                        if options.get(k, False))
+    transformation = mapping.get(active_keys)
+
+    if model == 'User-Driven':
+        transformation = transformation()
+
+    return transformation
 
 
 def sift(img1, img2, model_class=None):

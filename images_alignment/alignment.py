@@ -22,14 +22,13 @@ from images_alignment.utils import (Terminal, fnames_multiframes_from_list,
                                     rescaling_factors, imgs_rescaling,
                                     image_normalization, absolute_threshold,
                                     resizing, cropping, padding, sift,
-                                    concatenate_images, rescaling)
+                                    concatenate_images, rescaling, get_transformation)
 
 TMP_DIR = Path(gettempdir()) / "images_alignment"
 shutil.rmtree(TMP_DIR, ignore_errors=True)
 os.makedirs(TMP_DIR, exist_ok=True)
 
 REG_MODELS = ['StackReg', 'SIFT', 'SIFT + StackReg', 'User-Driven']
-STREG = StackReg(StackReg.AFFINE)
 CMAP_BINARIZED = ListedColormap(["#00FF00", "black", "red"])
 KEYS = ['rois', 'thresholds', 'bin_inversions', 'registration_model']
 
@@ -91,11 +90,14 @@ class ImagesAlign:
         Activation key to reverse 'fixed' and 'moving' images during the registration calculation.
         Default is False.
     tmat: numpy.ndarray((3, 3))
-        Affine transformation matrice returned by the registration.
+        Transformation matrice returned by the registration.
     img_reg, img_reg_bin: arrays
         Arrays issued from the moving registrated image in its raw or binarized state resp.
     mask: numpy.ndarray
         Array (dtype=bool) associated with the overlapping area issued from the registration.
+    tmat_options: dictionary of bool
+        Dictionnary composed of options to build the 'tmat' transformation matrice (translation,
+        rotation, scaling, shearing)
     fixed_reg: bool
         Activation key to perform the worflow calculation with a fixed 'tmat'.
         Default is False.
@@ -157,6 +159,8 @@ class ImagesAlign:
         self.img_reg = None
         self.img_reg_bin = None
         self.mask = None
+        self.tmat_options = {"translation": True, "rotation": True,
+                             "scaling": True, "shearing": True}
 
         # 'application' attributes
         self.fixed_reg = False
@@ -273,10 +277,12 @@ class ImagesAlign:
         if registration_model in REG_MODELS:
             self.registration_model = registration_model
 
+        transformation = get_transformation(self.tmat_options, self.registration_model)
+
         if self.registration_model == 'StackReg':
             imgs_bin = self.crop_and_resize(self.imgs_bin)
             imgs_bin, rfacs = imgs_rescaling(imgs_bin, self.max_size_reg)
-            self.tmat = STREG.register(*imgs_bin)
+            self.tmat = StackReg(eval(f"StackReg.{transformation}")).register(*imgs_bin)
             self.tmat[:2, :2] *= rfacs[0] / rfacs[1]
             self.tmat[:2, 2] *= 1. / rfacs[1]
 
@@ -284,7 +290,7 @@ class ImagesAlign:
             imgs = self.crop_and_resize(self.imgs)
             imgs = [gray_conversion(img) for img in imgs]
             imgs, rfacs = imgs_rescaling(imgs, self.max_size_reg)
-            self.tmat, self.points = sift(*imgs)
+            self.tmat, self.points = sift(*imgs, model_class=transformation)
             self.tmat[:2, :2] *= rfacs[0] / rfacs[1]
             self.tmat[:2, 2] *= 1. / rfacs[1]
             self.points[0] = self.points[0] / rfacs[0]
@@ -293,7 +299,8 @@ class ImagesAlign:
         elif self.registration_model == 'User-Driven':
             src = np.asarray(self.points[0])
             dst = np.asarray(self.points[1])
-            self.tmat = estimate_transform('affine', src, dst).params
+            transformation.estimate(src, dst)
+            self.tmat = transformation.params
 
         elif self.registration_model == 'SIFT + StackReg':
 
