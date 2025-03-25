@@ -11,9 +11,10 @@ from skimage.transform import rotate
 from skimage.io import imsave, imread
 
 from images_alignment import ImagesAlign
-from images_alignment.examples.utils import UserTempDirectory, images_generation
-from images_alignment.examples.utils import ROIS
 from images_alignment import REG_MODELS
+
+from utils import UserTempDirectory, images_generation
+from utils import ROIS
 
 
 def example(dirname, img_name, registration_model):

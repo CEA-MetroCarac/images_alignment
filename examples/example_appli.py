@@ -5,9 +5,10 @@ from pathlib import Path
 from tkinter import Tk
 
 from images_alignment.application.app import App
-from images_alignment.examples.utils import UserTempDirectory, images_generation
-from images_alignment.examples.utils import ROIS
 from images_alignment import REG_MODELS
+
+from utils import UserTempDirectory, images_generation
+from utils import ROIS
 
 
 def example_appli(dirname, img_name, registration_model):
