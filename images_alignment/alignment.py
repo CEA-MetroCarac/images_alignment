@@ -29,6 +29,7 @@ shutil.rmtree(TMP_DIR, ignore_errors=True)
 os.makedirs(TMP_DIR, exist_ok=True)
 
 REG_MODELS = ['StackReg', 'SIFT', 'SIFT + StackReg', 'User-Driven']
+REG_KEYS = ['translation', 'rotation', 'scaling', 'shearing']
 CMAP_BINARIZED = ListedColormap(["#00FF00", "black", "red"])
 KEYS = ['rois', 'thresholds', 'bin_inversions', 'registration_model']
 
@@ -95,9 +96,9 @@ class ImagesAlign:
         Arrays issued from the moving registrated image in its raw or binarized state resp.
     mask: numpy.ndarray
         Array (dtype=bool) associated with the overlapping area issued from the registration.
-    tmat_options: dictionary of bool
-        Dictionnary composed of options to build the 'tmat' transformation matrice (translation,
-        rotation, scaling, shearing)
+    tmat_options: dictionary of bool, optional
+        Dictionary composed of options to build the 'tmat' transformation matrice (translation,
+        rotation, scaling, shearing). Default values are True.
     fixed_reg: bool
         Activation key to perform the worflow calculation with a fixed 'tmat'.
         Default is False.
@@ -159,8 +160,7 @@ class ImagesAlign:
         self.img_reg = None
         self.img_reg_bin = None
         self.mask = None
-        self.tmat_options = {"translation": True, "rotation": True,
-                             "scaling": True, "shearing": True}
+        self.tmat_options = {key: True for key in REG_KEYS}
 
         # 'application' attributes
         self.fixed_reg = False

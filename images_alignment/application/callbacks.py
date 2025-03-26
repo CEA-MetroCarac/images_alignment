@@ -9,7 +9,7 @@ from tkinter.messagebox import showerror, askyesno
 import numpy as np
 from matplotlib.patches import Rectangle
 
-from images_alignment import CMAP_BINARIZED
+from images_alignment import CMAP_BINARIZED, REG_KEYS
 
 
 class Callbacks:
@@ -349,8 +349,16 @@ class Callbacks:
         self.update_plots()
 
     def update_tmat_options(self, key):
-        """ Update the tmat_options boolean value related to the key """
-        self.model.tmat_options[key] = self.tmat_options[key].get()
+        """ Update the tmat_options boolean values related to the 'key' """
+        k = REG_KEYS.index(key)
+        if self.tmat_options[key].get():
+            for key_ in REG_KEYS[:k]:
+                self.tmat_options[key_].set(True)
+                self.model.tmat_options[key_] = True
+        else:
+            for key_ in REG_KEYS[k:]:
+                self.tmat_options[key_].set(False)
+                self.model.tmat_options[key_] = False
 
     def update_inv_reg(self):
         """ Update the 'inv_reg' value """

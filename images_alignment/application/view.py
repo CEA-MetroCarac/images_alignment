@@ -50,11 +50,9 @@ class View(Callbacks):
         self.max_size_reg = StringVar(value=self.model.max_size_reg)
         self.min_img_res = StringVar(value=self.model.min_img_res)
         self.angles = [IntVar(value=0), IntVar(value=0)]
-        self.tmat_options = {
-            'translation': BooleanVar(value=self.model.tmat_options['translation']),
-            'rotation': BooleanVar(value=self.model.tmat_options['rotation']),
-            'scaling': BooleanVar(value=self.model.tmat_options['scaling']),
-            'shearing': BooleanVar(value=self.model.tmat_options['shearing'])}
+        self.tmat_options = {key: BooleanVar(value=value)
+                             for key, value in self.model.tmat_options.items()}
+        self.tmat_options_cb = []
 
         # Frames creation
         #################
@@ -211,28 +209,31 @@ class View(Callbacks):
         frame_options.title("Options")
         x = self.options_but.winfo_rootx()
         y = self.options_but.winfo_rooty()
-        frame_options.geometry(f"300x400+{x}+{y}")
+        frame_options.geometry(f"360x370+{x}+{y}")
 
         for k, label in enumerate(['Fixed image', 'Moving image']):
             frame = LabelFrame(frame_options, text=label, font=FONT)
-            add(frame, k, 0)
+            add(frame, k, 0, W + E)
             add(Label(frame, text='Rotation:'), 1, 0)
             for i, angle in enumerate([0, 90, 180, 270]):
                 add(Radiobutton(frame, text=f"{angle}°", value=angle,
                                 variable=self.angles[k],
-                                command=lambda k=k: self.update_angles(k)), 1, i + 1, padx=0)
+                                command=lambda k=k: self.update_angles(k)), 1, i + 1, W + E, padx=0)
             add(Label(frame, text='Threshold:'), 2, 0, E, pady=0)
             add(Scale(frame, resolution=0.01, to=1., orient=HORIZONTAL,
-                      length=200, tickinterval=1, variable=self.thresholds[k],
+                      length=250, tickinterval=1, variable=self.thresholds[k],
                       command=lambda val, k=k: self.update_threshold(val, k)),
                 2, 1, W, pady=0, cspan=4)
+
         fr = LabelFrame(frame_options, text='Registration', font=FONT)
         add(fr, 3, 0, W + E)
         add_entry(fr, 0, 'Max. image size:', self.max_size_reg)
         for k, key in enumerate(self.tmat_options.keys()):
-            row, col = 1 + k // 2, k % 2
-            add(Checkbutton(fr, text=key.capitalize(), variable=self.tmat_options[key],
-                            command=lambda key=key: self.update_tmat_options(key)), row, col, W)
+            tmat_option_cb = Checkbutton(fr, text=key.capitalize(),
+                                         variable=self.tmat_options[key],
+                                         command=lambda key=key: self.update_tmat_options(key))
+            add(tmat_option_cb, 1, k, W)
+            self.tmat_options_cb.append(tmat_option_cb)
 
         fr = LabelFrame(frame_options, text='Resolution', font=FONT)
         add(fr, 4, 0, W + E)
