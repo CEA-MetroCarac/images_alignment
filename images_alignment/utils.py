@@ -278,8 +278,11 @@ def sift(img1, img2, model_class=None):
     model, inliers = ransac((src, dst), model_class,
                             min_samples=4, residual_threshold=2)
 
-    tmat = model.params
-    points = [src[inliers], dst[inliers]]
+    tmat = np.eye(3)
+    points = [[], []]
+    if model is not None and not np.all(np.isnan(model.params)):
+        tmat = model.params
+        points = [src[inliers], dst[inliers]]
 
     return tmat, points
 

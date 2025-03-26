@@ -293,14 +293,18 @@ class ImagesAlign:
             self.tmat, self.points = sift(*imgs, model_class=transformation)
             self.tmat[:2, :2] *= rfacs[0] / rfacs[1]
             self.tmat[:2, 2] *= 1. / rfacs[1]
-            self.points[0] = self.points[0] / rfacs[0]
-            self.points[1] = self.points[1] / rfacs[1]
+            if len(self.points[0]) > 0:
+                self.points[0] = self.points[0] / rfacs[0]
+                self.points[1] = self.points[1] / rfacs[1]
 
         elif self.registration_model == 'User-Driven':
-            src = np.asarray(self.points[0])
-            dst = np.asarray(self.points[1])
-            transformation.estimate(src, dst)
-            self.tmat = transformation.params
+            if len(self.points[0]) > 0:
+                src = np.asarray(self.points[0])
+                dst = np.asarray(self.points[1])
+                transformation.estimate(src, dst)
+                self.tmat = transformation.params
+            else:
+                self.tmat = np.eye(3)
 
         elif self.registration_model == 'SIFT + StackReg':
 
@@ -362,9 +366,8 @@ class ImagesAlign:
         if show_score:
             mismatch = np.logical_xor(imgs_bin[k0], self.img_reg_bin)
             mismatch[self.mask] = 0
-            score = 100 * (1. - np.sum(mismatch) /
-                           (mismatch.size - np.sum(self.mask)))
-
+            delta = mismatch.size - np.sum(self.mask)
+            score = 100 * (1. - np.sum(mismatch) / delta) if delta != 0 else 0
             msg = f"score : {score:.1f} % ({self.registration_model}"
             if "SIFT" in self.registration_model:
                 msg += f" - nb_matches : {len(self.points[0])}"
