@@ -125,7 +125,7 @@ def imgs_conversion(imgs):
 def image_normalization(img):
     """ Normalize image in range [0., 1.] """
     vmin, vmax = np.nanmin(img), np.nanmax(img)
-    return (img - vmin) / (vmax - vmin)
+    return (img - vmin) / (vmax - vmin) if vmax != vmin else np.ones_like(img)
 
 
 def absolute_threshold(img, relative_threshold):
