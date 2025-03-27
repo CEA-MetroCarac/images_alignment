@@ -245,19 +245,33 @@ class View(Callbacks):
 
     def open_about(self):
         """ Open the 'About' tab"""
-        frame_about = Toplevel(self.root)
-        frame_about.title("About")
+        frame = Toplevel(self.root)
+        frame.title("About")
         x = self.about_but.winfo_rootx()
         y = self.about_but.winfo_rooty()
-        frame_about.geometry(f"380x100+{x}+{y}")
+        frame.geometry(f"400x230+{x}+{y}")
 
         text = "This code is dedicated to images alignment.\n"
         text += "The sources and the documentation are respectively accessible in:"
         website_src = r"https://github.com/CEA-MetroCarac/images_alignment"
         website_doc = r"https://cea-metrocarac.github.io/images_alignment/index.html"
-        message = Message(frame_about, text=text, width=400)
-        add(message, 0, 0, pady=0)
-        add(Button(frame_about, text=website_src, fg="blue",
-                   command=lambda: webbrowser.open_new(website_src)), 1, 0, pady=0)
-        add(Button(frame_about, text=website_doc, fg="blue",
-                   command=lambda: webbrowser.open_new(website_doc)), 2, 0, pady=0)
+        message = Message(frame, text=text, width=470)
+        add(message, 0, 0, W, pady=0, cspan=3)
+        add(Button(frame, text=f"SRC : {website_src}", fg="blue",
+                   command=lambda: webbrowser.open_new(website_src)), 1, 0, pady=0, cspan=3)
+        add(Button(frame, text=f"DOC : {website_doc}", fg="blue",
+                   command=lambda: webbrowser.open_new(website_doc)), 2, 0, pady=0, cspan=3)
+
+        add(Label(frame, text="Shortcuts", font='bold'), 3, 1)
+
+        shortcuts = {
+            "ROI selection": ("Left Click and Drag", "Fixed/Moving image"),
+            "Zooming": ("Scroll Up-Down", "ALL images"),
+            "Add/Rem. Lines": ("Left/Right Click and Drag", "Juxtaposed images"),
+            "Add/Rem. points": ("CTRL + Left/Right Click", "Fixed/Moving images"),
+            "Change thumbnail": ("CTRL + Scroll Up-Down", "")}
+
+        for k, (key, vals) in enumerate(shortcuts.items()):
+            add(Label(frame, text=f"{key} :"), 4 + k, 0, W, pady=0)
+            add(Label(frame, text=vals[1]), 4 + k, 1, W, pady=0)
+            add(Label(frame, text=vals[0]), 4 + k, 2, W, pady=0)
