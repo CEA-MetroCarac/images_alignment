@@ -297,13 +297,28 @@ class ImagesAlign:
             if len(self.points[0]) > 0:
                 self.points[0] = self.points[0] / rfacs[0]
                 self.points[1] = self.points[1] / rfacs[1]
+            if self.rois[0] is not None:
+                self.points[0][:, :] += self.rois[0][::2]
+            if self.rois[1] is not None:
+                self.points[1][:, :] += self.rois[1][::2]
 
         elif self.registration_model == 'User-Driven':
             if 0 < len(self.points[1]) == len(self.points[0]):
                 src = np.asarray(self.points[0])
                 dst = np.asarray(self.points[1])
-                src[:, 1] = self.imgs[0].shape[0] - src[:, 1]
-                dst[:, 1] = self.imgs[1].shape[0] - dst[:, 1]
+
+                if self.rois[0] is not None:
+                    src[:, :] -= self.rois[0][::2]  # remove (xmin, ymin)
+                    src[:, 1] = self.rois[0][3] - self.rois[0][2] - src[:, 1]  # inverse y-axis
+                else:
+                    src[:, 1] = self.imgs[0].shape[0] - src[:, 1]  # inverse y-axis
+
+                if self.rois[1] is not None:
+                    dst[:, :] -= self.rois[1][::2]  # remove (xmin, ymin)
+                    dst[:, 1] = self.rois[1][3] - self.rois[1][2] - dst[:, 1]  # inverse y-axis
+                else:
+                    dst[:, 1] = self.imgs[1].shape[0] - dst[:, 1]  # inverse y-axis
+
                 transformation.estimate(src, dst)
                 self.tmat = transformation.params
             else:
@@ -581,10 +596,13 @@ class ImagesAlign:
         else:
             self.ax[2].imshow(img, cmap='gray', extent=extent)
 
+        x0, y0 = self.rois[0][::2] if self.rois[0] is not None else (0, 0)
+        x1, y1 = self.rois[1][::2] if self.rois[1] is not None else (0, 0)
+
         # draw lines related to 'SIFT' or 'User-Driven' registration mode
         for i, (src, dst) in enumerate(zip(self.points[0][:nmax], self.points[1][:nmax])):
-            x = [src[0] * rfacs[0], dst[0] * rfacs[1] + offset[0]]
-            y = [src[1] * rfacs[0], dst[1] * rfacs[1] + offset[1]]
+            x = [(src[0] - x0) * rfacs[0], (dst[0] - x1) * rfacs[1] + offset[0]]
+            y = [(src[1] - y0) * rfacs[0], (dst[1] - y1) * rfacs[1] + offset[1]]
             self.ax[2].plot(x, y, color=COLORS[i])
 
     def plot_combined_images(self):

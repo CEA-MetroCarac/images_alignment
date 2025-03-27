@@ -53,7 +53,7 @@ class Callbacks:
         if self.toolbar.mode == '' and \
                 event.inaxes == self.ax1 and \
                 self.k_ref in [0, 1] and \
-                self.select_lines.get() and \
+                not event.key == 'control' and \
                 self.pair[0] is None:
             x, y = event.xdata, event.ydata
             self.pair = [[x, y], [None, None]]
@@ -67,7 +67,7 @@ class Callbacks:
                 event.inaxes == self.ax1 and \
                 self.k_ref in [0, 1] and \
                 self.registration_model.get() == 'User-Driven' and \
-                not self.select_lines.get():
+                event.key == 'control':
 
             x, y = event.xdata, event.ydata
             model_points = self.model.points[self.k_ref]
@@ -122,6 +122,12 @@ class Callbacks:
                     else:
                         x2p = x2 / rfacs[1]
                         y2p = (y2 - y12) / rfacs[1]
+                    if self.model.rois[0] is not None:
+                        x1p += self.model.rois[0][0]
+                        y1p += self.model.rois[0][2]
+                    if self.model.rois[1] is not None:
+                        x2p += self.model.rois[1][0]
+                        y2p += self.model.rois[1][2]
                     self.model.points[0].append([x1p, y1p])
                     self.model.points[1].append([x2p, y2p])
                     self.remove_moving_line()
@@ -176,7 +182,7 @@ class Callbacks:
         if self.toolbar.mode == '' and \
                 event.inaxes == self.ax1 and \
                 self.k_ref in [0, 1] and \
-                self.select_lines.get() and \
+                not event.key == 'control' and \
                 self.pair[0] is not None:
 
             x, y = event.xdata, event.ydata

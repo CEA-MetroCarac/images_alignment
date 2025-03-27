@@ -53,7 +53,6 @@ class View(Callbacks):
         self.tmat_options = {key: BooleanVar(value=value)
                              for key, value in self.model.tmat_options.items()}
         self.tmat_options_cb = []
-        self.select_lines = BooleanVar(value=False)
 
         # Frames creation
         #################
@@ -241,11 +240,6 @@ class View(Callbacks):
                                          command=lambda key=key: self.update_tmat_options(key))
             add(tmat_option_cb, 1, k, W)
             self.tmat_options_cb.append(tmat_option_cb)
-        add(Label(fr, text='User-Driven:'), 2, 1, cspan=2)
-        add(Radiobutton(fr, text='Add/Rem. Lines\n(Juxtaposed images)', value=True,
-                        variable=self.select_lines), 3, 0, cspan=2)
-        add(Radiobutton(fr, text='Add/Rem. Points\n(Fixed/Moving image)', value=False,
-                        variable=self.select_lines), 3, 2, cspan=2)
 
     def open_about(self):
         """ Open the 'About' tab"""
