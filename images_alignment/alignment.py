@@ -299,7 +299,7 @@ class ImagesAlign:
                 self.points[1] = self.points[1] / rfacs[1]
 
         elif self.registration_model == 'User-Driven':
-            if len(self.points[0]) > 0:
+            if 0 < len(self.points[1]) == len(self.points[0]):
                 src = np.asarray(self.points[0])
                 dst = np.asarray(self.points[1])
                 src[:, 1] = self.imgs[0].shape[0] - src[:, 1]

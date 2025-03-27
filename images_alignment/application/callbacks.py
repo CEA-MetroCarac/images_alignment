@@ -84,7 +84,7 @@ class Callbacks:
             self.points[self.k_ref] = []
 
             for (x, y), color in zip(model_points, COLORS):
-                self.points[self.k_ref].append(self.ax1.plot(x, y, 'o', color=color)[0])
+                self.points[self.k_ref].append(self.ax1.plot(x, y, 'o', mfc='none', color=color)[0])
 
             self.canvas1.draw_idle()
 
@@ -337,8 +337,8 @@ class Callbacks:
                 rect2 = Rectangle(np.asarray(rect.get_xy()), rect.get_width(),
                                   rect.get_height(), ec='y', fc='none')
                 self.ax1.add_patch(rect2)
-            for x, y in self.model.points[k_ref]:
-                self.points[k_ref].append(self.ax1.plot(x, y, 'o')[0])
+            for (x, y), color in zip(self.model.points[k_ref], COLORS):
+                self.points[k_ref].append(self.ax1.plot(x, y, 'o', mfc='none', color=color)[0])
 
         if k_ref == 2:
             rfac = self.model.rfactors_plotting[0]
