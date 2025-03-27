@@ -113,6 +113,7 @@ class View(Callbacks):
         add(self.canvas0.get_tk_widget(), 1, 0, padx=0)
         self.canvas0.draw()
         self.canvas0.mpl_connect('button_press_event', self.select_axis)
+        self.canvas0.mpl_connect('scroll_event', self.select_axis)
 
         self.canvas1 = FigureCanvasTkAgg(fig1, master=frame_visu)
         add(self.canvas1.get_tk_widget(), 2, 0, padx=0)
@@ -124,6 +125,7 @@ class View(Callbacks):
         self.canvas1.mpl_connect('motion_notify_event', self.draw_line)
         self.canvas1.mpl_connect('button_press_event', self.add_or_remove_points)
         self.canvas1.mpl_connect('scroll_event', self.zoom)
+        self.canvas1.mpl_connect('scroll_event', self.select_axis)
 
         fr_toolbar = Frame(frame_visu)
         add(fr_toolbar, 3, 0, W)
@@ -210,7 +212,7 @@ class View(Callbacks):
         frame_options.title("Options")
         x = self.options_but.winfo_rootx()
         y = self.options_but.winfo_rooty()
-        frame_options.geometry(f"360x440+{x}+{y}")
+        frame_options.geometry(f"360x370+{x}+{y}")
 
         for k, label in enumerate(['Fixed image', 'Moving image']):
             frame = LabelFrame(frame_options, text=label, font=FONT)

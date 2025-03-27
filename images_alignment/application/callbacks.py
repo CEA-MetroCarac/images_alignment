@@ -31,8 +31,14 @@ class Callbacks:
 
     def select_axis(self, event):
         """ Select the axis to be displayed in 'fig1' """
-        if event.inaxes in self.model.ax:
-            k = int(event.inaxes.axes.get_label())
+        if event.inaxes in self.model.ax or \
+                (event.button in ['up', 'down'] and event.key == 'control'):
+            if event.button == 'up':
+                k = (self.k_ref + 1) % 4
+            elif event.button == 'down':
+                k = (self.k_ref - 1) % 4
+            else:
+                k = int(event.inaxes.axes.get_label())
             if k != self.k_ref:
                 self.pair = [None, None]
             self.k_ref = k
@@ -214,7 +220,7 @@ class Callbacks:
 
     def zoom(self, event):
         """ Zoom/Unzoom the 'fig1' """
-        if event.inaxes != self.ax1:
+        if event.inaxes != self.ax1 or event.key == 'control':
             return
 
         base_scale = 1.1
