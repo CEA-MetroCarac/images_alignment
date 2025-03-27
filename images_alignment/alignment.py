@@ -302,6 +302,8 @@ class ImagesAlign:
             if len(self.points[0]) > 0:
                 src = np.asarray(self.points[0])
                 dst = np.asarray(self.points[1])
+                src[:, 1] = self.imgs[0].shape[0] - src[:, 1]
+                dst[:, 1] = self.imgs[1].shape[0] - dst[:, 1]
                 transformation.estimate(src, dst)
                 self.tmat = transformation.params
             else:
