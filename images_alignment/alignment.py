@@ -32,6 +32,7 @@ REG_MODELS = ['StackReg', 'SIFT', 'SIFT + StackReg', 'User-Driven']
 REG_KEYS = ['translation', 'rotation', 'scaling', 'shearing']
 CMAP_BINARIZED = ListedColormap(["#00FF00", "black", "red"])
 KEYS = ['rois', 'thresholds', 'bin_inversions', 'registration_model']
+COLORS = plt.cm.tab10.colors
 
 plt.rcParams['axes.titlesize'] = 10
 
@@ -546,7 +547,7 @@ class ImagesAlign:
             self.ax[k].add_patch(Rectangle((xmin, ymin), width, height,
                                            ec='y', fc='none'))
 
-    def plot_juxtaposed_images(self):
+    def plot_juxtaposed_images(self, nmax=10):
         """ Plot the juxtaposed images """
 
         self.ax[2].set_title("Juxtaposed images")
@@ -578,19 +579,18 @@ class ImagesAlign:
         else:
             self.ax[2].imshow(img, cmap='gray', extent=extent)
 
-        npoints = len(self.points[0])
-        if npoints > 0:
-            np.random.seed(0)
-            random.seed(0)
-            rng = np.random.default_rng(0)
-            inds = random.sample(range(0, npoints), min(10, npoints))
-            points = np.asarray(self.points)
-            for src, dst in zip(points[0][inds], points[1][inds]):
-                x0, y0 = src[0] * rfacs[0], arrs[0].shape[0] - src[1] * rfacs[0]
-                x1, y1 = dst[0] * rfacs[1], arrs[1].shape[0] - dst[1] * rfacs[1]
+        # draw lines related to SIFT or User-Driven registration
+        pts = []
+        for i, (src, dst) in enumerate(zip(self.points[0], self.points[1])):
+            x0, y0 = src[0] * rfacs[0], src[1] * rfacs[0]
+            x1, y1 = dst[0] * rfacs[1], dst[1] * rfacs[1]
+            if [x0, y0, x1, y1] not in pts:
                 x = [x0, x1 + offset[0]]
                 y = [y0, y1 + offset[1]]
-                self.ax[2].plot(x, y, '-', color=rng.random(3))
+                self.ax[2].plot(x, y, '-', color=COLORS[len(pts)])
+                pts.append([x0, y0, x1, y1])
+            if len(pts) == nmax:
+                break
 
     def plot_combined_images(self):
         """ Plot the combined images """

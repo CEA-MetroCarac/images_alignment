@@ -1,1 +1,1 @@
-from .alignment import ImagesAlign, TMP_DIR, CMAP_BINARIZED, REG_MODELS, REG_KEYS
+from .alignment import ImagesAlign, TMP_DIR, CMAP_BINARIZED, REG_MODELS, REG_KEYS, COLORS
