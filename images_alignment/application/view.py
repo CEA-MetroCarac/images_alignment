@@ -53,6 +53,7 @@ class View(Callbacks):
         self.tmat_options = {key: BooleanVar(value=value)
                              for key, value in self.model.tmat_options.items()}
         self.tmat_options_cb = []
+        self.select_lines = BooleanVar(value=False)
 
         # Frames creation
         #################
@@ -122,6 +123,7 @@ class View(Callbacks):
         self.canvas1.mpl_connect('button_release_event', self.set_roi)
         self.canvas1.mpl_connect('button_press_event', self.init_or_remove_line)
         self.canvas1.mpl_connect('motion_notify_event', self.draw_line)
+        self.canvas1.mpl_connect('button_press_event', self.add_or_remove_points)
         self.canvas1.mpl_connect('scroll_event', self.zoom)
 
         fr_toolbar = Frame(frame_visu)
@@ -209,7 +211,7 @@ class View(Callbacks):
         frame_options.title("Options")
         x = self.options_but.winfo_rootx()
         y = self.options_but.winfo_rooty()
-        frame_options.geometry(f"360x370+{x}+{y}")
+        frame_options.geometry(f"360x440+{x}+{y}")
 
         for k, label in enumerate(['Fixed image', 'Moving image']):
             frame = LabelFrame(frame_options, text=label, font=FONT)
@@ -225,8 +227,13 @@ class View(Callbacks):
                       command=lambda val, k=k: self.update_threshold(val, k)),
                 2, 1, W, pady=0, cspan=4)
 
-        fr = LabelFrame(frame_options, text='Registration', font=FONT)
+        fr = LabelFrame(frame_options, text='Resolution', font=FONT)
         add(fr, 3, 0, W + E)
+        add_entry(fr, 0, 'Min. image resolution:', self.min_img_res,
+                  bind_fun=self.update_resolution)
+
+        fr = LabelFrame(frame_options, text='Registration', font=FONT)
+        add(fr, 4, 0, W + E)
         add_entry(fr, 0, 'Max. image size:', self.max_size_reg)
         for k, key in enumerate(self.tmat_options.keys()):
             tmat_option_cb = Checkbutton(fr, text=key.capitalize(),
@@ -234,11 +241,11 @@ class View(Callbacks):
                                          command=lambda key=key: self.update_tmat_options(key))
             add(tmat_option_cb, 1, k, W)
             self.tmat_options_cb.append(tmat_option_cb)
-
-        fr = LabelFrame(frame_options, text='Resolution', font=FONT)
-        add(fr, 4, 0, W + E)
-        add_entry(fr, 0, 'Min. image resolution:', self.min_img_res,
-                  bind_fun=self.update_resolution)
+        add(Label(fr, text='User-Driven:'), 2, 1, cspan=2)
+        add(Radiobutton(fr, text='Add/Rem. Lines\n(Juxtaposed images)', value=True,
+                        variable=self.select_lines), 3, 0, cspan=2)
+        add(Radiobutton(fr, text='Add/Rem. Points\n(Fixed/Moving image)', value=False,
+                        variable=self.select_lines), 3, 2, cspan=2)
 
     def open_about(self):
         """ Open the 'About' tab"""

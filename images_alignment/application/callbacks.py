@@ -9,7 +9,7 @@ from tkinter.messagebox import showerror, askyesno
 import numpy as np
 from matplotlib.patches import Rectangle
 
-from images_alignment import CMAP_BINARIZED, REG_KEYS
+from images_alignment import CMAP_BINARIZED, REG_KEYS, COLORS
 
 
 class Callbacks:
@@ -24,6 +24,7 @@ class Callbacks:
         self.rectangle = None
         self.line = None
         self.lines = []
+        self.points = [[], []]
 
         self.rois = [None, None]
         self.fnames_tot = [None, None]
@@ -52,11 +53,40 @@ class Callbacks:
         if self.toolbar.mode == '' and \
                 event.inaxes == self.ax1 and \
                 self.k_ref in [0, 1] and \
+                self.select_lines.get() and \
                 self.pair[0] is None:
             x, y = event.xdata, event.ydata
             self.pair = [[x, y], [None, None]]
             self.rectangle = Rectangle((x, y), 0, 0, ec='y', fc='none')
             self.ax1.add_patch(self.rectangle)
+
+    def add_or_remove_points(self, event):
+        """ Add or Remove a point """
+
+        if self.toolbar.mode == '' and \
+                event.inaxes == self.ax1 and \
+                self.k_ref in [0, 1] and \
+                self.registration_model.get() == 'User-Driven' and \
+                not self.select_lines.get():
+
+            x, y = event.xdata, event.ydata
+            model_points = self.model.points[self.k_ref]
+
+            if event.button == 1:
+                model_points.append([x, y])
+
+            elif event.button == 3 and len(model_points) > 0:
+                dist = [(xp - x) ** 2 + (yp - y) ** 2 for xp, yp in model_points]
+                ind = dist.index(min(dist))
+                del model_points[ind]
+
+            [x.remove() for x in self.points[self.k_ref]]
+            self.points[self.k_ref] = []
+
+            for (x, y), color in zip(model_points, COLORS):
+                self.points[self.k_ref].append(self.ax1.plot(x, y, 'o', color=color)[0])
+
+            self.canvas1.draw_idle()
 
     def init_or_remove_line(self, event):
         """ Initialize or Remove a line """
@@ -146,6 +176,7 @@ class Callbacks:
         if self.toolbar.mode == '' and \
                 event.inaxes == self.ax1 and \
                 self.k_ref in [0, 1] and \
+                self.select_lines.get() and \
                 self.pair[0] is not None:
 
             x, y = event.xdata, event.ydata
@@ -297,7 +328,7 @@ class Callbacks:
 
         lines = ax_ref.get_lines()
         for line in lines:
-            color = (255 * line.get_color()).astype(int)
+            color = (255 * np.array(line.get_color())).astype(int)
             hex_color = '#{:02x}{:02x}{:02x}'.format(*color)
             self.ax1.plot(line.get_xdata(), line.get_ydata(), c=hex_color, lw=2)
 
@@ -306,6 +337,8 @@ class Callbacks:
                 rect2 = Rectangle(np.asarray(rect.get_xy()), rect.get_width(),
                                   rect.get_height(), ec='y', fc='none')
                 self.ax1.add_patch(rect2)
+            for x, y in self.model.points[k_ref]:
+                self.points[k_ref].append(self.ax1.plot(x, y, 'o')[0])
 
         if k_ref == 2:
             rfac = self.model.rfactors_plotting[0]
@@ -352,13 +385,17 @@ class Callbacks:
         """ Update the tmat_options boolean values related to the 'key' """
         k = REG_KEYS.index(key)
         if self.tmat_options[key].get():
-            for key_ in REG_KEYS[:k]:
+            for key_ in REG_KEYS[:k + 1]:
                 self.tmat_options[key_].set(True)
                 self.model.tmat_options[key_] = True
         else:
             for key_ in REG_KEYS[k:]:
                 self.tmat_options[key_].set(False)
                 self.model.tmat_options[key_] = False
+
+        # Translation should be always activated
+        self.tmat_options['translation'].set(True)
+        self.model.tmat_options['translation'] = True
 
     def update_inv_reg(self):
         """ Update the 'inv_reg' value """
