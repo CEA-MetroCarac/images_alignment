@@ -282,11 +282,11 @@ def sift(img1, img2, model_class=None):
     points = [[], []]
     if model is not None and not np.all(np.isnan(model.params)):
         tmat = model.params
-        src = np.asarray(src)
-        dst = np.asarray(dst)
+        src, dst = src[inliers], dst[inliers]
         src[:, 1] = img1.shape[0] - src[:, 1]
         dst[:, 1] = img2.shape[0] - dst[:, 1]
-        points = [src[inliers], dst[inliers]]
+        _, inds = np.unique(np.hstack((src, dst)), axis=0, return_index=True)  # keep unique pairs
+        points = [src[inds], dst[inds]]
 
     return tmat, points
 
