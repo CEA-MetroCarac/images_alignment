@@ -32,13 +32,14 @@ class Callbacks:
     def select_axis(self, event):
         """ Select the axis to be displayed in 'fig1' """
         if event.inaxes in self.model.ax or \
-                (event.button in ['up', 'down'] and event.key == 'control'):
+                (event.button in ['up', 'down'] and not event.key == 'control'):
             if event.button == 'up':
                 k = (self.k_ref + 1) % 4
             elif event.button == 'down':
                 k = (self.k_ref - 1) % 4
             else:
                 k = int(event.inaxes.axes.get_label())
+
             if k != self.k_ref:
                 self.pair = [None, None]
             self.k_ref = k
@@ -59,7 +60,7 @@ class Callbacks:
         if self.toolbar.mode == '' and \
                 event.inaxes == self.ax1 and \
                 self.k_ref in [0, 1] and \
-                not event.key == 'control' and \
+                event.key == 'control' and \
                 self.pair[0] is None:
             x, y = event.xdata, event.ydata
             self.pair = [[x, y], [None, None]]
@@ -73,7 +74,7 @@ class Callbacks:
                 event.inaxes == self.ax1 and \
                 self.k_ref in [0, 1] and \
                 self.registration_model.get() == 'User-Driven' and \
-                event.key == 'control':
+                not event.key == 'control':
 
             x, y = event.xdata, event.ydata
             model_points = self.model.points[self.k_ref]
@@ -188,7 +189,7 @@ class Callbacks:
         if self.toolbar.mode == '' and \
                 event.inaxes == self.ax1 and \
                 self.k_ref in [0, 1] and \
-                not event.key == 'control' and \
+                event.key == 'control' and \
                 self.pair[0] is not None:
 
             x, y = event.xdata, event.ydata
@@ -220,7 +221,7 @@ class Callbacks:
 
     def zoom(self, event):
         """ Zoom/Unzoom the 'fig1' """
-        if event.inaxes != self.ax1 or event.key == 'control':
+        if event.inaxes != self.ax1 or not event.key == 'control':
             return
 
         base_scale = 1.1

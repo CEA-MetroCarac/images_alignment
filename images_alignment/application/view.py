@@ -249,7 +249,7 @@ class View(Callbacks):
         frame.title("About")
         x = self.about_but.winfo_rootx()
         y = self.about_but.winfo_rooty()
-        frame.geometry(f"400x230+{x}+{y}")
+        frame.geometry(f"460x270+{x}+{y}")
 
         text = "This code is dedicated to images alignment.\n"
         text += "The sources and the documentation are respectively accessible in:"
@@ -262,16 +262,20 @@ class View(Callbacks):
         add(Button(frame, text=f"DOC : {website_doc}", fg="blue",
                    command=lambda: webbrowser.open_new(website_doc)), 2, 0, pady=0, cspan=3)
 
-        add(Label(frame, text="Shortcuts", font='bold'), 3, 1)
+        add(Label(frame, text="Shortcuts", font='bold'), 3, 0, cspan=3, pady=10)
 
         shortcuts = {
-            "ROI selection": ("Left Click and Drag", "Fixed/Moving image"),
-            "Zooming": ("Scroll Up-Down", "ALL images"),
-            "Add/Rem. Lines": ("Left/Right Click and Drag", "Juxtaposed images"),
-            "Add/Rem. points": ("CTRL + Left/Right Click", "Fixed/Moving images"),
-            "Change thumbnail": ("CTRL + Scroll Up-Down", "")}
+            "Change thumbnail": ("Scroll Up-Down", ""),
+            "Add/Rem. Lines (*)": ("Left/Right Click and Drag", "Juxtaposed images"),
+            "Add/Rem. points (*)": ("Left/Right Click", "Fixed/Moving images"),
+            "ROI selection": ("click + (CTRL+ Left Click and Drag)", "Fixed/Moving image"),
+            "Zooming": ("click + (CTRL+Scroll Up-Down)", "ALL images"),
+        }
 
         for k, (key, vals) in enumerate(shortcuts.items()):
             add(Label(frame, text=f"{key} :"), 4 + k, 0, W, pady=0)
-            add(Label(frame, text=vals[1]), 4 + k, 1, W, pady=0)
-            add(Label(frame, text=vals[0]), 4 + k, 2, W, pady=0)
+            add(Label(frame, text=vals[0]), 4 + k, 1, W, pady=0)
+            add(Label(frame, text=vals[1]), 4 + k, 2, W, pady=0)
+
+        text = "(*) for 'User-Driven' registration mode only"
+        add(Label(frame, text=text), 4 + k + 1, 0, W, pady=10, cspan=3)
