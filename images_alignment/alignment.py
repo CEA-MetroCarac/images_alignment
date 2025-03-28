@@ -30,6 +30,7 @@ os.makedirs(TMP_DIR, exist_ok=True)
 
 REG_MODELS = ['StackReg', 'SIFT', 'SIFT + StackReg', 'User-Driven']
 REG_KEYS = ['translation', 'rotation', 'scaling', 'shearing']
+WARP_ORDERS = {'Default': None, 'Nearly': 0, 'Linear': 1}
 CMAP_BINARIZED = ListedColormap(["#00FF00", "black", "red"])
 KEYS = ['rois', 'thresholds', 'bin_inversions', 'registration_model']
 COLORS = plt.cm.tab10.colors
@@ -100,6 +101,9 @@ class ImagesAlign:
     tmat_options: dictionary of bool, optional
         Dictionary composed of options to build the 'tmat' transformation matrice (translation,
         rotation, scaling, shearing). Default values are True.
+    order: int, optional
+        The order of interpolation. See:
+        https://scikit-image.org/docs/stable/api/skimage.transform.html#skimage.transform.warp
     fixed_reg: bool
         Activation key to perform the worflow calculation with a fixed 'tmat'.
         Default is False.
@@ -162,6 +166,7 @@ class ImagesAlign:
         self.img_reg_bin = None
         self.mask = None
         self.tmat_options = {key: True for key in REG_KEYS}
+        self.order = None
 
         # 'application' attributes
         self.fixed_reg = False
@@ -372,7 +377,7 @@ class ImagesAlign:
         self.img_reg = warp(imgs[k1], tmat,
                             output_shape=output_shape,
                             preserve_range=True,
-                            mode='constant', cval=np.nan, order=None)
+                            mode='constant', cval=np.nan, order=self.order)
         self.img_reg_bin = warp(imgs_bin[k1], tmat,
                                 output_shape=output_shape[:2])
 

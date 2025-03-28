@@ -9,7 +9,7 @@ from tkinter.messagebox import showerror, askyesno
 import numpy as np
 from matplotlib.patches import Rectangle
 
-from images_alignment import CMAP_BINARIZED, REG_KEYS, COLORS
+from images_alignment import CMAP_BINARIZED, REG_KEYS, WARP_ORDERS, COLORS
 
 
 class Callbacks:
@@ -409,6 +409,9 @@ class Callbacks:
         # Translation should be always activated
         self.tmat_options['translation'].set(True)
         self.model.tmat_options['translation'] = True
+
+    def update_interpolation(self):
+        self.model.order = WARP_ORDERS[self.interpolation.get()]
 
     def update_inv_reg(self):
         """ Update the 'inv_reg' value """

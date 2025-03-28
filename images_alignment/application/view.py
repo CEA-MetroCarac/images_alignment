@@ -53,6 +53,7 @@ class View(Callbacks):
         self.tmat_options = {key: BooleanVar(value=value)
                              for key, value in self.model.tmat_options.items()}
         self.tmat_options_cb = []
+        self.interpolation = StringVar(value='Default')
 
         # Frames creation
         #################
@@ -212,7 +213,7 @@ class View(Callbacks):
         frame_options.title("Options")
         x = self.options_but.winfo_rootx()
         y = self.options_but.winfo_rooty()
-        frame_options.geometry(f"360x370+{x}+{y}")
+        frame_options.geometry(f"360x400+{x}+{y}")
 
         for k, label in enumerate(['Fixed image', 'Moving image']):
             frame = LabelFrame(frame_options, text=label, font=FONT)
@@ -242,6 +243,11 @@ class View(Callbacks):
                                          command=lambda key=key: self.update_tmat_options(key))
             add(tmat_option_cb, 1, k, W)
             self.tmat_options_cb.append(tmat_option_cb)
+        add(Label(fr, text='Interpolation :'), 2, 0, W)
+        for k, interpolation in enumerate(['Default', 'Nearly', 'Linear']):
+            add(Radiobutton(fr, text=interpolation, value=interpolation,
+                            variable=self.interpolation,
+                            command=self.update_interpolation), 2, k + 1, W)
 
     def open_about(self):
         """ Open the 'About' tab"""
