@@ -25,7 +25,8 @@ dependencies = [
     "imageio",
     "tifffile",
     "scikit-image",
-    "pystackreg"
+    "pystackreg",
+    "PySide6"
 ]
 
 [project.scripts]

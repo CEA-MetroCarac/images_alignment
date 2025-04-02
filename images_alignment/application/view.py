@@ -1,125 +1,88 @@
 """
-Class View attached to the application
+Class View attached with the application
 """
-from tkinter import (Frame, LabelFrame, Label, Radiobutton, Scale,
-                     Button, Checkbutton, Entry, Toplevel, Message,
-                     W, E, HORIZONTAL, DoubleVar, IntVar, StringVar, BooleanVar)
+from PySide6.QtWidgets import (QWidget, QFrame, QVBoxLayout, QHBoxLayout, QGridLayout, QTabWidget,
+                               QLabel, QRadioButton, QCheckBox, QSlider, QPushButton, QGroupBox,
+                               QLineEdit, QFileDialog, QMessageBox, QSizePolicy, QButtonGroup,
+                               QListWidget, QTextEdit)
+from PySide6.QtGui import QTextCursor
+from PySide6.QtCore import Qt, Signal
+
+from pathlib import Path
 import webbrowser
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 
 from images_alignment.application.callbacks import Callbacks
-from images_alignment.application.utils import add, add_entry
-from images_alignment.application.utils import FilesSelector, Terminal
 from images_alignment import REG_MODELS
-
-FONT = ('Helvetica', 8, 'bold')
 
 
 class View(Callbacks):
-    """
-    Gui associated to the spectra fitting application
-
-    Parameters
-    ----------
-    root: Tkinter.Tk object
-        Root window
-    model: images_alignment.ImagesAlign object
-        Model used to perform the images alignment
-    """
-
-    def __init__(self, root, model):
-
+    def __init__(self, model):
         super().__init__()
-
-        self.root = root
+        self.window = QWidget()
         self.model = model
-        self.rois_entry = [None, None]
-        self.thresholds = [DoubleVar(value=self.model.thresholds[0]),
-                           DoubleVar(value=self.model.thresholds[1])]
-        self.registration_model = StringVar(value=self.model.registration_model)
-        self.inv_reg = BooleanVar(value=self.model.inv_reg)
-        self.fixed_reg = BooleanVar(value=self.model.fixed_reg)
-        self.binarized = BooleanVar(value=self.model.binarized)
-        self.juxt_alignment = StringVar(value=str(self.model.juxt_alignment))
-        self.mode = StringVar(value='Juxtaposed')
-        self.show_results = BooleanVar(value=True)
-        self.resolution = DoubleVar(value=self.model.resolution)
-        self.apply_mask = BooleanVar(value=self.model.apply_mask)
-        self.max_size_reg = StringVar(value=self.model.max_size_reg)
-        self.min_img_res = StringVar(value=self.model.min_img_res)
-        self.angles = [IntVar(value=0), IntVar(value=0)]
-        self.tmat_options = {key: BooleanVar(value=value)
-                             for key, value in self.model.tmat_options.items()}
-        self.tmat_options_cb = []
-        self.interpolation = StringVar(value='Default')
 
-        # Frames creation
-        #################
+        self.window.setWindowTitle("Image Alignment Application")
+        self.window.resize(1400, 800)
 
-        frame_proc = Frame(root)
-        frame_proc.grid(row=0, column=0, padx=0, sticky=W + E)
+        main_layout = QHBoxLayout(self.window)
 
-        frame_visu = Frame(root)
-        frame_visu.grid(row=0, column=1, sticky=W + E)
+        self.frame_proc = QFrame(self.window)
+        self.frame_proc.setFrameShape(QFrame.StyledPanel)
+        self.proc_layout = QVBoxLayout(self.frame_proc)
 
-        # VISU frame
+        self.frame_visu = QFrame()
+        self.frame_visu.setFrameShape(QFrame.StyledPanel)
+        self.visu_layout = QVBoxLayout(self.frame_visu)
+
+        main_layout.addWidget(self.frame_proc, 1)
+        main_layout.addWidget(self.frame_visu, 3)
+
+        # PROCESSING
         ############
 
-        fig0, ax0 = plt.subplots(1, 4, figsize=(11, 1.5),
-                                 gridspec_kw={'width_ratios': [1, 1, 2, 1]})
-        # fig0.tight_layout(h_pad=0)
-        # fig0.subplots_adjust(bottom=0.02)
+        tab_widget = QTabWidget()
+        tab_proc = QWidget()
+        tab_options = QWidget()
+        tab_about = QWidget()
+        tab_widget.addTab(tab_proc, 'Processing')
+        tab_widget.addTab(tab_options, 'Options')
+        tab_options.setFixedHeight(450)
+        tab_widget.addTab(tab_about, 'About/Help')
+        tab_about.setFixedHeight(420)
+        self.proc_layout.addWidget(tab_widget)
+
+        self.init_ui_proc(tab_proc)
+        self.init_ui_options(tab_options)
+        self.init_ui_about(tab_about)
+
+        # VISUALISATION
+        ###############
+
+        self.init_ui_control()
+
+        ratios = [1, 1, 2, 1]
+        fig0, ax0 = plt.subplots(1, 4, figsize=(11, 1.5), gridspec_kw={'width_ratios': ratios})
         for i in range(4):
             ax0[i].set_label(i)
             ax0[i].get_xaxis().set_visible(False)
             ax0[i].get_yaxis().set_visible(False)
         self.model.ax = [ax0[i] for i in range(4)]
 
-        fig1, self.ax1 = plt.subplots(1, 1, figsize=(11, 6))
-        plt.tight_layout()
-
-        frame = Frame(frame_visu)
-        add(frame, 0, 0)
-
-        fr = LabelFrame(frame)
-        add(fr, 0, 0)
-        add(Checkbutton(fr, text='Binarized', variable=self.binarized,
-                        command=self.update_plots), 0, 0, pady=0)
-
-        fr = LabelFrame(frame)
-        add(fr, 0, 1)
-        add(Label(fr, text='Resolution:'), 0, 0, E)
-        scale = Scale(fr, variable=self.resolution, resolution=0.01, to=1,
-                      showvalue=False, orient=HORIZONTAL)
-        scale.bind("<ButtonRelease-1>", lambda _: self.update_resolution())
-        add(scale, 0, 1, W)
-
-        fr = LabelFrame(frame)
-        add(fr, 0, 2)
-        add(Label(fr, text='Juxtaposition:'), 0, 0, pady=0)
-        for i, juxt_alignment in enumerate(['horizontal', 'vertical']):
-            add(Radiobutton(fr, text=juxt_alignment, value=juxt_alignment,
-                            variable=self.juxt_alignment,
-                            command=self.update_juxt_alignment), 0, i + 1)
-
-        fr = LabelFrame(frame)
-        add(fr, 0, 3)
-        add(Label(fr, text='Combination:'), 0, 0, pady=0)
-        add(Checkbutton(fr, text='Apply Mask', variable=self.apply_mask,
-                        command=self.update_apply_mask), 0, 1)
-
-        self.canvas0 = FigureCanvasTkAgg(fig0, master=frame_visu)
-        add(self.canvas0.get_tk_widget(), 1, 0, padx=0)
+        self.canvas0 = FigureCanvas(fig0)
+        self.canvas0.setFixedHeight(150)
         self.canvas0.draw()
         self.canvas0.mpl_connect('button_press_event', self.select_axis)
         self.canvas0.mpl_connect('scroll_event', self.select_axis)
 
-        self.canvas1 = FigureCanvasTkAgg(fig1, master=frame_visu)
-        add(self.canvas1.get_tk_widget(), 2, 0, padx=0)
-        self.canvas1.draw()
-        self.canvas1.mpl_connect('button_press_event', self.init_rectangle)
+        self.fig1, self.ax1 = plt.subplots(layout="constrained")
+        self.canvas1 = FigureCanvas(self.fig1)
+        self.toolbar = NavigationToolbar(self.canvas1, self.window)
+
+        self.canvas1.mpl_connect('button_press_event', self.init_or_remove_rectangle)
         self.canvas1.mpl_connect('motion_notify_event', self.draw_rectangle)
         self.canvas1.mpl_connect('button_release_event', self.set_roi)
         self.canvas1.mpl_connect('button_press_event', self.init_or_remove_line)
@@ -128,160 +91,389 @@ class View(Callbacks):
         self.canvas1.mpl_connect('scroll_event', self.zoom)
         self.canvas1.mpl_connect('scroll_event', self.select_axis)
 
-        fr_toolbar = Frame(frame_visu)
-        add(fr_toolbar, 3, 0, W)
-        self.toolbar = NavigationToolbar2Tk(self.canvas1, fr_toolbar)
+        self.visu_layout.addWidget(self.canvas0)
+        self.visu_layout.addWidget(self.canvas1)
+        self.visu_layout.addWidget(self.toolbar)
 
-        # PROCESSING frame
-        ##################
-
-        frame_tab_bar = Frame(frame_proc)
-        add(frame_tab_bar, 0, 0)
-
-        self.options_but = Button(frame_tab_bar, text="Options",
-                                  command=self.open_options)
-        add(self.options_but, 0, 0, padx=10)
-
-        self.about_but = Button(frame_tab_bar, text="About",
-                                command=self.open_about)
-        add(self.about_but, 0, 1, padx=10)
+    def init_ui_proc(self, tab_proc):
 
         self.fselectors = []
-        for k, label in enumerate(['Fixed image', 'Moving image']):
-            frame = LabelFrame(frame_proc, text=label, font=FONT)
-            add(frame, k + 1, 0, pady=10)
+        self.rois_entry = [None, None]
 
-            fr = Frame(frame)
-            add(fr, 0, 0, W + E, cspan=3)
-            fselector = FilesSelector(root=fr, lbox_size=[45, 3])
-            for event in ['<<ListboxSelect>>', '<<ListboxAdd>>',
-                          '<<ListboxRemove>>', '<<ListboxRemoveAll>>']:
-                fselector.lbox.bind(event, lambda _, k=k: self.update_file(k))
+        proc_layout = QVBoxLayout(tab_proc)
+
+        for k, label in enumerate(['Fixed image', 'Moving image']):
+            frame = QGroupBox(label)
+            frame.setStyleSheet("QGroupBox {font-weight: bold}")
+            frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+            vlayout = QVBoxLayout(frame)
+
+            fselector = FilesSelector(self.window)
+            fselector.list_widget.setFixedHeight(50)
+            fselector.list_widget.currentRowChanged.connect(fselector.select_item)
+            fselector.list_widget.currentRowChanged.connect(lambda _, k=k: self.update_file(k))
             self.fselectors.append(fselector)
+            vlayout.addLayout(fselector.layout)
 
-            add(Label(frame, text='ROI:'), 1, 0, E)
-            self.rois_entry[k] = Entry(frame, width=25)
-            self.rois_entry[k].bind("<Return>",
-                                    lambda _, k=k: self.update_rois(k))
-            add(self.rois_entry[k], 1, 1, W)
-            add(Button(frame, text='Bin. inversion',
-                       command=lambda k=k: self.bin_inversion(k)), 1, 2)
+            hlayout = QHBoxLayout()
+            label_roi = QLabel("ROI:")
+            self.rois_entry[k] = QLineEdit()
+            self.rois_entry[k].returnPressed.connect(lambda k=k: self.update_rois(k))
+            button_inv = QPushButton('Bin. inversion')
+            button_inv.clicked.connect(lambda k=k: self.bin_inversion(k))
+            hlayout.addWidget(label_roi)
+            hlayout.addWidget(self.rois_entry[k])
+            hlayout.addWidget(button_inv)
+            vlayout.addLayout(hlayout)
 
-        frame = LabelFrame(frame_proc, text='Preprocessing', font=FONT)
-        add(frame, 3, 0, W + E, pady=10)
+            frame.setLayout(vlayout)
+            proc_layout.addWidget(frame)
 
+        frame = QGroupBox('Preprocessing')
+        frame.setStyleSheet("QGroupBox {font-weight: bold}")
+        frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+
+        vlayout = QVBoxLayout(frame)
+        self.group_reg_model = QButtonGroup()
+        radios_btn = []
         for i, reg_model in enumerate(REG_MODELS):
-            row, col = 0 if i < 3 else 1, i if i < 3 else 1
-            add(Radiobutton(frame, text=reg_model, value=reg_model,
-                            variable=self.registration_model,
-                            command=self.update_registration_model), row, col)
+            radio_btn = QRadioButton(reg_model)
+            radios_btn.append(radio_btn)
+            self.group_reg_model.addButton(radio_btn, i)
+        radios_btn[0].setChecked(True)
+        self.group_reg_model.buttonToggled.connect(self.update_registration_model)
+        hlayout = QHBoxLayout()
+        [hlayout.addWidget(radio_btn, alignment=Qt.AlignCenter) for radio_btn in radios_btn[:-1]]
+        vlayout.addLayout(hlayout)
+        vlayout.addWidget(radios_btn[-1], alignment=Qt.AlignCenter)
 
-        add(Button(frame, text='REGISTRATION',
-                   command=self.registration), 2, 1)
-        add(Checkbutton(frame, text='INV.', variable=self.inv_reg,
-                        command=self.update_inv_reg), 2, 2)
+        check_inv = QCheckBox('INV.')
+        check_inv.stateChanged.connect(self.update_inv_reg)
+        vlayout.addWidget(check_inv, alignment=Qt.AlignCenter)
 
-        add(Button(frame, text='SAVE IMAGES',
-                   command=self.save_images), 3, 0)
-        add(Button(frame, text='SAVE PARAMS',
-                   command=self.model.save_params), 3, 1)
-        add(Button(frame, text='RELOAD PARAMS',
-                   command=self.reload_params), 3, 2)
+        btn_registration = QPushButton('REGISTRATION')
+        btn_registration.clicked.connect(self.registration)
+        vlayout.addWidget(btn_registration, alignment=Qt.AlignCenter)
 
-        frame = LabelFrame(frame_proc, text='Application', font=FONT)
-        add(frame, 4, 0, W + E, pady=10)
+        hlayout = QHBoxLayout()
+        btn_save = QPushButton('SAVE IMAGES')
+        btn_save.clicked.connect(self.save_images)
+        btn_save_params = QPushButton('SAVE PARAMS')
+        btn_save_params.clicked.connect(self.model.save_params)
+        btn_reload_params = QPushButton('RELOAD PARAMS')
+        btn_reload_params.clicked.connect(self.reload_params)
+        hlayout.addWidget(btn_save)
+        hlayout.addWidget(btn_save_params)
+        hlayout.addWidget(btn_reload_params)
+        vlayout.addLayout(hlayout)
 
-        add(Button(frame, text='SELECT DIR. RESULT',
-                   command=self.model.set_dirname_res), 0, 0, cspan=2)
+        frame.setLayout(vlayout)
+        proc_layout.addWidget(frame)
 
-        add(Checkbutton(frame, text='Fixed registration',
-                        variable=self.fixed_reg,
-                        command=self.update_fixed_reg), 1, 0, padx=30)
-        add(Button(frame, text='APPLY TO ALL',
-                   command=self.apply_to_all), 1, 1, padx=20)
+        frame = QGroupBox('Application')
+        frame.setStyleSheet("QGroupBox {font-weight: bold}")
+        frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
 
-        add(Checkbutton(frame, text='Show results',
-                        variable=self.show_results,
-                        command=self.plot_results), 2, 0, cspan=2)
+        vlayout = QVBoxLayout(frame)
 
-        self.model.terminal = Terminal(frame_proc)
-        add(self.model.terminal, 5, 0, W + E, cspan=3)
+        btn_select_dir = QPushButton('SELECT DIR. RESULT')
+        btn_select_dir.clicked.connect(self.model.set_dirname_res)
+        vlayout.addWidget(btn_select_dir, alignment=Qt.AlignCenter)
 
-    def open_options(self):
-        """ Open the 'Options' tab"""
-        frame_options = Toplevel(self.root)
-        frame_options.title("Options")
-        x = self.options_but.winfo_rootx()
-        y = self.options_but.winfo_rooty()
-        frame_options.geometry(f"360x400+{x}+{y}")
+        hlayout = QHBoxLayout()
+        check_fixed = QCheckBox('Fixed registration')
+        check_fixed.stateChanged.connect(self.update_fixed_reg)
+        btn_apply = QPushButton('APPLY TO ALL')
+        btn_apply.clicked.connect(self.apply_to_all)
+        hlayout.addWidget(check_fixed)
+        hlayout.addWidget(btn_apply)
+        vlayout.addLayout(hlayout)
 
+        check_show_results = QCheckBox('Show results')
+        check_show_results.stateChanged.connect(self.plot_results)
+        vlayout.addWidget(check_show_results, alignment=Qt.AlignCenter)
+
+        frame.setLayout(vlayout)
+        proc_layout.addWidget(frame)
+
+        frame = QGroupBox()
+        vlayout = QVBoxLayout(frame)
+        self.model.terminal = Terminal(frame)
+        vlayout.addWidget(self.model.terminal)
+
+        frame.setLayout(vlayout)
+        proc_layout.addWidget(frame)
+
+        tab_proc.setLayout(proc_layout)
+
+    def init_ui_options(self, tab_options):
+
+        options_layout = QVBoxLayout(tab_options)
+
+        self.group_angles = []
+        self.slider_thresholds = []
         for k, label in enumerate(['Fixed image', 'Moving image']):
-            frame = LabelFrame(frame_options, text=label, font=FONT)
-            add(frame, k, 0, W + E)
-            add(Label(frame, text='Rotation:'), 1, 0)
+            frame = QGroupBox(label)
+            frame.setStyleSheet("QGroupBox {font-weight: bold}")
+            frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+            vlayout = QVBoxLayout(frame)
+
+            hlayout = QHBoxLayout()
+            hlayout.addWidget(QLabel('Rotation :'))
+            radios_btn = []
+            self.group_angles.append(QButtonGroup())
             for i, angle in enumerate([0, 90, 180, 270]):
-                add(Radiobutton(frame, text=f"{angle}°", value=angle,
-                                variable=self.angles[k],
-                                command=lambda k=k: self.update_angles(k)), 1, i + 1, W + E, padx=0)
-            add(Label(frame, text='Threshold:'), 2, 0, E, pady=0)
-            add(Scale(frame, resolution=0.01, to=1., orient=HORIZONTAL,
-                      length=250, tickinterval=1, variable=self.thresholds[k],
-                      command=lambda val, k=k: self.update_threshold(val, k)),
-                2, 1, W, pady=0, cspan=4)
+                radio_btn = QRadioButton(str(angle))
+                radios_btn.append(radio_btn)
+                self.group_angles[k].addButton(radio_btn, i)
+            radios_btn[0].setChecked(True)
+            self.group_angles[k].buttonToggled.connect(lambda _, k=k: self.update_angles(k))
+            [hlayout.addWidget(radio_btn, alignment=Qt.AlignCenter) for radio_btn in radios_btn]
+            vlayout.addLayout(hlayout)
 
-        fr = LabelFrame(frame_options, text='Resolution', font=FONT)
-        add(fr, 3, 0, W + E)
-        add_entry(fr, 0, 'Min. image resolution:', self.min_img_res,
-                  bind_fun=self.update_resolution)
+            hlayout = QHBoxLayout()
+            hlayout.addWidget(QLabel('Threshold :'))
+            self.slider_thresholds.append(QSlider(Qt.Horizontal))
+            self.slider_thresholds[k].setValue(50)
+            self.slider_thresholds[k].valueChanged.connect(
+                lambda val, k=k: self.update_threshold(val, k))
+            hlayout.addWidget(self.slider_thresholds[k])
+            vlayout.addLayout(hlayout)
 
-        fr = LabelFrame(frame_options, text='Registration', font=FONT)
-        add(fr, 4, 0, W + E)
-        add_entry(fr, 0, 'Max. image size:', self.max_size_reg)
-        for k, key in enumerate(self.tmat_options.keys()):
-            tmat_option_cb = Checkbutton(fr, text=key.capitalize(),
-                                         variable=self.tmat_options[key],
-                                         command=lambda key=key: self.update_tmat_options(key))
-            add(tmat_option_cb, 1, k, W)
+            frame.setLayout(vlayout)
+            options_layout.addWidget(frame)
+
+        frame = QGroupBox('Resolution')
+        frame.setStyleSheet("QGroupBox {font-weight: bold}")
+        frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+
+        hlayout = QHBoxLayout(frame)
+        hlayout.addWidget(QLabel("Min. image resolution:"))
+        self.min_img_res = QLineEdit()
+        self.min_img_res.insert(str(self.model.min_img_res))
+        self.min_img_res.returnPressed.connect(self.update_resolution)
+        hlayout.addWidget(self.min_img_res)
+
+        frame.setLayout(hlayout)
+        options_layout.addWidget(frame)
+
+        frame = QGroupBox('Registration')
+        frame.setStyleSheet("QGroupBox {font-weight: bold}")
+        frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+
+        vlayout = QVBoxLayout(frame)
+
+        hlayout = QHBoxLayout()
+        hlayout.addWidget(QLabel("Max. image size :"))
+        self.max_size_reg = QLineEdit()
+        self.max_size_reg.insert(str(self.model.max_size_reg))
+        self.max_size_reg.returnPressed.connect(self.update_max_size_reg)
+        hlayout.addWidget(self.max_size_reg)
+        vlayout.addLayout(hlayout)
+
+        hlayout = QHBoxLayout()
+        self.tmat_options_cb = []
+        for i, key in enumerate(self.model.tmat_options.keys()):
+            tmat_option_cb = QCheckBox(key.capitalize())
+            tmat_option_cb.setChecked(True)
+            if i == 0:
+                tmat_option_cb.setEnabled(False)
+            else:
+                tmat_option_cb.stateChanged.connect(lambda _, i=i: self.update_tmat_options(i))
             self.tmat_options_cb.append(tmat_option_cb)
-        add(Label(fr, text='Interpolation :'), 2, 0, W)
-        for k, interpolation in enumerate(['Default', 'Nearly', 'Linear']):
-            add(Radiobutton(fr, text=interpolation, value=interpolation,
-                            variable=self.interpolation,
-                            command=self.update_interpolation), 2, k + 1, W)
+            hlayout.addWidget(tmat_option_cb)
+        vlayout.addLayout(hlayout)
 
-    def open_about(self):
-        """ Open the 'About' tab"""
-        frame = Toplevel(self.root)
-        frame.title("About")
-        x = self.about_but.winfo_rootx()
-        y = self.about_but.winfo_rooty()
-        frame.geometry(f"460x270+{x}+{y}")
+        hlayout = QHBoxLayout()
+        hlayout.addWidget(QLabel("Interpolation :"))
+        radios_btn = []
+        self.group_interpolations = QButtonGroup()
+        for i, interpolation in enumerate(['Default', 'Nearly', 'Linear']):
+            radio_btn = QRadioButton(interpolation)
+            radios_btn.append(radio_btn)
+            self.group_interpolations.addButton(radio_btn, i)
+        radios_btn[0].setChecked(True)
+        self.group_interpolations.buttonToggled.connect(self.update_interpolation)
+        [hlayout.addWidget(radio_btn, alignment=Qt.AlignCenter) for radio_btn in radios_btn]
 
-        text = "This code is dedicated to images alignment.\n"
-        text += "The sources and the documentation are respectively accessible in:"
+        vlayout.addLayout(hlayout)
+
+        frame.setLayout(hlayout)
+        options_layout.addWidget(frame)
+
+        tab_options.setLayout(options_layout)
+
+    def init_ui_about(self, tab_about):
+
+        about_layout = QVBoxLayout(tab_about)
+
+        text = "This code is dedicated to images alignment.\n\n"
+
+        text += "The sources are accessible in:"
         website_src = r"https://github.com/CEA-MetroCarac/images_alignment"
         website_doc = r"https://cea-metrocarac.github.io/images_alignment/index.html"
-        message = Message(frame, text=text, width=470)
-        add(message, 0, 0, W, pady=0, cspan=3)
-        add(Button(frame, text=f"SRC : {website_src}", fg="blue",
-                   command=lambda: webbrowser.open_new(website_src)), 1, 0, pady=0, cspan=3)
-        add(Button(frame, text=f"DOC : {website_doc}", fg="blue",
-                   command=lambda: webbrowser.open_new(website_doc)), 2, 0, pady=0, cspan=3)
+        about_layout.addWidget(QLabel(text))
+        btn_src = QPushButton(f"{website_src}")
+        btn_src.clicked.connect(lambda: webbrowser.open_new(website_src))
+        about_layout.addWidget(btn_src, alignment=Qt.AlignCenter)
 
-        add(Label(frame, text="Shortcuts", font='bold'), 3, 0, cspan=3, pady=10)
+        text = "The documentation is accessible in:"
+        website_doc = r"https://cea-metrocarac.github.io/images_alignment/index.html"
+        about_layout.addWidget(QLabel(text))
+        btn_doc = QPushButton(f"{website_doc}")
+        btn_doc.clicked.connect(lambda: webbrowser.open_new(website_doc))
+        about_layout.addWidget(btn_doc, alignment=Qt.AlignCenter)
+
+        label = QLabel("\nShortcuts")
+        label.setStyleSheet("QLabel {font-weight: bold}")
+        about_layout.addWidget(label, alignment=Qt.AlignCenter)
 
         shortcuts = {
             "Change thumbnail": ("Scroll Up-Down", ""),
             "Add/Rem. Lines (*)": ("Left/Right Click and Drag", "Juxtaposed images"),
-            "Add/Rem. points (*)": ("Left/Right Click", "Fixed/Moving images"),
-            "ROI selection": ("click + (CTRL+ Left Click and Drag)", "Fixed/Moving image"),
-            "Zooming": ("click + (CTRL+Scroll Up-Down)", "ALL images"),
+            "Add/Rem. points (*)": ("Left/Right Click", "Fixed/Moving image"),
+            "ROI drawing": ("CTRL + Left Click and Drag", "Fixed/Moving image"),
+            "ROI deletion": ("CTRL + Right Click", "Fixed/Moving image"),
+            "Zooming": ("CTRL + Scroll Up-Down", "ALL images"),
         }
 
-        for k, (key, vals) in enumerate(shortcuts.items()):
-            add(Label(frame, text=f"{key} :"), 4 + k, 0, W, pady=0)
-            add(Label(frame, text=vals[0]), 4 + k, 1, W, pady=0)
-            add(Label(frame, text=vals[1]), 4 + k, 2, W, pady=0)
+        def draw_separator(k):
+            line = QFrame()
+            line.setFrameShape(QFrame.HLine)
+            line.setFrameShadow(QFrame.Sunken)
+            grid_layout.addWidget(line, k * 2, 0, 1, 3)
 
-        text = "(*) for 'User-Driven' registration mode only"
-        add(Label(frame, text=text), 4 + k + 1, 0, W, pady=10, cspan=3)
+        grid_layout = QGridLayout()
+        for k, (key, vals) in enumerate(shortcuts.items()):
+            draw_separator(k)
+            grid_layout.addWidget(QLabel(key), k * 2 + 1, 0)
+            grid_layout.addWidget(QLabel(vals[0]), k * 2 + 1, 1)
+            grid_layout.addWidget(QLabel(vals[1]), k * 2 + 1, 2)
+        draw_separator(k + 1)
+
+        about_layout.addLayout(grid_layout)
+
+        label = QLabel("(*) for 'User-Driven' registration mode only")
+        label.setStyleSheet("QLabel {font-style: italic}")
+        about_layout.addWidget(label, alignment=Qt.AlignLeft)
+
+        tab_about.setLayout(about_layout)
+
+    def init_ui_control(self):
+
+        widgets_list = []
+
+        self.check_binarized = QCheckBox("Binarized")
+        self.check_binarized.setChecked(False)
+        self.check_binarized.stateChanged.connect(lambda _: self.update_plots())
+        widgets_list.append([self.check_binarized])
+
+        label_resolution = QLabel("Resolution :")
+        self.slider_resolution = QSlider(Qt.Horizontal)
+        self.slider_resolution.setValue(0)
+        self.slider_resolution.valueChanged.connect(self.update_resolution)
+        widgets_list.append([label_resolution, self.slider_resolution])
+
+        label_juxtaposition = QLabel("Juxtaposition :")
+        self.group_juxtaposition = QButtonGroup()
+        radios_btn = []
+        for i, juxt_alignment in enumerate(["horizontal", "vertical"]):
+            radio_btn = QRadioButton(juxt_alignment)
+            radios_btn.append(radio_btn)
+            self.group_juxtaposition.addButton(radio_btn, i)
+        radios_btn[0].setChecked(True)
+        self.group_juxtaposition.buttonToggled.connect(self.update_juxt_alignment)
+        widgets_list.append([label_juxtaposition, *radios_btn])
+
+        label_apply_mask = QLabel("Combination :")
+        check_apply_mask = QCheckBox("Apply Mask")
+        check_apply_mask.setChecked(True)
+        check_apply_mask.stateChanged.connect(self.update_apply_mask)
+        widgets_list.append([label_apply_mask, check_apply_mask])
+
+        control_layout = QHBoxLayout()
+        for wigets in widgets_list:
+            frame = QFrame()
+            frame.setFrameShape(QFrame.Box)
+            frame.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+            hlayout = QHBoxLayout()
+            for widget in wigets:
+                hlayout.addWidget(widget)
+            frame.setLayout(hlayout)
+            control_layout.addWidget(frame)
+        self.visu_layout.addLayout(control_layout)
+
+
+class FilesSelector:
+
+    def __init__(self, parent):
+
+        self.parent = parent
+        self.fnames = []
+        self.list_widget = QListWidget()
+        self.layout = QVBoxLayout(self.parent)
+
+        hlayout = QHBoxLayout()
+        btn_select = QPushButton("Select Files")
+        btn_select.clicked.connect(self.select_files)
+        btn_remove = QPushButton("Remove")
+        btn_remove.clicked.connect(self.remove_selected)
+        btn_remove_all = QPushButton("Remove All")
+        btn_remove_all.clicked.connect(self.remove_all)
+        hlayout.addWidget(btn_select)
+        hlayout.addWidget(btn_remove)
+        hlayout.addWidget(btn_remove_all)
+        self.layout.addLayout(hlayout)
+        self.layout.addWidget(self.list_widget)
+
+    def select_files(self, fnames=None):
+        if not isinstance(fnames, list):
+            fnames, _ = QFileDialog.getOpenFileNames(self.parent, "Select Files")
+        if fnames is not None:
+            index = len(self.fnames)
+            for fname in fnames:
+                self.fnames.append(fname)
+                self.list_widget.addItem(Path(fname).name)
+            self.select_item(index)
+
+    def remove_selected(self):
+        selected_rows = [index.row() for index in self.list_widget.selectedIndexes()]
+        for row in reversed(selected_rows):
+            self.list_widget.takeItem(row)
+            self.fnames.pop(row)
+
+    def remove_all(self):
+        self.list_widget.clear()
+        self.fnames = []
+
+    def select_item(self, index):
+        item = self.list_widget.item(index)
+        if item:
+            item.setSelected(True)
+            self.list_widget.setCurrentItem(item)
+            self.list_widget.scrollToItem(item)
+
+
+class Terminal(QTextEdit):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setReadOnly(True)
+
+    def write(self, value):
+        self.append(value)
+
+
+if __name__ == '__main__':
+    import sys
+    from PySide6.QtWidgets import QApplication
+
+    fnames = ['dir_1/img_1.png', 'dir_1/img_2.png', 'dir_1/img_3.png',
+              'dir_2/img_1.png', 'dir_2/img_2.png']
+
+    qapp = QApplication(sys.argv)
+    window = QWidget()
+    fselector = FilesSelector(window)
+    fselector.select_files(fnames=fnames)
+    window.show()
+    sys.exit(qapp.exec())

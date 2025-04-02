@@ -1,7 +1,7 @@
-panel
 numpy
 imageio
 matplotlib
 pystackreg
 scikit-image
 scipy
+PySide6

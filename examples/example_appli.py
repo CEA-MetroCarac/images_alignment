@@ -1,8 +1,9 @@
 """
-Example via the Tkinter application
+Example via the PySide application
 """
+import sys
 from pathlib import Path
-from tkinter import Tk
+from PySide6.QtWidgets import QApplication
 
 from images_alignment.application.app import App
 from images_alignment import REG_MODELS
@@ -19,23 +20,23 @@ def example_appli(dirname, img_name, registration_model):
 
     fnames_fixed, fnames_moving = images_generation(input_dirname, img_name, nimg=2)
 
-    root = Tk()
-    app = App(root,
-              fnames_fixed=fnames_fixed,
+    qapp = QApplication(sys.argv)
+
+    app = App(fnames_fixed=fnames_fixed,
               fnames_moving=fnames_moving,
               rois=ROIS[img_name])
 
     app.model.registration_model = registration_model
+    app.view.update_params()
 
     if registration_model in REG_MODELS[:3]:
         app.model.registration()
+        app.view.update_plots()
 
     # apply the transformation to the set of images
     # app.view.apply_to_all(dirname_res=dirname / 'results')
 
-    app.view.update()
-
-    root.mainloop()
+    sys.exit(qapp.exec())
 
 
 if __name__ == '__main__':
