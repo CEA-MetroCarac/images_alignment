@@ -395,7 +395,7 @@ class ImagesAlign:
             if "SIFT" in self.registration_model:
                 msg += f" - nb_matches : {len(self.points[0])}"
             msg += ")"
-            self.terminal.write(msg + "\n")
+            self.terminal.write(msg)
 
             self.results[self.registration_model] = {'score': score,
                                                      'tmat': self.tmat}

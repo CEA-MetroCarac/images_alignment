@@ -47,7 +47,7 @@ class Terminal(Text):
 
     def write(self, value):
         """ Write 'value' in the related Tkinter.Text object """
-        self.insert(END, value)
+        self.insert(END, value + "\n")
         self.see(END)
         self.update_idletasks()
 
