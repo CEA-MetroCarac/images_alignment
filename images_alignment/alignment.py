@@ -302,10 +302,10 @@ class ImagesAlign:
             if len(self.points[0]) > 0:
                 self.points[0] = self.points[0] / rfacs[0]
                 self.points[1] = self.points[1] / rfacs[1]
-            if self.rois[0] is not None:
-                self.points[0][:, :] += self.rois[0][::2]
-            if self.rois[1] is not None:
-                self.points[1][:, :] += self.rois[1][::2]
+                if self.rois[0] is not None:
+                    self.points[0][:, :] += self.rois[0][::2]
+                if self.rois[1] is not None:
+                    self.points[1][:, :] += self.rois[1][::2]
 
         elif self.registration_model == 'User-Driven':
             if 0 < len(self.points[1]) == len(self.points[0]):
