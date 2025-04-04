@@ -478,9 +478,8 @@ class Callbacks:
         for k in range(2):
             ind = self.fselectors[k].list_widget.currentRow()
             fname = Path(self.fselectors[k].fnames[ind])
-            initialdir = fname.parent
-            initialfile = fname.stem + "_aligned" + fname.suffix
-            fnames_save.append(fd.getSaveFileName(self.window, "", initialdir / initialfile)[0])
+            fname_save = str(fname.parent / (fname.stem + "_aligned" + fname.suffix))
+            fnames_save.append(fd.getSaveFileName(self.window, "", fname_save)[0])
         self.model.save_images(fnames_save)
 
     def reload_params(self):
