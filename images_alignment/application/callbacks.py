@@ -499,12 +499,13 @@ class Callbacks:
             dirnames_res.append(Path(self.model.dirname_res[0]).parent)
         if Path(self.model.fnames[0]).parents[1] in dirnames_res:
             msg = 'You are about to re-align images located in the RESULT dir.'
-            if self.show_results.isChecked():
+            if self.check_show_results.isChecked():
                 msg += '\nTo go back to the raw data files, select "No" ' \
                        'and uncheck the "Show results" button.'
             msg += '\nContinue ?'
-            if not QMessageBox.question(None, "", msg, QMessageBox.Yes | QMessageBox.No,
-                                        QMessageBox.No):
+            reply = QMessageBox.question(None, "", msg,
+                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply != QMessageBox.Yes:
                 return
 
         self.model.apply_to_all(dirname_res=dirname_res)
@@ -517,7 +518,7 @@ class Callbacks:
         if self.model.dirname_res == [None, None]:
             return
 
-        if self.show_results.isChecked():
+        if self.check_show_results.isChecked():
             model = self.model
             for k in range(2):
                 self.model.rois = [None, None]

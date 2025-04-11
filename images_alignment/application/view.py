@@ -184,14 +184,14 @@ class View(Callbacks):
         check_fixed = QCheckBox('Fixed registration')
         check_fixed.stateChanged.connect(self.update_fixed_reg)
         btn_apply = QPushButton('APPLY TO ALL')
-        btn_apply.clicked.connect(self.apply_to_all)
+        btn_apply.clicked.connect(lambda _: self.apply_to_all())
         hlayout.addWidget(check_fixed)
         hlayout.addWidget(btn_apply)
         vlayout.addLayout(hlayout)
 
-        check_show_results = QCheckBox('Show results')
-        check_show_results.stateChanged.connect(self.plot_results)
-        vlayout.addWidget(check_show_results, alignment=Qt.AlignCenter)
+        self.check_show_results = QCheckBox('Show results')
+        self.check_show_results.stateChanged.connect(self.plot_results)
+        vlayout.addWidget(self.check_show_results, alignment=Qt.AlignCenter)
 
         frame.setLayout(vlayout)
         proc_layout.addWidget(frame)
@@ -459,6 +459,7 @@ class Terminal(QTextEdit):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setReadOnly(True)
+        self.setLineWrapMode(QTextEdit.NoWrap)
 
     def write(self, value):
         self.append(value)
