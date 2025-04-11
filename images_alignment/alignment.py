@@ -214,7 +214,7 @@ class ImagesAlign:
             img = iio.imread(fname)
             success = True
         except Exception as _:
-            self.terminal.write(f"Failed to load {fname}\n\n")
+            self.terminal.write(f"Failed to load {fname}\n")
             success = False
 
         if success:
@@ -444,7 +444,7 @@ class ImagesAlign:
         n0, n1 = len(self.fnames_tot[0]), len(self.fnames_tot[1])
         if not n0 in [1, n1]:
             msg = f"\nERROR: fixed images should be 1 or {n1} files.\n"
-            msg += f"{n0} has been given\n\n"
+            msg += f"{n0} has been given\n"
             self.terminal.write(msg)
             return
 
@@ -453,8 +453,6 @@ class ImagesAlign:
             self.terminal.write(msg)
             return
 
-        self.terminal.write("\n")
-
         self.set_dirname_res(dirname_res=dirname_res)
 
         fnames_fixed = self.fnames_tot[0]
@@ -462,7 +460,7 @@ class ImagesAlign:
         for i, fname_moving in enumerate(fnames_moving):
             fname_fixed = fnames_fixed[0] if n0 == 1 else fnames_fixed[i]
             names = [Path(fname_fixed).name, Path(fname_moving).name]
-            self.terminal.write(f"{i + 1}/{n1} {names[0]} - {names[1]}:\n")
+            self.terminal.write(f"\n{i + 1}/{n1} {names[0]} - {names[1]}:")
 
             try:
                 self.load_image(0, fname=fname_fixed)

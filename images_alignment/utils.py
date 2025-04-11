@@ -18,7 +18,7 @@ class Terminal:
 
     def write(self, message):
         """ Write message into the console """
-        sys.stdout.write(message)
+        sys.stdout.write(message + '\n')
         sys.stdout.flush()
 
 
