@@ -38,8 +38,10 @@ class App:
                                  bin_inversions=bin_inversions)
 
         self.view = View(self.model)
-        self.view.fselectors[0].select_files(fnames=fnames_fixed)
-        self.view.fselectors[1].select_files(fnames=fnames_moving)
+        if fnames_fixed:
+            self.view.fselectors[0].select_files(fnames=fnames_fixed)
+        if fnames_moving:
+            self.view.fselectors[1].select_files(fnames=fnames_moving)
         self.view.window.show()
 
 
@@ -47,10 +49,10 @@ def launcher(fname_json=None):
     """ Launch the appli """
 
     qapp = QApplication(sys.argv)
-    appli = App(qapp)
+    appli = App()
 
-    if fname_json is not None:
-        appli.reload(fname_json=fname_json)
+    if fname_json:
+        appli.model.reload_params(fname_json=fname_json, obj=appli.model)
 
     sys.exit(qapp.exec())
 
